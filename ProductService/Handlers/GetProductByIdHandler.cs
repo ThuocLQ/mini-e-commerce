@@ -1,21 +1,20 @@
 using MediatR;
 using ProductService.Models;
+using ProductService.Repositories;
 
 namespace ProductService.Handlers;
 
 public class GetProductByIdHandler : IRequestHandler<GetProductByIdQuery, Product?>
 {
-    private readonly ProductStore _store;
+    private readonly IProductRepository _productRepository;
     
-    public GetProductByIdHandler(ProductStore store)
+    public GetProductByIdHandler(IProductRepository productRepository)
     {
-        _store = store;
+        _productRepository = productRepository;
     }
      
-    public Task<Product?> Handle(GetProductByIdQuery request, CancellationToken cancellationToken)
+    public async Task<Product?> Handle(GetProductByIdQuery request, CancellationToken cancellationToken)
     {
-        var product = _store.Products.FirstOrDefault(p => p.Id == request.id);
-        
-        return Task.FromResult(product);
+        return await _productRepository.GetByIdAsync(request.id);
     }
 }

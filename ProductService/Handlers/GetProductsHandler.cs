@@ -1,19 +1,20 @@
 using MediatR;
 using ProductService.Models;
+using ProductService.Repositories;
 
 namespace ProductService.Handlers;
 
 public class GetProductsHandler : IRequestHandler<GetProductsQuery, List<Product>>
 {
-    private readonly ProductStore  _store;
+    private readonly IProductRepository _productRepository;
 
-    public GetProductsHandler(ProductStore store)
+    public GetProductsHandler(IProductRepository productRepository)
     {
-        _store = store;
+        _productRepository = productRepository;
     }
 
-    public Task<List<Product>> Handle(GetProductsQuery request, CancellationToken cancellationToken)
+    public async Task<List<Product>> Handle(GetProductsQuery request, CancellationToken cancellationToken)
     {
-        return Task.FromResult(_store.Products);
+        return await _productRepository.GetAllAsync();
     }
 }

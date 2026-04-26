@@ -1,3 +1,3 @@
 namespace ProductService.DTOs;
 
-public record UpdateProductRequest(string Name);
+public record UpdateProductRequest(string Name,  decimal Price);

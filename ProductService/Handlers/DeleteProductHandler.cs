@@ -1,27 +1,21 @@
 using MediatR;
 using ProductService.Commands;
 using ProductService.Models;
+using ProductService.Repositories;
 
 namespace ProductService.Handlers;
 
 public class DeleteProductHandler : IRequestHandler<DeleteProductCommand, bool>
 {
-    private readonly ProductStore _store;
+    private readonly IProductRepository _productRepository ;
     
-    public DeleteProductHandler(ProductStore store)
+    public DeleteProductHandler(IProductRepository productRepository)
     {
-        _store = store;
+      _productRepository = productRepository;
     }
     
-    public Task<bool> Handle(DeleteProductCommand request, CancellationToken cancellationToken)
+    public async Task<bool> Handle(DeleteProductCommand request, CancellationToken cancellationToken)
     {
-        var product = _store.Products.FirstOrDefault(p => p.Id == request.id);
-        
-        if (product is null)        
-            return Task.FromResult(false);
-        
-        _store.Products.Remove(product);
-        
-        return Task.FromResult(true);
+       return await _productRepository.DeleteAsync(request.id);
     }
 }

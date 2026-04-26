@@ -3,4 +3,4 @@ using ProductService.Models;
 
 namespace ProductService.Commands;
 
-public record CreateProductCommand(string Name) :  IRequest<Product>;
+public record CreateProductCommand(string name, decimal price) :  IRequest<Product>;

@@ -1,27 +1,21 @@
 using MediatR;
 using ProductService.Commands;
 using ProductService.Models;
+using ProductService.Repositories;
 
 namespace ProductService.Handlers;
 
 public class UpdateProductHandler : IRequestHandler<UpdateProductCommand, Product?>
 {
-    private readonly ProductStore _store;
+    private readonly IProductRepository _productRepository;
     
-    public UpdateProductHandler(ProductStore store)
+    public UpdateProductHandler(IProductRepository  productRepository )
     {
-        _store = store;
+        _productRepository = productRepository;
     }
     
-    public Task<Product?> Handle(UpdateProductCommand request, CancellationToken cancellationToken)
+    public async Task<Product?> Handle(UpdateProductCommand request, CancellationToken cancellationToken)
     {
-        var product = _store.Products.FirstOrDefault(p => p.Id == request.id);
-        
-        if (product is null)        
-            return Task.FromResult<Product?>(null);
-        
-        product.Name = request.name;
-        
-        return Task.FromResult<Product?>(product);
+        return await _productRepository.UpdateAsync(request.id, request.name,  request.price);
     }
 }

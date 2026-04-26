@@ -1,27 +1,21 @@
 using MediatR;
 using ProductService.Commands;
 using ProductService.Models;
+using ProductService.Repositories;
 
 namespace ProductService.Handlers;
 
 public class CreateProductHandler : IRequestHandler<CreateProductCommand, Product>
 {
-    private readonly ProductStore _store;
+    private readonly IProductRepository _productRepository;
     
-    public CreateProductHandler(ProductStore store)
+    public CreateProductHandler(IProductRepository productRepository)
     {
-        _store = store;
+        _productRepository = productRepository;
     }
-    
-    public Task<Product> Handle(CreateProductCommand request, CancellationToken cancellationToken)
+
+    public async Task<Product> Handle(CreateProductCommand request, CancellationToken cancellationToken)
     {
-        var product = new Product
-        {
-            Name = request.Name
-        };
-        
-        _store.Products.Add(product);
-        
-        return Task.FromResult(product);
+        return await _productRepository.CreateAsync(request.name, request.price);
     }
 }

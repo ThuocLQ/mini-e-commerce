@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "D:\\Books\\learn-all-asp-26\\Buoi1\\ProductService\\ProductService.csproj": {}
+    "D:\\Books\\mini-e-commerce\\ProductService\\ProductService.csproj": {}
   },
   "projects": {
-    "D:\\Books\\learn-all-asp-26\\Buoi1\\ProductService\\ProductService.csproj": {
+    "D:\\Books\\mini-e-commerce\\ProductService\\ProductService.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "D:\\Books\\learn-all-asp-26\\Buoi1\\ProductService\\ProductService.csproj",
+        "projectUniqueName": "D:\\Books\\mini-e-commerce\\ProductService\\ProductService.csproj",
         "projectName": "ProductService",
-        "projectPath": "D:\\Books\\learn-all-asp-26\\Buoi1\\ProductService\\ProductService.csproj",
+        "projectPath": "D:\\Books\\mini-e-commerce\\ProductService\\ProductService.csproj",
         "packagesPath": "C:\\Users\\AD\\.nuget\\packages\\",
-        "outputPath": "D:\\Books\\learn-all-asp-26\\Buoi1\\ProductService\\obj\\",
+        "outputPath": "D:\\Books\\mini-e-commerce\\ProductService\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\AD\\AppData\\Roaming\\NuGet\\NuGet.Config"
@@ -44,9 +44,17 @@
         "net10.0": {
           "targetAlias": "net10.0",
           "dependencies": {
+            "Dapper": {
+              "target": "Package",
+              "version": "[2.1.72, )"
+            },
             "MediatR": {
               "target": "Package",
               "version": "[14.1.0, )"
+            },
+            "Microsoft.Data.Sqlite": {
+              "target": "Package",
+              "version": "[11.0.0-preview.3.26207.106, )"
             }
           },
           "imports": [

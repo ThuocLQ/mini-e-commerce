@@ -1,3 +1,5 @@
+using MediatR;
+
 namespace ProductService.Queries;
 
-public record GetProductCountQuery();
+public record GetProductCountQuery() : IRequest<int>;
