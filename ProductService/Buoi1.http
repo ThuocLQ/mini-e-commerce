@@ -1,0 +1,28 @@
+@Buoi1_HostAddress = https://localhost:7079
+
+### Get all products
+GET {{host}}/products
+
+### Create product
+POST {{host}}/products
+Content-Type: application/json
+
+{
+  "name": "iPhone 15"
+}
+
+### Get product by id
+GET {{host}}/products/{{productId}}
+
+### Update product
+PUT {{host}}/products/{{productId}}
+Content-Type: application/json
+
+{
+  "name": "iPhone 15 Pro"
+}
+
+### Delete product
+DELETE {{host}}/products/{{productId}}
+
+###
