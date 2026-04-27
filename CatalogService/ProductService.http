@@ -1,4 +1,4 @@
-@Buoi1_HostAddress = https://localhost:7079
+@CatalogService_HostAddress = https://localhost:7079
 
 ### Get all products
 GET {{host}}/products

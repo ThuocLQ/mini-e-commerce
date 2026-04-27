@@ -1,3 +1,3 @@
 namespace BasketService.DTOs;
 
-public record UpdateBasketItemQuantityRequest();
+public record UpdateBasketItemQuantityRequest(int Quantity);
