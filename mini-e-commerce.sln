@@ -1,6 +1,6 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ProductService", "ProductService\ProductService.csproj", "{B79E4ECF-60AF-4296-B91D-CA055F4B0657}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CatalogService", "CatalogService\CatalogService.csproj", "{B79E4ECF-60AF-4296-B91D-CA055F4B0657}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
