@@ -1,19 +1,30 @@
+using BasketService.Clients;
 using BasketService.DTOs;
 using BasketService.Models;
 using StackExchange.Redis;
 using BasketService.Repositories;
+using Refit;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllers();
-
+//Redis
 var redisConnectionString = builder.Configuration.GetConnectionString("Redis")
                             ?? throw new InvalidOperationException("Connection string 'Redis' not found.");
-
-// Add Redis connection
 builder.Services.AddSingleton<IConnectionMultiplexer>(
     ConnectionMultiplexer.Connect(redisConnectionString));
+
+//Refit
+var catalogServiceUrl = builder.Configuration.GetSection("CatalogServiceUrl")
+                            ?? throw new InvalidOperationException("Configuration 'CatalogServiceUrl' not found.");
+builder.Services.AddRefitClient<ICatalogApi>()
+    .ConfigureHttpClient(c =>
+    {
+        c.BaseAddress = new Uri(catalogServiceUrl.ToString());
+        c.Timeout = TimeSpan.FromSeconds(5);
+    });
+
 
 // Add repositories
 builder.Services.AddScoped<IBasketRepository, RedisBasketRepository>();
@@ -32,29 +43,47 @@ app.MapGet("/basket/{userId}", async (string userId, IBasketRepository repositor
 });
 
 // Add item to basket
-app.MapPost("/basket/{userId}/items", async (string userId, AddBasketItemRequest request, IBasketRepository repository) =>
+app.MapPost("/basket/{userId}/items", async (
+    string userId, AddBasketItemRequest request, IBasketRepository repository, ICatalogApi catalogApi) =>
 {
-    //Validate
+    // Validate
     if (string.IsNullOrWhiteSpace(request.ProductId))
         return Results.BadRequest("ProductId is required.");
-
-    if (string.IsNullOrWhiteSpace(request.ProductName))
-        return Results.BadRequest("ProductName is required.");
-
+    
     if (request.Quantity <= 0)
         return Results.BadRequest("Quantity must be greater than 0.");
+    
+    // Call CatalogService to validate product and get details
+    var product = await catalogApi.GetProductByIdAsync(request.ProductId);
 
-    if (request.Price < 0)
+    if (product is null)
+        return Results.NotFound("Product not found.");
+
+    if (product.Price < 0)
         return Results.BadRequest("Price must be greater than or equal to 0.");
 
-    var basket = await repository.AddItemToBasketAsync(userId, new BasketItem
+    var basket = await repository.GetBasketAsync(userId);
+    
+    var existingItem = basket.Items.FirstOrDefault(x => x.ProductId == request.ProductId);
+    if (existingItem is null)
     {
-        ProductId = request.ProductId,
-        ProductName = request.ProductName,
-        Quantity = request.Quantity,
-        Price = request.Price
-    });
-
+        basket.Items.Add(new BasketItem
+        {
+            ProductId = request.ProductId,
+            ProductName = product.Name,
+            Quantity = request.Quantity,
+            Price = product.Price
+        });
+    }
+    else
+    {
+        existingItem.Quantity += request.Quantity;
+        existingItem.ProductName = product.Name;
+        existingItem.Price = product.Price;
+    }
+    
+    await repository.UpdateBasketAsync(basket);
+    
     return Results.Ok(basket);
 });
 

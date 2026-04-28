@@ -1,10 +1,12 @@
 {
   "version": 2,
-  "dgSpecHash": "nGqq79UIrgY=",
+  "dgSpecHash": "i1VD3PkVt0Q=",
   "success": true,
   "projectFilePath": "D:\\Books\\mini-e-commerce\\BasketService\\BasketService.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\AD\\.nuget\\packages\\pipelines.sockets.unofficial\\2.2.8\\pipelines.sockets.unofficial.2.2.8.nupkg.sha512",
+    "C:\\Users\\AD\\.nuget\\packages\\refit\\10.1.6\\refit.10.1.6.nupkg.sha512",
+    "C:\\Users\\AD\\.nuget\\packages\\refit.httpclientfactory\\10.1.6\\refit.httpclientfactory.10.1.6.nupkg.sha512",
     "C:\\Users\\AD\\.nuget\\packages\\stackexchange.redis\\2.12.14\\stackexchange.redis.2.12.14.nupkg.sha512",
     "C:\\Users\\AD\\.nuget\\packages\\system.io.hashing\\10.0.2\\system.io.hashing.10.0.2.nupkg.sha512"
   ],
