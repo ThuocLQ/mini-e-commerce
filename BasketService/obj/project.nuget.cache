@@ -1,14 +1,20 @@
 {
   "version": 2,
-  "dgSpecHash": "i1VD3PkVt0Q=",
+  "dgSpecHash": "IrrgC7WFgPs=",
   "success": true,
   "projectFilePath": "D:\\Books\\mini-e-commerce\\BasketService\\BasketService.csproj",
   "expectedPackageFiles": [
-    "C:\\Users\\AD\\.nuget\\packages\\pipelines.sockets.unofficial\\2.2.8\\pipelines.sockets.unofficial.2.2.8.nupkg.sha512",
-    "C:\\Users\\AD\\.nuget\\packages\\refit\\10.1.6\\refit.10.1.6.nupkg.sha512",
-    "C:\\Users\\AD\\.nuget\\packages\\refit.httpclientfactory\\10.1.6\\refit.httpclientfactory.10.1.6.nupkg.sha512",
-    "C:\\Users\\AD\\.nuget\\packages\\stackexchange.redis\\2.12.14\\stackexchange.redis.2.12.14.nupkg.sha512",
-    "C:\\Users\\AD\\.nuget\\packages\\system.io.hashing\\10.0.2\\system.io.hashing.10.0.2.nupkg.sha512"
+    "D:\\NuGetPackages\\google.protobuf\\3.34.1\\google.protobuf.3.34.1.nupkg.sha512",
+    "D:\\NuGetPackages\\grpc.core.api\\2.76.0\\grpc.core.api.2.76.0.nupkg.sha512",
+    "D:\\NuGetPackages\\grpc.net.client\\2.76.0\\grpc.net.client.2.76.0.nupkg.sha512",
+    "D:\\NuGetPackages\\grpc.net.clientfactory\\2.76.0\\grpc.net.clientfactory.2.76.0.nupkg.sha512",
+    "D:\\NuGetPackages\\grpc.net.common\\2.76.0\\grpc.net.common.2.76.0.nupkg.sha512",
+    "D:\\NuGetPackages\\grpc.tools\\2.80.0\\grpc.tools.2.80.0.nupkg.sha512",
+    "D:\\NuGetPackages\\pipelines.sockets.unofficial\\2.2.8\\pipelines.sockets.unofficial.2.2.8.nupkg.sha512",
+    "D:\\NuGetPackages\\refit\\10.1.6\\refit.10.1.6.nupkg.sha512",
+    "D:\\NuGetPackages\\refit.httpclientfactory\\10.1.6\\refit.httpclientfactory.10.1.6.nupkg.sha512",
+    "D:\\NuGetPackages\\stackexchange.redis\\2.12.14\\stackexchange.redis.2.12.14.nupkg.sha512",
+    "D:\\NuGetPackages\\system.io.hashing\\10.0.2\\system.io.hashing.10.0.2.nupkg.sha512"
   ],
   "logs": []
 }

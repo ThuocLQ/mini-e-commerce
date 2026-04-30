@@ -10,7 +10,7 @@
         "projectUniqueName": "D:\\Books\\mini-e-commerce\\CatalogService\\CatalogService.csproj",
         "projectName": "CatalogService",
         "projectPath": "D:\\Books\\mini-e-commerce\\CatalogService\\CatalogService.csproj",
-        "packagesPath": "C:\\Users\\AD\\.nuget\\packages\\",
+        "packagesPath": "D:\\NuGetPackages",
         "outputPath": "D:\\Books\\mini-e-commerce\\CatalogService\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
@@ -47,6 +47,10 @@
             "Dapper": {
               "target": "Package",
               "version": "[2.1.72, )"
+            },
+            "Grpc.AspNetCore": {
+              "target": "Package",
+              "version": "[2.76.0, )"
             },
             "MediatR": {
               "target": "Package",

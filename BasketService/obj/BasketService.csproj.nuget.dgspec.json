@@ -10,7 +10,7 @@
         "projectUniqueName": "D:\\Books\\mini-e-commerce\\BasketService\\BasketService.csproj",
         "projectName": "BasketService",
         "projectPath": "D:\\Books\\mini-e-commerce\\BasketService\\BasketService.csproj",
-        "packagesPath": "C:\\Users\\AD\\.nuget\\packages\\",
+        "packagesPath": "D:\\NuGetPackages",
         "outputPath": "D:\\Books\\mini-e-commerce\\BasketService\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
@@ -44,6 +44,20 @@
         "net10.0": {
           "targetAlias": "net10.0",
           "dependencies": {
+            "Google.Protobuf": {
+              "target": "Package",
+              "version": "[3.34.1, )"
+            },
+            "Grpc.Net.ClientFactory": {
+              "target": "Package",
+              "version": "[2.76.0, )"
+            },
+            "Grpc.Tools": {
+              "include": "Runtime, Build, Native, ContentFiles, Analyzers, BuildTransitive",
+              "suppressParent": "All",
+              "target": "Package",
+              "version": "[2.80.0, )"
+            },
             "Refit.HttpClientFactory": {
               "target": "Package",
               "version": "[10.1.6, )"

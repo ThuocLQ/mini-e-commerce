@@ -70,3 +70,10 @@ D:\Books\mini-e-commerce\CatalogService\obj\Debug\net10.0\refint\CatalogService.
 D:\Books\mini-e-commerce\CatalogService\obj\Debug\net10.0\CatalogService.pdb
 D:\Books\mini-e-commerce\CatalogService\obj\Debug\net10.0\CatalogService.genruntimeconfig.cache
 D:\Books\mini-e-commerce\CatalogService\obj\Debug\net10.0\ref\CatalogService.dll
+D:\Books\mini-e-commerce\CatalogService\bin\Debug\net10.0\Google.Protobuf.dll
+D:\Books\mini-e-commerce\CatalogService\bin\Debug\net10.0\Grpc.AspNetCore.Server.dll
+D:\Books\mini-e-commerce\CatalogService\bin\Debug\net10.0\Grpc.AspNetCore.Server.ClientFactory.dll
+D:\Books\mini-e-commerce\CatalogService\bin\Debug\net10.0\Grpc.Core.Api.dll
+D:\Books\mini-e-commerce\CatalogService\bin\Debug\net10.0\Grpc.Net.Client.dll
+D:\Books\mini-e-commerce\CatalogService\bin\Debug\net10.0\Grpc.Net.ClientFactory.dll
+D:\Books\mini-e-commerce\CatalogService\bin\Debug\net10.0\Grpc.Net.Common.dll

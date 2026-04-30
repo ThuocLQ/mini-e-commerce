@@ -3,6 +3,7 @@ using CatalogService;
 using CatalogService.Commands;
 using CatalogService.Data;
 using CatalogService.DTOs;
+using CatalogService.GrpcServices;
 using CatalogService.Queries;
 using CatalogService.Repositories;
 
@@ -15,8 +16,12 @@ builder.Services.AddControllers();
 builder.Services.AddSingleton<DatabaseInitializer>();
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
 
+// CQRS use MediatR DI
 builder.Services.AddMediatR(cfg =>
     cfg.RegisterServicesFromAssembly(typeof(Program).Assembly));
+
+// GRPC DI
+builder.Services.AddGrpc();
 
 var app = builder.Build();
 using (var scope = app.Services.CreateScope())
@@ -24,6 +29,9 @@ using (var scope = app.Services.CreateScope())
     var initializer = scope.ServiceProvider.GetRequiredService<DatabaseInitializer>();
     await initializer.InitializeAsync();
 }
+
+//GRPC map service
+app.MapGrpcService<CatalogGrpcService>();
 
 //Lay danh sach SP
 app.MapGet("/products", async (IMediator mediator) =>

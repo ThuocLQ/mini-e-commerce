@@ -40,3 +40,8 @@ D:\Books\mini-e-commerce\.verify-build\BasketService\BasketService.deps.json
 D:\Books\mini-e-commerce\.verify-build\BasketService\BasketService.runtimeconfig.json
 D:\Books\mini-e-commerce\.verify-build\BasketService\BasketService.dll
 D:\Books\mini-e-commerce\.verify-build\BasketService\BasketService.pdb
+D:\Books\mini-e-commerce\BasketService\bin\Debug\net10.0\Grpc.Core.Api.dll
+D:\Books\mini-e-commerce\BasketService\bin\Debug\net10.0\Grpc.Net.Client.dll
+D:\Books\mini-e-commerce\BasketService\bin\Debug\net10.0\Grpc.Net.ClientFactory.dll
+D:\Books\mini-e-commerce\BasketService\bin\Debug\net10.0\Grpc.Net.Common.dll
+D:\Books\mini-e-commerce\BasketService\bin\Debug\net10.0\Google.Protobuf.dll

@@ -9,8 +9,12 @@
 
     <ItemGroup>
       <PackageReference Include="Dapper" Version="2.1.72" />
+      <PackageReference Include="Grpc.AspNetCore" Version="2.76.0" />
       <PackageReference Include="MediatR" Version="14.1.0" />
       <PackageReference Include="Microsoft.Data.Sqlite" Version="11.0.0-preview.3.26207.106" />
+    </ItemGroup>
+    <ItemGroup>
+        <Protobuf Include="Protos\catalog.proto" GrpcServices="Server" />
     </ItemGroup>
 
 </Project>

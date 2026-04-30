@@ -8,8 +8,18 @@
     </PropertyGroup>
 
     <ItemGroup>
+      <PackageReference Include="Google.Protobuf" Version="3.34.1" />
+      <PackageReference Include="Grpc.Net.ClientFactory" Version="2.76.0" />
+      <PackageReference Include="Grpc.Tools" Version="2.80.0">
+        <PrivateAssets>all</PrivateAssets>
+        <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      </PackageReference>
       <PackageReference Include="Refit.HttpClientFactory" Version="10.1.6" />
       <PackageReference Include="StackExchange.Redis" Version="2.12.14" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <Protobuf Include="Protos\catalog.proto" GrpcServices="Client" />
     </ItemGroup>
 
 </Project>

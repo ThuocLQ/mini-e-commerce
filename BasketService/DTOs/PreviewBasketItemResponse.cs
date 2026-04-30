@@ -8,4 +8,5 @@ public class PreviewBasketItemResponse
     public int Quantity { get; set; }
     public decimal UnitPrice { get; set; }
     public decimal TotalPrice => UnitPrice * Quantity;
+    public string? Description { get; set; }
 }
