@@ -8,6 +8,7 @@
     ".NETCoreApp,Version=v10.0": {
       "BasketService/1.0.0": {
         "dependencies": {
+          "Refit.HttpClientFactory": "10.1.6",
           "StackExchange.Redis": "2.12.14"
         },
         "runtime": {
@@ -19,6 +20,25 @@
           "lib/net5.0/Pipelines.Sockets.Unofficial.dll": {
             "assemblyVersion": "1.0.0.0",
             "fileVersion": "2.2.8.1080"
+          }
+        }
+      },
+      "Refit/10.1.6": {
+        "runtime": {
+          "lib/net10.0/Refit.dll": {
+            "assemblyVersion": "10.1.0.0",
+            "fileVersion": "10.1.6.54201"
+          }
+        }
+      },
+      "Refit.HttpClientFactory/10.1.6": {
+        "dependencies": {
+          "Refit": "10.1.6"
+        },
+        "runtime": {
+          "lib/net10.0/Refit.HttpClientFactory.dll": {
+            "assemblyVersion": "10.1.0.0",
+            "fileVersion": "10.1.6.54201"
           }
         }
       },
@@ -56,6 +76,20 @@
       "sha512": "sha512-zG2FApP5zxSx6OcdJQLbZDk2AVlN2BNQD6MorwIfV6gVj0RRxWPEp2LXAxqDGZqeNV1Zp0BNPcNaey/GXmTdvQ==",
       "path": "pipelines.sockets.unofficial/2.2.8",
       "hashPath": "pipelines.sockets.unofficial.2.2.8.nupkg.sha512"
+    },
+    "Refit/10.1.6": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-j82mHFcXJpiJiaLqQgiikmLAu+oYKcIM8ZafipX2s2b2soOS0OGN+Oc+BXkhsG8x6j2M1J23Eac3068yOKLPFA==",
+      "path": "refit/10.1.6",
+      "hashPath": "refit.10.1.6.nupkg.sha512"
+    },
+    "Refit.HttpClientFactory/10.1.6": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-brVgMXHX2pp6pMji7tJijygbMwxccIy2vSsPurPmOZ7jSChBjYpiT9bBbJkBDc0hhnNyzvLkkbx0uiHhJuTTEQ==",
+      "path": "refit.httpclientfactory/10.1.6",
+      "hashPath": "refit.httpclientfactory.10.1.6.nupkg.sha512"
     },
     "StackExchange.Redis/2.12.14": {
       "type": "package",

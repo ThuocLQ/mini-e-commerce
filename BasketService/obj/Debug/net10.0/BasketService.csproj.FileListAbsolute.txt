@@ -31,3 +31,12 @@ D:\Books\mini-e-commerce\BasketService\obj\Debug\net10.0\BasketService.pdb
 D:\Books\mini-e-commerce\BasketService\obj\Debug\net10.0\BasketService.genruntimeconfig.cache
 D:\Books\mini-e-commerce\BasketService\bin\Debug\net10.0\BasketService.pdb
 D:\Books\mini-e-commerce\BasketService\obj\Debug\net10.0\ref\BasketService.dll
+D:\Books\mini-e-commerce\BasketService\bin\Debug\net10.0\Refit.dll
+D:\Books\mini-e-commerce\BasketService\bin\Debug\net10.0\Refit.HttpClientFactory.dll
+D:\Books\mini-e-commerce\.verify-build\BasketService\appsettings.Development.json
+D:\Books\mini-e-commerce\.verify-build\BasketService\appsettings.json
+D:\Books\mini-e-commerce\.verify-build\BasketService\BasketService.staticwebassets.endpoints.json
+D:\Books\mini-e-commerce\.verify-build\BasketService\BasketService.deps.json
+D:\Books\mini-e-commerce\.verify-build\BasketService\BasketService.runtimeconfig.json
+D:\Books\mini-e-commerce\.verify-build\BasketService\BasketService.dll
+D:\Books\mini-e-commerce\.verify-build\BasketService\BasketService.pdb

@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using BasketService.Clients;
 using BasketService.DTOs;
 using BasketService.Models;
@@ -16,12 +17,17 @@ builder.Services.AddSingleton<IConnectionMultiplexer>(
     ConnectionMultiplexer.Connect(redisConnectionString));
 
 //Refit
-var catalogServiceUrl = builder.Configuration.GetSection("CatalogServiceUrl")
-                            ?? throw new InvalidOperationException("Configuration 'CatalogServiceUrl' not found.");
+var catalogServiceUrl = builder.Configuration["ServiceUrls:CatalogService"];
+if (!Uri.TryCreate(catalogServiceUrl, UriKind.Absolute, out var catalogServiceUri))
+{
+    throw new InvalidOperationException(
+        "Configuration 'ServiceUrls:CatalogService' must be an absolute URL, for example 'https://localhost:7079'.");
+}
+
 builder.Services.AddRefitClient<ICatalogApi>()
     .ConfigureHttpClient(c =>
     {
-        c.BaseAddress = new Uri(catalogServiceUrl.ToString());
+        c.BaseAddress = catalogServiceUri;
         c.Timeout = TimeSpan.FromSeconds(5);
     });
 
@@ -44,7 +50,11 @@ app.MapGet("/basket/{userId}", async (string userId, IBasketRepository repositor
 
 // Add item to basket
 app.MapPost("/basket/{userId}/items", async (
-    string userId, AddBasketItemRequest request, IBasketRepository repository, ICatalogApi catalogApi) =>
+    string userId,
+    AddBasketItemRequest request,
+    IBasketRepository repository,
+    ICatalogApi catalogApi,
+    ILogger<Program> logger) =>
 {
     // Validate
     if (string.IsNullOrWhiteSpace(request.ProductId))
@@ -53,8 +63,16 @@ app.MapPost("/basket/{userId}/items", async (
     if (request.Quantity <= 0)
         return Results.BadRequest("Quantity must be greater than 0.");
     
-    // Call CatalogService to validate product and get details
-    var product = await catalogApi.GetProductByIdAsync(request.ProductId);
+    CatalogProductResponse? product;
+    try
+    {
+        // Call CatalogService to validate product and get details
+        product = await GetCatalogProductByIdAsync(catalogApi, request.ProductId, logger);
+    }
+    catch (ApiException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+    {
+        return Results.NotFound("Product not found.");
+    }
 
     if (product is null)
         return Results.NotFound("Product not found.");
@@ -152,6 +170,95 @@ app.MapDelete("/basket/{userId}", async (string userId, IBasketRepository reposi
     return Results.NoContent();
 });
 
+// Validate product endpoint
+app.MapGet("/basket/products/{productId}/validate", async (
+    string productId,
+    ICatalogApi catalogApi,
+    ILogger<Program> logger) =>
+{
+    if (string.IsNullOrWhiteSpace(productId))
+    {
+        return Results.BadRequest(new CatalogProductValidateErrors
+        {
+            Message = "ProductId is required."
+        });
+    }
+
+    try
+    {
+        var product = await GetCatalogProductByIdAsync(catalogApi, productId, logger);
+        if (product is null)
+        {
+            return Results.Ok(new CatalogProductValidateErrors
+            {
+                Message = "Product not found."
+            });
+        }
+
+        return Results.Ok(new CatalogProductValidateResponse()
+        {
+            ProductId = product.Id,
+            ProductName = product.Name,
+            Price = product.Price
+        });
+    }
+    catch (ApiException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+    {
+        return Results.Ok(new CatalogProductValidateErrors
+        {
+            Message = "Product not found."
+        });
+    }
+    catch (ApiException ex) when (ex.StatusCode == System.Net.HttpStatusCode.RequestTimeout)
+    {
+        return Results.Ok(new CatalogProductValidateErrors
+        {
+            Message = "CatalogService is unavailable. Please try again later."
+        });
+    }
+    catch (HttpRequestException)
+    {
+        return Results.Ok(new CatalogProductValidateErrors
+        {
+            Message = "CatalogService is unavailable. Please try again later."
+        });
+    }
+    catch (TaskCanceledException)
+    {
+        return Results.Ok(new CatalogProductValidateErrors
+        {
+            Message = "CatalogService is unavailable. Please try again later."
+        });
+    }
+});
+
+//Preview basket item
+app.MapPost("/basket/preview-item", async (
+    AddBasketItemRequest request,
+    IBasketRepository repository,
+    ICatalogApi catalogApi,
+    ILogger<Program> logger) =>
+{
+    if (string.IsNullOrWhiteSpace(request.ProductId))
+        return Results.BadRequest("ProductId is required.");
+    
+    if (request.Quantity <= 0)
+        return Results.BadRequest("Quantity must be greater than 0.");
+
+    var product = await GetCatalogProductByIdAsync(catalogApi, request.ProductId, logger);
+    
+    if (product is null)
+        return Results.NotFound();
+
+    return Results.Ok(new PreviewBasketItemResponse
+    {
+        ProductId = product.Id,
+        ProductName = product.Name,
+        Quantity = request.Quantity,
+        UnitPrice = product.Price
+    });
+});
+
 
 // Configure the HTTP request pipeline.
 
@@ -162,3 +269,24 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+static async Task<CatalogProductResponse?> GetCatalogProductByIdAsync(
+    ICatalogApi catalogApi,
+    string productId,
+    ILogger logger)
+{
+    var stopwatch = Stopwatch.StartNew();
+
+    try
+    {
+        return await catalogApi.GetProductByIdAsync(productId);
+    }
+    finally
+    {
+        stopwatch.Stop();
+        logger.LogInformation(
+            "CatalogService GetProductByIdAsync for product {ProductId} took {ElapsedMilliseconds} ms.",
+            productId,
+            stopwatch.ElapsedMilliseconds);
+    }
+}
