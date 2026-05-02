@@ -71,15 +71,28 @@ app.MapPost("/basket/{userId}/items", async (
     if (request.Quantity <= 0)
         return Results.BadRequest("Quantity must be greater than 0.");
     
+    var stopwatch = Stopwatch.StartNew();
+    
     CatalogProductResponse? product;
     try
     {
         // Call CatalogService to validate product and get details
         product = await catalogApi.GetProductByIdAsync(request.ProductId);
     }
-    catch (ApiException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+    catch (Exception ex)
     {
-        return Results.NotFound("Product not found.");
+        app.Logger.LogError(ex, "CatalogService REST is unavailable when adding product {ProductId} to basket",
+            request.ProductId);
+
+        return DownstreamUnavailable();
+    }
+    finally
+    {
+        stopwatch.Stop();
+        app.Logger.LogInformation(
+            "CatalogService REST GetProductByIdAsync for product {ProductId} took {ElapsedMilliseconds} ms.",
+            request.ProductId,
+            stopwatch.ElapsedMilliseconds);
     }
 
     if (product is null)
@@ -127,11 +140,32 @@ app.MapPost("/basket/{userId}/items-grpc", async (
     if (request.Quantity <= 0)
         return Results.BadRequest("Quantity must be greater than 0.");
     
-    // Call Catalog Service use gRPC to validate product and get details
-    var product = await catalogClient.GetProductByIdAsync(new GetProductByIdRequest
+    var stopwatch = Stopwatch.StartNew();
+    
+    ProductResponse? product;
+    try
     {
-        Id = request.ProductId
-    });
+        // Call Catalog Service use gRPC to validate product and get details
+        product = await catalogClient.GetProductByIdAsync(new GetProductByIdRequest
+        {
+            Id = request.ProductId
+        },deadline: DateTime.UtcNow.AddSeconds(5));
+    }
+    catch (Grpc.Core.RpcException ex)
+    {
+        app.Logger.LogError(ex, "CatalogService gRPC is unavailable when adding product {ProductId} to basket",
+            request.ProductId);
+
+        return DownstreamUnavailable();
+    }
+    finally
+    {
+        stopwatch.Stop();
+        app.Logger.LogInformation(
+            "CatalogService gRPC GetProductByIdAsync for product {ProductId} took {ElapsedMilliseconds} ms.",
+            request.ProductId,
+            stopwatch.ElapsedMilliseconds); 
+    }
     
     if (product.Found == false)
         return Results.NotFound("Product not found.");
@@ -270,24 +304,15 @@ app.MapGet("/basket/products/{productId}/validate", async (
     }
     catch (ApiException ex) when (ex.StatusCode == System.Net.HttpStatusCode.RequestTimeout)
     {
-        return Results.Ok(new CatalogProductValidateErrors
-        {
-            Message = "CatalogService is unavailable. Please try again later."
-        });
+        return DownstreamUnavailable();
     }
     catch (HttpRequestException)
     {
-        return Results.Ok(new CatalogProductValidateErrors
-        {
-            Message = "CatalogService is unavailable. Please try again later."
-        });
+        return DownstreamUnavailable();
     }
     catch (TaskCanceledException)
     {
-        return Results.Ok(new CatalogProductValidateErrors
-        {
-            Message = "CatalogService is unavailable. Please try again later."
-        });
+        return DownstreamUnavailable();
     }
 });
 
@@ -310,14 +335,11 @@ app.MapGet("/basket/products/{productId}/validate-grpc", async (
         product = await catalogClient.GetProductByIdAsync(new GetProductByIdRequest
         {
             Id = productId
-        });
+        }, deadline: DateTime.UtcNow.AddSeconds(5));
     }
     catch (RpcException ex) when (ex.StatusCode == StatusCode.Unavailable || ex.StatusCode == StatusCode.DeadlineExceeded)
     {
-        return Results.Ok(new CatalogProductValidateErrors
-        {
-            Message = "CatalogService gRPC is unavailable. Please try again later."
-        });
+        return DownstreamUnavailable();
     }
 
     if (product.Found == false)
@@ -377,7 +399,7 @@ app.MapPost("/basket/preview-item-grpc", async (
     var product = await catalogClient.GetProductByIdAsync(new GetProductByIdRequest
     {
         Id = request.ProductId
-    });
+    }, deadline: DateTime.UtcNow.AddSeconds(5));
 
     if (product.Found == false)
         return Results.NotFound();
@@ -394,7 +416,7 @@ app.MapPost("/basket/preview-item-grpc", async (
 
 
 // Compare REST vs gRPC call duration
-app.MapGet("/basket/products/{productId}/compare-rest-grpc", async (
+app.MapGet("/basket/products/{productId}/compare-communication", async (
     string productId,
     ICatalogApi catalogApi,
     CatalogGrpc.CatalogGrpcClient catalogClient,
@@ -403,61 +425,33 @@ app.MapGet("/basket/products/{productId}/compare-rest-grpc", async (
     if (string.IsNullOrWhiteSpace(productId))
         return Results.BadRequest("ProductId is required.");
 
-    CatalogProductResponse? restProduct;
-    ProductResponse grpcProduct;
+    var rest = await MeasureCatalogCallAsync(
+        "REST GetProductByIdAsync",
+        productId,
+        async () => await catalogApi.GetProductByIdAsync(productId),
+        logger);
 
-    try
-    {
-        restProduct = await MeasureCatalogCallAsync(
-            "REST GetProductByIdAsync",
-            productId,
-            () => catalogApi.GetProductByIdAsync(productId),
-            logger);
-    }
-    catch (ApiException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
-    {
-        return Results.NotFound("Product not found.");
-    }
-
-    try
-    {
-        grpcProduct = await MeasureCatalogCallAsync(
-            "gRPC GetProductByIdAsync",
-            productId,
-            async () => await catalogClient.GetProductByIdAsync(new GetProductByIdRequest
-            {
-                Id = productId
-            }),
-            logger);
-    }
-    catch (RpcException ex) when (ex.StatusCode == StatusCode.Unavailable || ex.StatusCode == StatusCode.DeadlineExceeded)
-    {
-        return Results.Ok(new
+    var grpc = await MeasureCatalogCallAsync(
+        "gRPC GetProductByIdAsync",
+        productId,
+        async () => await catalogClient.GetProductByIdAsync(new GetProductByIdRequest
         {
-            ProductId = productId,
-            RestFound = restProduct is not null,
-            GrpcFound = false,
-            Message = "CatalogService gRPC is unavailable. Please try again later."
-        });
-    }
-
-    if (restProduct is null || !grpcProduct.Found)
-        return Results.NotFound("Product not found.");
+            Id = productId
+        }, deadline: DateTime.UtcNow.AddSeconds(5)),
+        logger);
 
     return Results.Ok(new
     {
         ProductId = productId,
         Rest = new
         {
-            restProduct.Id,
-            restProduct.Name,
-            restProduct.Price
+            rest.Success,
+            rest.ElapsedMs
         },
         Grpc = new
         {
-            grpcProduct.Id,
-            grpcProduct.Name,
-            Price = (decimal)grpcProduct.Price
+            grpc.Success,
+            grpc.ElapsedMs
         }
     });
 });
@@ -472,7 +466,18 @@ app.MapControllers();
 
 app.Run();
 
-static async Task<T> MeasureCatalogCallAsync<T>(
+static IResult DownstreamUnavailable()
+{
+    return Results.Json(
+        new
+        {
+            ErrorCode = "DOWNSTREAM_UNAVAILABLE",
+            Message = "CatalogService is unavailable. Please try again later."
+        },
+        statusCode: StatusCodes.Status503ServiceUnavailable);
+}
+
+static async Task<CatalogCallMeasurement<T>> MeasureCatalogCallAsync<T>(
     string operationName,
     string productId,
     Func<Task<T>> operation,
@@ -482,15 +487,30 @@ static async Task<T> MeasureCatalogCallAsync<T>(
 
     try
     {
-        return await operation();
-    }
-    finally
-    {
+        var result = await operation();
         stopwatch.Stop();
+
         logger.LogInformation(
-            "CatalogService {OperationName} for product {ProductId} took {ElapsedMilliseconds} ms.",
+            "CatalogService {OperationName} for product {ProductId} succeeded in {ElapsedMilliseconds} ms.",
             operationName,
             productId,
             stopwatch.ElapsedMilliseconds);
+
+        return new CatalogCallMeasurement<T>(result, true, stopwatch.ElapsedMilliseconds);
+    }
+    catch (Exception ex)
+    {
+        stopwatch.Stop();
+
+        logger.LogInformation(
+            ex,
+            "CatalogService {OperationName} for product {ProductId} failed after {ElapsedMilliseconds} ms.",
+            operationName,
+            productId,
+            stopwatch.ElapsedMilliseconds);
+
+        return new CatalogCallMeasurement<T>(default, false, stopwatch.ElapsedMilliseconds);
     }
 }
+
+record CatalogCallMeasurement<T>(T? Result, bool Success, long ElapsedMs);

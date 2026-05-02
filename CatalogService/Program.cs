@@ -42,7 +42,7 @@ app.MapGet("/products", async (IMediator mediator) =>
 
 //Lay 1 san pham
 app.MapGet("/products/{id}", async (string id, IMediator mediator) =>
-{
+{ 
    var product = await mediator.Send(new GetProductByIdQuery(id));
    
    if (product is null)
