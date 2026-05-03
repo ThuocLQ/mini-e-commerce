@@ -1,0 +1,94 @@
+A.
+1. B 
+2. C
+3. C 
+4. B 
+5. C 
+6. C 
+7. B 
+8. C 
+9. D 
+10. B 
+11. C 
+12. B 
+13. C 
+14. D
+15. C 
+16. D 
+17. C 
+18. C 
+19. D 
+20. B 
+
+B. Trắc nghiệm đọc code
+1. A 
+2. A 
+3. A 
+4. A 
+5. A
+6. A 
+7. A 
+8. A 
+9. A 
+10. A 
+
+C.
+### Câu 1
+
+Flow chuẩn sau Buổi 2 của CatalogService là gì? Hãy viết dạng mũi tên.
+
+--- End point -> Send MediatR -> Handler -> IProductRepository`-> ProductRepository -> SQLlite
+
+### Câu 2
+
+Vì sao Handler nên phụ thuộc `IProductRepository` thay vì phụ thuộc trực tiếp `ProductRepository` hoặc database?
+
+--- Handler nên phụ thuộc `IProductRepository` vì nếu sau này có thay đổi gì về logic business hay database cũng không phải sửa lại Handler
+
+### Câu 3
+
+Vì sao BasketService dùng Redis còn CatalogService dùng database?
+
+--- BasketService: Chỉ cần dữ liệu tạm thời, thay đổi linh hoạt, tốc độ đọc ghi nhanh để tối ưu trải nghiệm người dùng cũng như giúp hệ thống ổn định
+CatalogService: lưu trữ dữ liệu của sản phẩm một cách bền vững, ít thay đổi, ổn định nên database phù hợp
+
+### Câu 4
+
+Vì sao service khác không nên đọc trực tiếp database của CatalogService?
+
+--- Vì nếu đọc như vậy là vi phạm nguyên tắc service Boundary. 
+
+### Câu 5
+
+Synchronous communication là gì?
+
+--- Là việc các service trong hệ thống giao tiếp với nhau đồng bộ qua network, service A phụ thuộc vào service B
+
+### Câu 6
+
+Runtime coupling là gì?
+
+--- Là sự phụ thuộc giữa các thành phần khi hệ thống đang chạy. Ví dụ A call B và phải đợi B phản hồi lại, nếu B bị timeout, down, chậm thì A cũng bị ảnh hưởng
+
+### Câu 7
+
+Nếu CatalogService down, BasketService nên trả lỗi kiểu gì cho client?
+
+--- CatalogService down thì BasketService nên trả lỗi CatalogService không có sẵn dịch vụ theo chuẩn handle chung cho client và có message thân thiện với user
+
+### Câu 8
+
+Timeout khác retry ở điểm nào?
+
+--- Timeout quy định thời gian mà service phải phản hồi lại cho client. Retry thì cho phép client call lại server để lấy response
+
+### Câu 9
+
+Vì sao public API thường dùng REST hơn gRPC?
+
+--- Vì nó dễ triển khai, độ tương thích cao, dễ debug qua PostMan và swaggercos, có document OpenAPI/Swagger dễ hiểu
+
+### Câu 10
+
+Vì sao internal API có thể dùng gRPC?
+--- Vì nó có contract chặt chẽ, type safety, dùng protobuf nên tốc độ truyển tải nhanh giữa các service với nhau, giảm độ trễ latency của hệ thống
