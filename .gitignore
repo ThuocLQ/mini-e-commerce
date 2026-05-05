@@ -1,0 +1,29 @@
+# Build outputs
+bin/
+obj/
+artifacts/
+
+# .NET generated files
+TestResults/
+*.user
+*.rsuser
+*.suo
+*.userosscache
+*.sln.docstates
+*.nupkg
+*.snupkg
+
+# IDE/editor local files
+.vs/
+.idea/
+*.sln.DotSettings.user
+
+# Local tool/cache folders
+.dotnet/
+.verify-build/
+
+# OS files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
