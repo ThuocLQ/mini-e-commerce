@@ -1,0 +1,35 @@
+Bài 3:
+1. Gateway trả lỗi gì? 
+- 502 Bad Gateway
+2. Vì sao lỗi này xảy ra?
+- Vì Gateway không call được sang CatalogService 
+3. Khác gì với 404 Product not found?
+- 404 Product not found là request call CatalogService, nhưng không call dc, còn 502 Bad Gateway là request vẫn call được Gateway nhưng Gateway k call được CatalogService
+4. Nếu là production, cần log gì?
+- Cần log đúng tên service bị down or sai path,... còn phía user phải trả lỗi thân thiện kiểu: Dịch vụ hiện không có sẵn, xin chờ giây lát!
+
+Bài 4:
+
+Trả lời:
+
+1. API Gateway là gì?
+- Là entry point đứng giữa request từ client và các service cụ thể phía sau, là cổng đi vào đầu tiên của mọi request, có chức năng phân phối(route) request đi vào đúng service bà đúng địa chỉ IP (cluster)
+- Xử lý tập trung các chức năng như: authen, author, limit rating, load balancing, ...
+2. Reverse Proxy là gì?
+- Là server đứng trước các server và chuyển request vào service phía sau
+3. YARP route là gì?
+- Là 1 Reverse Proxy tool .NET giúp điều hướng các request đi vào các service phía sau
+4. YARP cluster là gì?
+5. `PathRemovePrefix` dùng để làm gì?
+- DÙng để bỏ phần path thừa của reverse proxy, giúp request đi vào đúng service
+6. Vì sao client không nên gọi trực tiếp từng service khi hệ thống lớn dần?
+- Khi hệ thống lớn dần sẽ có nhiều service, mỗi service có nhiền instance, làm cho hệ thống ngày càng phức tạp và khó kiểm soát các địa chỉ service, hoặc khi mỗi service được thay IP.port mới lại phải đi sửa lại các chỗ gọi nó, rất mất thời gian và công sức.
+
+7. Gateway nên xử lý những việc gì?
+- có chức năng phân phối(route) request đi vào đúng service bà đúng địa chỉ IP (cluster)
+- Xử lý tập trung các chức năng như: authen, author, limit rating, load balancing, ...
+8. Gateway không nên xử lý những việc gì?
+- Không ôm đồm các phần xử lý logic business, hoặc các phần xử lý của các service riêng
+9. 502 khác 404 như thế nào? 404 request từ client vào trực tiếp service, service k tìm thấy endpoint đang chạy,  502 request call vào gateway-> service và không thấy endpoint
+10. Gateway có làm mất runtime coupling giữa service-to-service không?
+- Gateway không làm mất runtime coupling giữa service-to-service vì nó vẫn là cách sync service-to-service
