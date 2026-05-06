@@ -1,0 +1,37 @@
+Bài 1:
+Giải thích vì sao container port vẫn là 6379 nhưng host port là 6380:
+- Vì máy host bị chiếm port 6379 rồi nên phải chuyển sang 6380, port 6379 trong container không anh hưởng gì
+
+Bài 3:
+1. Vì sao dùng Docker Compose?
+- Vì nó giúp chúng ta quản lý và chạy các service một cách tập trung vô cùng dễ dàng trên môi trường docker engine
+2. Buổi này Compose chạy những service nào?
+- Redis và RabbitMQ
+3. Vì sao .NET services vẫn chạy bằng Rider?
+- Để thuận tiện cho debug
+4. localhost khác service name thế nào?
+- không quan tâm đến IP của service, sau này chạy ở các môi trường khác nhau k cần đổi lại
+5. Sau này Compose sẽ thêm những service nào?
+- Các service domain + các service của infrastructure như mongoDB, kafka,...
+
+Bài4:
+1. Docker Compose dùng để làm gì?
+- Quản lý, cấu hình, vận hành các service tập trung trong môi trường docker engine với image, container
+2. Vì sao Buổi 8 chỉ chạy infra bằng Compose, chưa containerize toàn bộ .NET services?
+- Vì cần debug
+3. ports khác networks ở đâu?
+- Port để mỗi service có thể chạy độc lập nhau, còn networks để các service đó có thể giao tiếp với nhau qua các container
+4. volume dùng để làm gì?
+- Lưu trữ data vật lý cho service
+5. Khi app chạy trong Rider thì gọi Redis bằng gì? 
+- bằng port máy host
+6. Khi app chạy trong Docker container thì gọi Redis bằng gì?
+- bằng port container qua networks
+7. RabbitMQ management UI dùng port nào?
+- 15672
+8. docker compose down -v nguy hiểm ở điểm nào?
+- Nó xóa hết data lưu ở máy vật lý
+9. Vì sao Compose hữu ích trước khi học Kubernetes?
+- Vì nó đơn giản và dễ triển khai để học tư duy về cách quản lý vận hành các service trong môi trường ảo hóa container
+10. Compose có thay thế Kubernetes production không?
+- không thay thế mà chỉ giúp phù hợp với những case đơn giản như hiện tại

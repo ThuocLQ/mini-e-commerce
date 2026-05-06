@@ -1,0 +1,43 @@
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: microshop-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - microshop-network
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: microshop-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - microshop-network
+
+  mongodb:
+    image: mongo:7
+    container_name: microshop-mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - microshop-network
+
+volumes:
+  redis_data:
+  rabbitmq_data:
+  mongodb_data:
+
+networks:
+  microshop-network:
+    driver: bridge
