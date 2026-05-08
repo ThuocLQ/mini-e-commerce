@@ -1,0 +1,20 @@
+Bài 1:
+
+1. AppHost dùng để làm gì?
+Dùng để quản lý và vận hành các service trên môi trường local cho dev nhằm phục vụ mục đích debug một cách dễ dàng với Logs, metrics, console, health,...
+2. AppHost khác docker-compose.yml ở đâu?
+Khác ở chỗ nó chạy được các service và quản lý được các service một cách tập trung với nhiều chức năng về đo lường, theo dõi, debug,...
+3. Vì sao AppHost giúp local development dễ hơn khi có nhiều service?
+Vì nó tập hợp các service có trong project .Net và chạy để theo dõi 1 nơi, với các công cụ theo dõi, giám sát service, logs, request,...
+4. AppHost có phải production runtime không?
+Không phải, nó chỉ giúp cho môi trường dev local đơn giản hơn docker-compose mà thôi
+
+Bài 2:
+1. ServiceDefaults dùng để làm gì?
+- Cung cấp các service APO dùng chung cho tất cả các service trong project .NET chỉ cần reference
+2. Vì sao không nên copy/paste health/telemetry/discovery config ở từng service?
+- Việc copy dễ gây ra những sai sót không đáng có, gây sai lệnh giữa các service làm cho quá trình debug và unit test ở local bị ảnh hưởng
+3. AddServiceDefaults() có vai trò gì?
+- Đăng ký các APO dùng chung cho service
+4. MapDefaultEndpoints() có vai trò gì?
+- Map các endpoint của các service APO đó và từng service, phục vụ cho dashboard aspire 
