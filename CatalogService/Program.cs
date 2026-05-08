@@ -10,6 +10,7 @@ using CatalogService.Repositories;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
+builder.AddServiceDefaults();//aspire service defaults: service discovery, resilience, health checks, and OpenTelemetry.
 
 builder.Services.AddControllers();
 
@@ -24,6 +25,8 @@ builder.Services.AddMediatR(cfg =>
 builder.Services.AddGrpc();
 
 var app = builder.Build();
+app.MapDefaultEndpoints();//aspire service default endpoints
+
 using (var scope = app.Services.CreateScope())
 {
     var initializer = scope.ServiceProvider.GetRequiredService<DatabaseInitializer>();

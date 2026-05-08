@@ -11,7 +11,10 @@ using Refit;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
+builder.AddServiceDefaults();//aspire service defaults: service discovery, resilience, health checks, and OpenTelemetry.
+
 builder.Services.AddControllers();
+
 //Redis
 var redisConnectionString = builder.Configuration.GetConnectionString("Redis")
                             ?? throw new InvalidOperationException("Connection string 'Redis' not found.");
@@ -48,6 +51,8 @@ builder.Services.AddScoped<IBasketRepository, RedisBasketRepository>();
 builder.Services.AddAuthorization();
 
 var app = builder.Build();
+
+app.MapDefaultEndpoints();//aspire service default endpoints
 
 //Endpoint
 //Get baskets

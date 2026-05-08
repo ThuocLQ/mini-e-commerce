@@ -1,7 +1,7 @@
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-
+builder.AddServiceDefaults();//aspire service defaults: service discovery, resilience, health checks, and OpenTelemetry.
 builder.Services.AddControllers();
 
 //ReverseProxy
@@ -10,6 +10,7 @@ builder.Services
     .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy")); // get route/cluster 
 
 var app = builder.Build();
+app.MapDefaultEndpoints();//aspire service default endpoints
 
 app.MapGet("/", () => Results.Ok(new
 {

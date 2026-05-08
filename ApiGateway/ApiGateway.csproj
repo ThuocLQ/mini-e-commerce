@@ -10,4 +10,8 @@
       <PackageReference Include="Yarp.ReverseProxy" Version="2.3.0" />
     </ItemGroup>
 
+    <ItemGroup>
+      <ProjectReference Include="..\MicroShop.ServiceDefaults\MicroShop.ServiceDefaults.csproj" />
+    </ItemGroup>
+
 </Project>

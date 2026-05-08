@@ -22,4 +22,8 @@
         <Protobuf Include="Protos\catalog.proto" GrpcServices="Client" />
     </ItemGroup>
 
+    <ItemGroup>
+      <ProjectReference Include="..\MicroShop.ServiceDefaults\MicroShop.ServiceDefaults.csproj" />
+    </ItemGroup>
+
 </Project>
