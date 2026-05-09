@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using BasketService;
 using BasketService.Clients;
 using BasketService.DTOs;
 using BasketService.Models;
@@ -11,37 +12,55 @@ using Refit;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-builder.AddServiceDefaults();//aspire service defaults: service discovery, resilience, health checks, and OpenTelemetry.
+builder.AddServiceDefaults();//Aspire service defaults: service discovery, resilience, health checks, and OpenTelemetry.
 
 builder.Services.AddControllers();
 
 //Redis
-var redisConnectionString = builder.Configuration.GetConnectionString("Redis")
-                            ?? throw new InvalidOperationException("Connection string 'Redis' not found.");
-builder.Services.AddSingleton<IConnectionMultiplexer>(
-    ConnectionMultiplexer.Connect(redisConnectionString));
+builder.Services.Configure<RedisOptions>(
+    builder.Configuration.GetSection(RedisOptions.SectionName));
 
-//Refit
-var catalogServiceUrl = builder.Configuration["ServiceUrls:CatalogService"];
-if (!Uri.TryCreate(catalogServiceUrl, UriKind.Absolute, out var catalogServiceUri))
+var redisOptions = builder.Configuration
+    .GetSection(RedisOptions.SectionName)
+    .Get<RedisOptions>();
+
+if (redisOptions is null || string.IsNullOrWhiteSpace(redisOptions.ConnectionString))
 {
-    throw new InvalidOperationException(
-        "Configuration 'ServiceUrls:CatalogService' must be an absolute URL, for example 'https://localhost:7079'.");
+    throw new InvalidOperationException("Redis connection string is missing.");
 }
 
+builder.Services.AddSingleton<IConnectionMultiplexer>(_ =>
+    ConnectionMultiplexer.Connect(redisOptions.ConnectionString));
+
+//ServiceUrls
+builder.Services.Configure<ServiceUrlsOptions>(
+    builder.Configuration.GetSection(ServiceUrlsOptions.SectionName));
+
+var serviceUrls = builder.Configuration
+    .GetSection(ServiceUrlsOptions.SectionName)
+    .Get<ServiceUrlsOptions>();
+
+//Refit
+if (serviceUrls is null || string.IsNullOrWhiteSpace(serviceUrls.CatalogHttp))
+{
+    throw new InvalidOperationException("Catalog HTTP URL is missing.");
+}
 builder.Services.AddRefitClient<ICatalogApi>()
-    .ConfigureHttpClient(c =>
+    .ConfigureHttpClient(client =>
     {
-        c.BaseAddress = catalogServiceUri;
-        c.Timeout = TimeSpan.FromSeconds(5);
+        client.BaseAddress = new Uri(serviceUrls.CatalogHttp);
+        client.Timeout = TimeSpan.FromSeconds(5);
     });
 
 //gRPC Client
-var catalogGrpcUrl = builder.Configuration["ServiceUrls:CatalogGrpcService"]
-    ??  throw new InvalidOperationException("Configuration 'ServiceUrls:CatalogGrpcService' not found.");
+if (string.IsNullOrWhiteSpace(serviceUrls.CatalogGrpc))
+{
+    throw new InvalidOperationException("Catalog gRPC URL is missing.");
+}
+
 builder.Services.AddGrpcClient<CatalogGrpc.CatalogGrpcClient>(options =>
 {
-    options.Address = new Uri(catalogGrpcUrl);
+    options.Address = new Uri(serviceUrls.CatalogGrpc);
 });
 
 // Add repositories

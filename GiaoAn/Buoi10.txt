@@ -1,0 +1,46 @@
+### Bài 3: User Secrets concept
+1 User Secrets dùng để làm gì
+Dùng để quản lý các khóa bí mật ở môi trường dev local.
+Không dùng cho production.
+Không commit lên git.
+Gồm: JWT secrets, API key, connectionstrings, 
+
+2 User Secrets có dùng cho production không?
+Không dùng cho production, vì secrets của production được quản lý riêng biệt ở môi trường production
+3 Kể 3 loại secret không nên commit vào Git
+JWT secrets, API key, connectionstrings, 
+
+---
+
+### Bài 4: Config flow explanation
+
+1. Vì sao không nên hardcode connection string trong code?
+- Việc hardcode gây khó cho quá trình triển khai, vận hành, debug,.. giữa các môi trường khác nhau, team, dev khác nhau, giai đoạn khác nhau,...
+- Hardcode rải rác nhiều chỗ làm mất sự nhất quán và tính tập trung, dễ bị sửa sai, thiếu,... đặc biệt là lộ các thông tin nhạy cảm
+
+2. appsettings.json khác appsettings.Development.json ở đâu?
+- appsettings.json dùng cho môi trường production, appsettings.Development.json chỉ chạy ở môi trường dev local
+
+3. Environment variables override config như thế nào?
+- Ghi đè theo quy tắc phân cấp, cái nào xuất hiện sau thi được ưu tiên,...
+
+4. Vì sao dùng `__` trong environment variables?
+- Để đại diện cho sự phân cấp trogn json, key và value
+
+5. Khi app chạy bằng Rider thì Redis config nên là gì?
+- dùng url cụ thể như localhost
+
+6. Khi app chạy trong Docker container thì Redis config nên là gì?
+- dùng service name
+
+7. User Secrets dùng để làm gì?
+- Quản lý các thông tin nhạy cảm của hệ thống ở môi trường dev local
+
+8. User Secrets có phải production secret store không?
+- Không phải, production được quản lý riêng biệt
+
+9. Vì sao nên dùng options class thay vì đọc string rải rác?
+-  dùng options class giúp cho các config được tập trung 1 nơi để chỉnh sửa nếu có, có thể tái sự dụng nhiều chỗ mà k sợ để sai tên,,,
+
+10. Production sau này có thể dùng gì để quản lý secrets?
+- Có thể dùng các công cụ có sẵn của các nền tảng deloy, CI.CD như azure, k8s, hoặc dùng environment var của hệ điều hành
