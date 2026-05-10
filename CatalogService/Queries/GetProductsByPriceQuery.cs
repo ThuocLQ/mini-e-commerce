@@ -3,4 +3,4 @@ using MediatR;
 
 namespace CatalogService.Queries;
 
-public record GetProductsByPriceQuery(decimal min, decimal max) : IRequest<List<Product?>>;
+public record GetProductsByPriceQuery(decimal Min, decimal Max) : IRequest<List<Product>>;

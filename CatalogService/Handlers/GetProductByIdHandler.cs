@@ -1,5 +1,5 @@
+using CatalogService.Application.Abstractions;
 using CatalogService.Models;
-using CatalogService.Repositories;
 using MediatR;
 
 namespace CatalogService.Handlers;
@@ -15,6 +15,6 @@ public class GetProductByIdHandler : IRequestHandler<GetProductByIdQuery, Produc
      
     public async Task<Product?> Handle(GetProductByIdQuery request, CancellationToken cancellationToken)
     {
-        return await _productRepository.GetByIdAsync(request.id);
+        return await _productRepository.GetByIdAsync(request.Id, cancellationToken);
     }
 }

@@ -1,5 +1,5 @@
+using CatalogService.Application.Abstractions;
 using CatalogService.Commands;
-using CatalogService.Repositories;
 using MediatR;
 using CatalogService.Models;
 
@@ -16,6 +16,6 @@ public class DeleteProductHandler : IRequestHandler<DeleteProductCommand, bool>
     
     public async Task<bool> Handle(DeleteProductCommand request, CancellationToken cancellationToken)
     {
-       return await _productRepository.DeleteAsync(request.id);
+       return await _productRepository.DeleteAsync(request.Id, cancellationToken);
     }
 }

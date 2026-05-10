@@ -3,4 +3,4 @@ using MediatR;
 
 namespace CatalogService.Commands;
 
-public record UpdateProductCommand(string id, string name, decimal price) : IRequest<Product?>;
+public record UpdateProductCommand(string Id, string Name, decimal Price) : IRequest<Product?>;

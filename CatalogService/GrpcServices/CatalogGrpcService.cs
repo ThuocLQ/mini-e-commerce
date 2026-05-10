@@ -1,6 +1,6 @@
+using CatalogService.Application.Abstractions;
 using Grpc.Core;
 using CatalogService.Grpc;
-using CatalogService.Repositories;
 
 namespace CatalogService.GrpcServices;
 
@@ -15,7 +15,7 @@ public class CatalogGrpcService : CatalogGrpc.CatalogGrpcBase
     
     public override async Task<ProductResponse> GetProductById(GetProductByIdRequest request, ServerCallContext context)
     {
-        var product = await _productRepository.GetByIdAsync(request.Id);
+        var product = await _productRepository.GetByIdAsync(request.Id, context.CancellationToken);
         
         if (product == null)
         {

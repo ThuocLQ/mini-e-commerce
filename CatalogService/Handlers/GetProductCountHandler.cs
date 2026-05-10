@@ -1,5 +1,5 @@
+using CatalogService.Application.Abstractions;
 using CatalogService.Queries;
-using CatalogService.Repositories;
 using MediatR;
 
 namespace CatalogService.Handlers;
@@ -15,6 +15,6 @@ public class GetProductCountHandler : IRequestHandler<GetProductCountQuery, int>
     
     public async Task<int> Handle(GetProductCountQuery request, CancellationToken cancellationToken)
     {
-        return await _productRepository.CountAsync();
+        return await _productRepository.CountAsync(cancellationToken);
     }
 }

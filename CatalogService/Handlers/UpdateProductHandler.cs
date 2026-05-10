@@ -1,6 +1,6 @@
+using CatalogService.Application.Abstractions;
 using CatalogService.Commands;
 using CatalogService.Models;
-using CatalogService.Repositories;
 using MediatR;
 
 namespace CatalogService.Handlers;
@@ -16,6 +16,6 @@ public class UpdateProductHandler : IRequestHandler<UpdateProductCommand, Produc
     
     public async Task<Product?> Handle(UpdateProductCommand request, CancellationToken cancellationToken)
     {
-        return await _productRepository.UpdateAsync(request.id, request.name,  request.price);
+        return await _productRepository.UpdateAsync(request.Id, request.Name, request.Price, cancellationToken);
     }
 }

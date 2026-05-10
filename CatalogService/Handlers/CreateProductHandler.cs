@@ -1,6 +1,6 @@
+using CatalogService.Application.Abstractions;
 using CatalogService.Commands;
 using CatalogService.Models;
-using CatalogService.Repositories;
 using MediatR;
 
 namespace CatalogService.Handlers;
@@ -16,6 +16,6 @@ public class CreateProductHandler : IRequestHandler<CreateProductCommand, Produc
 
     public async Task<Product> Handle(CreateProductCommand request, CancellationToken cancellationToken)
     {
-        return await _productRepository.CreateAsync(request.name, request.price);
+        return await _productRepository.CreateAsync(request.Name, request.Price, cancellationToken);
     }
 }

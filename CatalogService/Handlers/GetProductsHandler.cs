@@ -1,10 +1,10 @@
+using CatalogService.Application.Abstractions;
 using CatalogService.Models;
-using CatalogService.Repositories;
 using MediatR;
 
 namespace CatalogService.Handlers;
 
-public class GetProductsHandler : IRequestHandler<GetProductsQuery, List<Product>>
+public class GetProductsHandler : IRequestHandler<GetProductsQuery, IReadOnlyList<Product>>
 {
     private readonly IProductRepository _productRepository;
 
@@ -13,8 +13,8 @@ public class GetProductsHandler : IRequestHandler<GetProductsQuery, List<Product
         _productRepository = productRepository;
     }
 
-    public async Task<List<Product>> Handle(GetProductsQuery request, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<Product>> Handle(GetProductsQuery request, CancellationToken cancellationToken)
     {
-        return await _productRepository.GetAllAsync();
+        return await _productRepository.GetAllAsync(cancellationToken);
     }
 }

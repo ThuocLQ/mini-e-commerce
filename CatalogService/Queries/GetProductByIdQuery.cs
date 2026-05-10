@@ -3,4 +3,4 @@ using MediatR;
 
 namespace CatalogService;
 
-public record GetProductByIdQuery(string id) :  IRequest<Product?>;
+public record GetProductByIdQuery(string Id) :  IRequest<Product?>;
