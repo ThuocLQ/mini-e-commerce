@@ -1,21 +1,19 @@
 using CatalogService.Application.Abstractions;
-using CatalogService.Commands;
 using MediatR;
-using CatalogService.Models;
 
-namespace CatalogService.Handlers;
+namespace CatalogService.Application.Products.DeleteProduct;
 
 public class DeleteProductHandler : IRequestHandler<DeleteProductCommand, bool>
 {
-    private readonly IProductRepository _productRepository ;
-    
+    private readonly IProductRepository _productRepository;
+
     public DeleteProductHandler(IProductRepository productRepository)
     {
-      _productRepository = productRepository;
+        _productRepository = productRepository;
     }
-    
+
     public async Task<bool> Handle(DeleteProductCommand request, CancellationToken cancellationToken)
     {
-       return await _productRepository.DeleteAsync(request.Id, cancellationToken);
+        return await _productRepository.DeleteAsync(request.Id, cancellationToken);
     }
 }

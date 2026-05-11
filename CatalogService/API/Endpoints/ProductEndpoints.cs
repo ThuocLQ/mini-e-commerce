@@ -1,6 +1,12 @@
-using CatalogService.Commands;
+using CatalogService.Application.Products.CreateProduct;
+using CatalogService.Application.Products.DeleteProduct;
+using CatalogService.Application.Products.GetProductById;
+using CatalogService.Application.Products.GetProductCount;
+using CatalogService.Application.Products.GetProducts;
+using CatalogService.Application.Products.GetProductsByPrice;
+using CatalogService.Application.Products.SearchProducts;
+using CatalogService.Application.Products.UpdateProduct;
 using CatalogService.DTOs;
-using CatalogService.Queries;
 using MediatR;
 
 namespace CatalogService.API.Endpoints;

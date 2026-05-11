@@ -1,11 +1,12 @@
-using CatalogService.Models;
+
+using CatalogService.Domain.Products;
 
 namespace CatalogService.Application.Abstractions;
 
 public interface IProductRepository
 {
-    Task<Product> CreateAsync(string name, decimal price, CancellationToken cancellationToken = default);
-    Task<Product?> UpdateAsync(string id, string name, decimal price, CancellationToken cancellationToken = default);
+    Task<Product> CreateAsync(Product product, CancellationToken cancellationToken = default);
+    Task<Product?> UpdateAsync(Product product, CancellationToken cancellationToken = default);
     Task<bool> DeleteAsync(string id, CancellationToken cancellationToken = default);
     
     Task<IReadOnlyList<Product>> GetAllAsync(CancellationToken cancellationToken = default);

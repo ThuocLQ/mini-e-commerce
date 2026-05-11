@@ -1,8 +1,7 @@
 using CatalogService.Application.Abstractions;
-using CatalogService.Queries;
 using MediatR;
 
-namespace CatalogService.Handlers;
+namespace CatalogService.Application.Products.GetProductCount;
 
 public class GetProductCountHandler : IRequestHandler<GetProductCountQuery, int>
 {

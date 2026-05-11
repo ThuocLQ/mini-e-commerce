@@ -1,13 +1,7 @@
 using CatalogService.API.Endpoints;
-using MediatR;
-using CatalogService;
 using CatalogService.Application.Abstractions;
-using CatalogService.Commands;
-using CatalogService.Data;
-using CatalogService.DTOs;
 using CatalogService.GrpcServices;
 using CatalogService.Infrastructure.Persistence;
-using CatalogService.Queries;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -32,12 +26,6 @@ var app = builder.Build();
 app.MapDefaultEndpoints();//aspire service default endpoints
 
 app.MapProductEndpoints();//API
-
-using (var scope = app.Services.CreateScope())
-{
-    var initializer = scope.ServiceProvider.GetRequiredService<DatabaseInitializer>();
-    await initializer.InitializeAsync();
-}
 
 //GRPC map service
 app.MapGrpcService<CatalogGrpcService>();

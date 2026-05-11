@@ -1,66 +1,60 @@
 using CatalogService.Application.Abstractions;
-using CatalogService.Models;
 using Dapper;
-using Microsoft.Data.Sqlite;
+using System.Data;
+using CatalogService.Domain.Products;
 
 namespace CatalogService.Infrastructure.Persistence;
 
 public class DapperProductRepository : IProductRepository
 {
-    private readonly IDbConnectionFactory  _connectionFactory;
+    private readonly IDbConnectionFactory _connectionFactory;
 
     public DapperProductRepository(IDbConnectionFactory connectionFactory)
     {
         _connectionFactory = connectionFactory;
     }
 
-    public async Task<Product> CreateAsync(string name, decimal price, CancellationToken cancellationToken = default)
+    public async Task<Product> CreateAsync(Product product, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(name) || price <= 0)
-            throw new ArgumentException("Invalid product name or price.");
-
-        var product = new Product
-        {
-            Id = Guid.NewGuid().ToString(),
-            Name = name,
-            Price = price
-        };
-
-        await using var connection = CreateConnection();
-        await connection.OpenAsync(cancellationToken);
+        using var connection = CreateConnection();
 
         await connection.ExecuteAsync(new CommandDefinition("""
             INSERT INTO Products (Id, Name, Price)
             VALUES (@Id, @Name, @Price)
-            """, product, cancellationToken: cancellationToken));
+            """, new
+        {
+            product.Id,
+            product.Name,
+            product.Price
+        }, cancellationToken: cancellationToken));
 
         return product;
     }
 
-    public async Task<Product?> UpdateAsync(string id, string name, decimal price, CancellationToken cancellationToken = default)
+    public async Task<Product?> UpdateAsync(Product product, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(name) || price <= 0)
-            throw new ArgumentException("Invalid product name or price.");
-
-        await using var connection = CreateConnection();
-        await connection.OpenAsync(cancellationToken);
+        using var connection = CreateConnection();
 
         var affectedRows = await connection.ExecuteAsync(new CommandDefinition("""
             UPDATE Products
             SET Name = @Name, Price = @Price
             WHERE Id = @Id;
-            """, new { Id = id, Name = name, Price = price }, cancellationToken: cancellationToken));
+            """, new
+        {
+            product.Id,
+            product.Name,
+            product.Price
+        }, cancellationToken: cancellationToken));
 
         if (affectedRows == 0)
             return null;
 
-        return await GetByIdAsync(id, cancellationToken);
+        return await GetByIdAsync(product.Id, cancellationToken);
     }
 
     public async Task<bool> DeleteAsync(string id, CancellationToken cancellationToken = default)
     {
-        await using var connection = CreateConnection();
-        await connection.OpenAsync(cancellationToken);
+        using var connection = CreateConnection();
 
         var affectedRows = await connection.ExecuteAsync(new CommandDefinition("""
             DELETE FROM Products
@@ -72,37 +66,28 @@ public class DapperProductRepository : IProductRepository
 
     public async Task<IReadOnlyList<Product>> GetAllAsync(CancellationToken cancellationToken = default)
     {
-        await using var connection = CreateConnection();
-        await connection.OpenAsync(cancellationToken);
+        using var connection = CreateConnection();
 
-        var products = await connection.QueryAsync<Product>(new CommandDefinition("""
+        var rows = await connection.QueryAsync<ProductRow>(new CommandDefinition("""
             SELECT Id, Name, Price
             FROM Products
             ORDER BY Name;
             """, cancellationToken: cancellationToken));
 
-        return products.ToList();
+        return rows.Select(ToDomain).ToList();
     }
 
     public async Task<Product?> GetByIdAsync(string id, CancellationToken cancellationToken = default)
     {
-        const string sql = """
-                           SELECT Id, Name, Description, Price
-                           FROM Products
-                           WHERE Id = @Id
-                           """;
-        using var connection = _connectionFactory.CreateConnection();
-        var row =  await connection.QueryFirstOrDefaultAsync<Product>(sql, new { Id = id });
-        
-        if (row is null)
-            return null;
-        
-        return new Product()
-        {
-            Id = row.Id,
-            Name = row.Name,
-            Price = row.Price
-        };
+        using var connection = CreateConnection();
+
+        var row = await connection.QueryFirstOrDefaultAsync<ProductRow>(new CommandDefinition("""
+            SELECT Id, Name, Price
+            FROM Products
+            WHERE Id = @Id;
+            """, new { Id = id }, cancellationToken: cancellationToken));
+
+        return row is null ? null : ToDomain(row);
     }
 
     public async Task<List<Product>> SearchAsync(string? keyword, CancellationToken cancellationToken = default)
@@ -110,23 +95,21 @@ public class DapperProductRepository : IProductRepository
         if (string.IsNullOrWhiteSpace(keyword))
             return (await GetAllAsync(cancellationToken)).ToList();
 
-        await using var connection = CreateConnection();
-        await connection.OpenAsync(cancellationToken);
+        using var connection = CreateConnection();
 
-        var products = await connection.QueryAsync<Product>(new CommandDefinition("""
+        var rows = await connection.QueryAsync<ProductRow>(new CommandDefinition("""
             SELECT Id, Name, Price
             FROM Products
             WHERE LOWER(Name) LIKE LOWER(@Keyword)
             ORDER BY Name;
             """, new { Keyword = $"%{keyword}%" }, cancellationToken: cancellationToken));
 
-        return products.ToList();
+        return rows.Select(ToDomain).ToList();
     }
 
     public async Task<int> CountAsync(CancellationToken cancellationToken = default)
     {
-        await using var connection = CreateConnection();
-        await connection.OpenAsync(cancellationToken);
+        using var connection = CreateConnection();
 
         return await connection.ExecuteScalarAsync<int>(new CommandDefinition("""
             SELECT COUNT(*) FROM Products
@@ -135,22 +118,27 @@ public class DapperProductRepository : IProductRepository
 
     public async Task<List<Product>> GetByPriceRangeAsync(decimal min, decimal max, CancellationToken cancellationToken = default)
     {
-        await using var connection = CreateConnection();
-        await connection.OpenAsync(cancellationToken);
+        using var connection = CreateConnection();
 
-        var products = await connection.QueryAsync<Product>(new CommandDefinition("""
+        var rows = await connection.QueryAsync<ProductRow>(new CommandDefinition("""
             SELECT Id, Name, Price
             FROM Products
             WHERE Price BETWEEN @Min AND @Max
             ORDER BY Price;
             """, new { Min = min, Max = max }, cancellationToken: cancellationToken));
 
-        return products.ToList();
+        return rows.Select(ToDomain).ToList();
     }
-    
-    private sealed record ProductRow(
-        string Id,
-        string Name,
-        string Description,
-        decimal Price);
+
+    private IDbConnection CreateConnection()
+    {
+        return _connectionFactory.CreateConnection();
+    }
+
+    private static Product ToDomain(ProductRow row)
+    {
+        return new Product(row.Id, row.Name, string.Empty, row.Price);
+    }
+
+    private sealed record ProductRow(string Id, string Name, decimal Price);
 }
