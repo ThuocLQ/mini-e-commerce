@@ -3,7 +3,7 @@ using MediatR;
 
 namespace CatalogService.Application.Products.GetProductCount;
 
-public class GetProductCountHandler : IRequestHandler<GetProductCountQuery, int>
+public sealed class GetProductCountHandler : IRequestHandler<GetProductCountQuery, int>
 {
     private readonly IProductRepository _productRepository;
     

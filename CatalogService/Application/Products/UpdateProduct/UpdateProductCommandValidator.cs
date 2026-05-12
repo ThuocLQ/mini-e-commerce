@@ -1,11 +1,15 @@
 using FluentValidation;
 
-namespace CatalogService.Application.Products.CreateProduct;
+namespace CatalogService.Application.Products.UpdateProduct;
 
-public sealed class CreateProductCommandValidator : AbstractValidator<CreateProductCommand>
+public sealed class UpdateProductCommandValidator : AbstractValidator<UpdateProductCommand>
 {
-    public CreateProductCommandValidator()
+    public UpdateProductCommandValidator()
     {
+        RuleFor(x => x.Id)
+            .NotEmpty()
+            .WithMessage("Product id is required.");
+
         RuleFor(x => x.Name)
             .NotEmpty()
             .WithMessage("Product name is required.")

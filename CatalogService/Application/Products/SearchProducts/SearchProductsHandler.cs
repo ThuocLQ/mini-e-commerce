@@ -4,7 +4,7 @@ using MediatR;
 
 namespace CatalogService.Application.Products.SearchProducts;
 
-public class SearchProductsHandler : IRequestHandler<SearchProductsQuery, List<ProductDto>>
+public sealed class SearchProductsHandler : IRequestHandler<SearchProductsQuery, List<ProductDto>>
 {
     private readonly IProductRepository _productRepository;
 
@@ -17,6 +17,6 @@ public class SearchProductsHandler : IRequestHandler<SearchProductsQuery, List<P
     {
         var products = await _productRepository.SearchAsync(request.Keyword, cancellationToken);
 
-        return products.Select(ProductDto.FromDomain).ToList();
+        return products.Select(ProductMapper.ToDto).ToList();
     }
 }

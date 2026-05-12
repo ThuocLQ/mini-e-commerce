@@ -4,7 +4,7 @@ using MediatR;
 
 namespace CatalogService.Application.Products.GetProductsByPrice;
 
-public class GetProductsByPriceHandler : IRequestHandler<GetProductsByPriceQuery, List<ProductDto>>
+public sealed class GetProductsByPriceHandler : IRequestHandler<GetProductsByPriceQuery, List<ProductDto>>
 {
     private readonly IProductRepository _productRepository;
     
@@ -17,6 +17,6 @@ public class GetProductsByPriceHandler : IRequestHandler<GetProductsByPriceQuery
     {
         var products = await _productRepository.GetByPriceRangeAsync(request.Min, request.Max, cancellationToken);
 
-        return products.Select(ProductDto.FromDomain).ToList();
+        return products.Select(ProductMapper.ToDto).ToList();
     }
 }

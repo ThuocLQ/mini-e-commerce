@@ -9,6 +9,7 @@
 
     <ItemGroup>
       <PackageReference Include="Dapper" Version="2.1.72" />
+      <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
       <PackageReference Include="Grpc.AspNetCore" Version="2.76.0" />
       <PackageReference Include="MediatR" Version="14.1.0" />
       <PackageReference Include="Microsoft.Data.Sqlite" Version="11.0.0-preview.3.26207.106" />

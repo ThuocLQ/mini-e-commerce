@@ -4,7 +4,7 @@ using MediatR;
 
 namespace CatalogService.Application.Products.GetProducts;
 
-public class GetProductsHandler : IRequestHandler<GetProductsQuery, IReadOnlyList<ProductDto>>
+public sealed class GetProductsHandler : IRequestHandler<GetProductsQuery, IReadOnlyList<ProductDto>>
 {
     private readonly IProductRepository _productRepository;
 
@@ -17,6 +17,6 @@ public class GetProductsHandler : IRequestHandler<GetProductsQuery, IReadOnlyLis
     {
         var products = await _productRepository.GetAllAsync(cancellationToken);
 
-        return products.Select(ProductDto.FromDomain).ToList();
+        return products.Select(ProductMapper.ToDto).ToList();
     }
 }

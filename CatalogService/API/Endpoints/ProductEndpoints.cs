@@ -6,7 +6,9 @@ using CatalogService.Application.Products.GetProducts;
 using CatalogService.Application.Products.GetProductsByPrice;
 using CatalogService.Application.Products.SearchProducts;
 using CatalogService.Application.Products.UpdateProduct;
-using CatalogService.DTOs;
+using CatalogService.API.Contracts;
+using FluentValidation;
+using FluentValidation.Results;
 using MediatR;
 
 namespace CatalogService.API.Endpoints;
@@ -25,50 +27,23 @@ public static class ProductEndpoints
             
             return Results.Ok(result);
         });
-        
-        //Get 1 product by id
-        group.MapGet("/{id}", async (string id, ISender sender) =>
-        { 
-            var result = await sender.Send(new GetProductByIdQuery(id));
-   
-            return result is null ? Results.NotFound() : Results.Ok(result);
-        });
-        
-        //Add product
-        group.MapPost("", async (CreateProductRequest request, ISender sender) =>
-        {
-            if(string.IsNullOrWhiteSpace(request.Name))
-                return Results.BadRequest("Product name is required.");
-    
-            var result = await sender.Send(new CreateProductCommand(request.Name, request.Price));
-            
-            return Results.Created($"/products/{result.Id}", result);
-        });
-        
-        //Update product
-        group.MapPut("/{id}", async (string id, UpdateProductRequest updatedProduct, ISender sender) =>
-        {
-            if (string.IsNullOrWhiteSpace(updatedProduct.Name))
-                return Results.BadRequest("Product name is required.");
-    
-            var result = await sender.Send(new UpdateProductCommand(id, updatedProduct.Name, updatedProduct.Price));
-    
-            return result is null ? Results.NotFound() : Results.Ok(result);
-        });
-        
-        //Delete product : sau nay co the dung "Soft delete"
-        group.MapDelete("/{id}", async (string id, ISender sender) => {
-            var result = await sender.Send(new DeleteProductCommand(id));
-            
-            return result ? Results.NoContent() : Results.NotFound();
-        });
 
         //Search product
-        group.MapGet("/search", async (string? keyword, ISender sender) =>
+        group.MapGet("/search", async (
+            string? keyword,
+            IValidator<SearchProductsQuery> validator,
+            ISender sender,
+            CancellationToken cancellationToken) =>
         {
-            var result = await sender.Send(new SearchProductsQuery(keyword));
-    
-            return result.Count == 0 ? Results.NotFound() : Results.Ok(result);
+            var query = new SearchProductsQuery(keyword);
+            var validationResult = await validator.ValidateAsync(query, cancellationToken);
+
+            if (!validationResult.IsValid)
+                return ValidationProblem(validationResult);
+
+            var result = await sender.Send(query, cancellationToken);
+
+            return Results.Ok(result);
         });
 
         //Count
@@ -79,16 +54,102 @@ public static class ProductEndpoints
         });
 
         //Search price-range
-        group.MapGet("/price-range", async (decimal minPrice, decimal maxPrice, ISender sender) =>
+        group.MapGet("/price-range", async (
+            decimal minPrice,
+            decimal maxPrice,
+            IValidator<GetProductsByPriceQuery> validator,
+            ISender sender,
+            CancellationToken cancellationToken) =>
         {
-            if (minPrice < 0 || maxPrice < 0 || minPrice > maxPrice)
-                return Results.BadRequest("Invalid price range.");
+            var query = new GetProductsByPriceQuery(minPrice, maxPrice);
+            var validationResult = await validator.ValidateAsync(query, cancellationToken);
+
+            if (!validationResult.IsValid)
+                return ValidationProblem(validationResult);
+
+            var result = await sender.Send(query, cancellationToken);
+
+            return Results.Ok(result);
+        });
+
+        //Add product
+        group.MapPost("", async (
+            CreateProductRequest request,
+            IValidator<CreateProductCommand> validator,
+            ISender sender,
+            CancellationToken cancellationToken) =>
+        {
+            var command = new CreateProductCommand(request.Name, request.Price);
+            var validationResult = await validator.ValidateAsync(command, cancellationToken);
+
+            if (!validationResult.IsValid)
+                return ValidationProblem(validationResult);
+
+            var result = await sender.Send(command, cancellationToken);
+            
+            return Results.Created($"/products/{result.Id}", result);
+        });
+        
+        //Update product
+        group.MapPut("/{id}", async (
+            string id,
+            UpdateProductRequest updatedProduct,
+            IValidator<UpdateProductCommand> validator,
+            ISender sender,
+            CancellationToken cancellationToken) =>
+        {
+            var command = new UpdateProductCommand(id, updatedProduct.Name, updatedProduct.Price);
+            var validationResult = await validator.ValidateAsync(command, cancellationToken);
+
+            if (!validationResult.IsValid)
+                return ValidationProblem(validationResult);
+
+            var result = await sender.Send(command, cancellationToken);
     
-            var result = await sender.Send(new GetProductsByPriceQuery(minPrice, maxPrice));
-    
-            return result.Count == 0 ? Results.NotFound() : Results.Ok(result);
+            return result is null ? Results.NotFound() : Results.Ok(result);
+        });
+        
+        //Delete product : sau nay co the dung "Soft delete"
+        group.MapDelete("/{id}", async (
+            string id,
+            IValidator<DeleteProductCommand> validator,
+            ISender sender,
+            CancellationToken cancellationToken) =>
+        {
+            var command = new DeleteProductCommand(id);
+            var validationResult = await validator.ValidateAsync(command, cancellationToken);
+
+            if (!validationResult.IsValid)
+                return ValidationProblem(validationResult);
+
+            var result = await sender.Send(command, cancellationToken);
+            
+            return result ? Results.NoContent() : Results.NotFound();
+        });
+
+        //Get 1 product by id
+        group.MapGet("/{id}", async (
+            string id,
+            IValidator<GetProductByIdQuery> validator,
+            ISender sender,
+            CancellationToken cancellationToken) =>
+        {
+            var query = new GetProductByIdQuery(id);
+            var validationResult = await validator.ValidateAsync(query, cancellationToken);
+
+            if (!validationResult.IsValid)
+                return ValidationProblem(validationResult);
+
+            var result = await sender.Send(query, cancellationToken);
+
+            return result is null ? Results.NotFound() : Results.Ok(result);
         });
             
         return app;
+    }
+
+    private static IResult ValidationProblem(ValidationResult validationResult)
+    {
+        return Results.ValidationProblem(validationResult.ToDictionary());
     }
 }

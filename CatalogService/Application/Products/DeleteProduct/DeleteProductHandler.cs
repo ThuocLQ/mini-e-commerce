@@ -3,7 +3,7 @@ using MediatR;
 
 namespace CatalogService.Application.Products.DeleteProduct;
 
-public class DeleteProductHandler : IRequestHandler<DeleteProductCommand, bool>
+public sealed class DeleteProductHandler : IRequestHandler<DeleteProductCommand, bool>
 {
     private readonly IProductRepository _productRepository;
 

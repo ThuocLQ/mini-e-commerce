@@ -3,4 +3,4 @@ using MediatR;
 
 namespace CatalogService.Application.Products.GetProducts;
 
-public record GetProductsQuery() : IRequest<IReadOnlyList<ProductDto>>;
+public sealed record GetProductsQuery() : IRequest<IReadOnlyList<ProductDto>>;

@@ -5,7 +5,7 @@ using MediatR;
 
 namespace CatalogService.Application.Products.UpdateProduct;
 
-public class UpdateProductHandler : IRequestHandler<UpdateProductCommand, ProductDto?>
+public sealed class UpdateProductHandler : IRequestHandler<UpdateProductCommand, ProductDto?>
 {
     private readonly IProductRepository _productRepository;
 
@@ -24,6 +24,6 @@ public class UpdateProductHandler : IRequestHandler<UpdateProductCommand, Produc
 
         var updated = await _productRepository.UpdateAsync(product, cancellationToken);
 
-        return updated is null ? null : ProductDto.FromDomain(updated);
+        return updated is null ? null : ProductMapper.ToDto(updated);
     }
 }

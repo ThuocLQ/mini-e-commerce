@@ -1,11 +1,10 @@
 using CatalogService.Application.Abstractions;
-using CatalogService.Application.Products;
 using CatalogService.Domain.Products;
 using MediatR;
 
 namespace CatalogService.Application.Products.CreateProduct;
 
-public class CreateProductHandler : IRequestHandler<CreateProductCommand, ProductDto>
+public sealed class CreateProductHandler : IRequestHandler<CreateProductCommand, ProductDto>
 {
     private readonly IProductRepository _productRepository;
 
@@ -24,6 +23,6 @@ public class CreateProductHandler : IRequestHandler<CreateProductCommand, Produc
 
         var created = await _productRepository.CreateAsync(product, cancellationToken);
 
-        return ProductDto.FromDomain(created);
+        return ProductMapper.ToDto(created);
     }
 }

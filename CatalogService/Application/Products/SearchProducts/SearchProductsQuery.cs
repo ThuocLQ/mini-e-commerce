@@ -3,4 +3,4 @@ using MediatR;
 
 namespace CatalogService.Application.Products.SearchProducts;
 
-public record SearchProductsQuery(string? Keyword) : IRequest<List<ProductDto>>;
+public sealed record SearchProductsQuery(string? Keyword) : IRequest<List<ProductDto>>;

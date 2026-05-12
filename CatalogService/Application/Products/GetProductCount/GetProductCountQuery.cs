@@ -2,4 +2,4 @@ using MediatR;
 
 namespace CatalogService.Application.Products.GetProductCount;
 
-public record GetProductCountQuery() : IRequest<int>;
+public sealed record GetProductCountQuery() : IRequest<int>;

@@ -3,4 +3,4 @@ using MediatR;
 
 namespace CatalogService.Application.Products.GetProductById;
 
-public record GetProductByIdQuery(string Id) : IRequest<ProductDto?>;
+public sealed record GetProductByIdQuery(string Id) : IRequest<ProductDto?>;

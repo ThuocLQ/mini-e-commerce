@@ -5,7 +5,7 @@ using CatalogService.Domain.Products;
 
 namespace CatalogService.Infrastructure.Persistence;
 
-public class DapperProductRepository : IProductRepository
+public sealed class DapperProductRepository : IProductRepository
 {
     private readonly IDbConnectionFactory _connectionFactory;
 
@@ -137,8 +137,9 @@ public class DapperProductRepository : IProductRepository
 
     private static Product ToDomain(ProductRow row)
     {
-        return new Product(row.Id, row.Name, string.Empty, row.Price);
+        // TODO: Persist Description in the catalog database when the lesson reaches schema changes.
+        return new Product(row.Id, row.Name, string.Empty, Convert.ToDecimal(row.Price));
     }
 
-    private sealed record ProductRow(string Id, string Name, decimal Price);
+    private sealed record ProductRow(string Id, string Name, double Price);
 }

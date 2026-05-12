@@ -3,7 +3,7 @@ using Microsoft.Data.Sqlite;
 
 namespace CatalogService.Infrastructure.Persistence;
 
-public class SqliteConnectionFactory : IDbConnectionFactory
+public sealed class SqliteConnectionFactory : IDbConnectionFactory
 {
     private readonly string _connectionString;
 
