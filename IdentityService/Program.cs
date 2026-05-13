@@ -1,17 +1,24 @@
+using IdentityService.API;
+using IdentityService.Application;
+using IdentityService.Infrastructure;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+builder.AddServiceDefaults();
 
-builder.Services.AddControllers();
+builder.Services.AddApplication();
+builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddApi();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
-
+app.UseApiExceptionHandling();
 app.UseHttpsRedirection();
 
+app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapControllers();
+app.MapDefaultEndpoints();
+app.MapApiEndpoints();
 
 app.Run();

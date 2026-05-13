@@ -7,4 +7,14 @@
         <UserSecretsId>5b7323cf-0d4c-43cc-b1ad-de5f6e30cc18</UserSecretsId>
     </PropertyGroup>
 
+    <ItemGroup>
+      <PackageReference Include="MediatR" Version="14.1.0" />
+      <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.8" />
+      <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.18.0" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\MicroShop.ServiceDefaults\MicroShop.ServiceDefaults.csproj" />
+    </ItemGroup>
+
 </Project>
