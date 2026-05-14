@@ -14,6 +14,8 @@ var basket = builder.AddProject<Projects.BasketService>("BasketService")
     .WithReference(redis)
     .WaitFor(redis);
 
+var identity = builder.AddProject<Projects.IdentityService>("IdentityService");
+
 var gateway = builder.AddProject<Projects.ApiGateway>("ApiGateway")
     .WithReference(catalog)
     .WithReference(basket);

@@ -4,11 +4,21 @@
     <ProjectReference Include="..\ApiGateway\ApiGateway.csproj" />
     <ProjectReference Include="..\BasketService\BasketService.csproj" />
     <ProjectReference Include="..\CatalogService\CatalogService.csproj" />
+    <ProjectReference Include="..\IdentityService\IdentityService.csproj" />
+    <ProjectReference Include="..\MicroShop.ServiceDefaults\MicroShop.ServiceDefaults.csproj" IsAspireProjectResource="false" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Aspire.Hosting.RabbitMQ" Version="13.3.0" />
     <PackageReference Include="Aspire.Hosting.Redis" Version="13.2.4" />
+  </ItemGroup>
+
+  <!-- Ensure runtime dependencies used by MicroShop.ServiceDefaults are available to the AppHost
+       Add service discovery and HTTP resilience packages so the AppHost output contains the
+       required assemblies (e.g. Microsoft.Extensions.ServiceDiscovery) at runtime. -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.ServiceDiscovery" Version="10.2.0" />
+    <PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="10.2.0" />
   </ItemGroup>
 
   <PropertyGroup>

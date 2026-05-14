@@ -88,7 +88,8 @@ public static class ProductEndpoints
             var result = await sender.Send(command, cancellationToken);
             
             return Results.Created($"/products/{result.Id}", result);
-        });
+        })
+            .RequireAuthorization("AdminOnly");
         
         //Update product
         group.MapPut("/{id}", async (
@@ -107,7 +108,8 @@ public static class ProductEndpoints
             var result = await sender.Send(command, cancellationToken);
     
             return result is null ? Results.NotFound() : Results.Ok(result);
-        });
+        })
+            .RequireAuthorization("AdminOnly");;
         
         //Delete product : sau nay co the dung "Soft delete"
         group.MapDelete("/{id}", async (
@@ -125,7 +127,8 @@ public static class ProductEndpoints
             var result = await sender.Send(command, cancellationToken);
             
             return result ? Results.NoContent() : Results.NotFound();
-        });
+        })
+        .RequireAuthorization("AdminOnly");;
 
         //Get 1 product by id
         group.MapGet("/{id}", async (
