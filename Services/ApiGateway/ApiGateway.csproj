@@ -11,7 +11,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\MicroShop.ServiceDefaults\MicroShop.ServiceDefaults.csproj" />
+      <ProjectReference Include="..\..\MicroShop.ServiceDefaults\MicroShop.ServiceDefaults.csproj" />
     </ItemGroup>
 
 </Project>

@@ -16,8 +16,11 @@ var basket = builder.AddProject<Projects.BasketService>("BasketService")
 
 var identity = builder.AddProject<Projects.IdentityService>("IdentityService");
 
+var ordering = builder.AddProject<Projects.OrderingService>("OrderingService");
+
 var gateway = builder.AddProject<Projects.ApiGateway>("ApiGateway")
     .WithReference(catalog)
-    .WithReference(basket);
+    .WithReference(basket)
+    .WithReference(ordering);
 
 builder.Build().Run();

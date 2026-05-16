@@ -1,0 +1,1032 @@
+<!DOCTYPE html>
+<!--
+lesson-meta:
+  lesson: 15
+  title: "OrderingService Foundation"
+  subtitle: "Tạo Order API + Order DB, chuẩn bị cho checkout flow"
+  phase: "Order Foundation"
+  duration: "90–120 phút"
+  status: "ready"
+  order: 15
+-->
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MicroShop - Buổi 15: OrderingService Foundation</title>
+  <style>
+    :root {
+      --bg: #f6f8fb;
+      --surface: #ffffff;
+      --surface-2: #f8fafc;
+      --surface-3: #eef2ff;
+      --text: #0f172a;
+      --muted: #64748b;
+      --line: #e2e8f0;
+      --primary: #2563eb;
+      --primary-2: #7c3aed;
+      --success: #16a34a;
+      --warning: #f97316;
+      --danger: #dc2626;
+      --code-bg: #0f172a;
+      --code-text: #e2e8f0;
+      --shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+      --radius-xl: 28px;
+      --radius-lg: 18px;
+      --radius-md: 14px;
+      --sidebar: rgba(255, 255, 255, 0.88);
+    }
+
+    [data-theme="dark"] {
+      --bg: #0b1120;
+      --surface: #111827;
+      --surface-2: #0f172a;
+      --surface-3: rgba(96, 165, 250, 0.12);
+      --text: #e5e7eb;
+      --muted: #94a3b8;
+      --line: #243042;
+      --primary: #60a5fa;
+      --primary-2: #a78bfa;
+      --code-bg: #020617;
+      --code-text: #e2e8f0;
+      --shadow: 0 18px 45px rgba(0, 0, 0, 0.32);
+      --sidebar: rgba(15, 23, 42, 0.90);
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Arial, "Helvetica Neue", sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(37, 99, 235, .14), transparent 34%),
+        radial-gradient(circle at top right, rgba(124, 58, 237, .12), transparent 34%),
+        var(--bg);
+      color: var(--text);
+      line-height: 1.65;
+      text-rendering: optimizeLegibility;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 300px minmax(0, 1fr);
+      min-height: 100vh;
+    }
+
+    aside {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      padding: 22px;
+      background: var(--sidebar);
+      backdrop-filter: blur(18px);
+      border-right: 1px solid var(--line);
+      overflow: auto;
+    }
+
+    .brand { display: flex; gap: 12px; align-items: center; margin-bottom: 20px; }
+    .logo {
+      width: 46px; height: 46px; border-radius: 16px;
+      display: grid; place-items: center;
+      background: linear-gradient(135deg, var(--primary), var(--primary-2));
+      color: white; font-size: 23px; box-shadow: var(--shadow);
+    }
+    .brand h1 { margin: 0; font-size: 18px; line-height: 1.2; }
+    .brand p { margin: 2px 0 0; color: var(--muted); font-size: 13px; }
+
+    .side-card {
+      border: 1px solid var(--line);
+      background: var(--surface);
+      border-radius: var(--radius-lg);
+      padding: 15px;
+      margin-bottom: 14px;
+      box-shadow: var(--shadow);
+    }
+
+    .progress-top {
+      display: flex; justify-content: space-between;
+      color: var(--muted); font-size: 13px; margin-bottom: 10px;
+    }
+    .bar { height: 9px; border-radius: 999px; background: rgba(148, 163, 184, 0.24); overflow: hidden; }
+    .bar span { display: block; width: 0; height: 100%; border-radius: 999px; background: linear-gradient(90deg, #22c55e, #3b82f6); transition: .25s; }
+
+    .theme-btn {
+      width: 100%; display: flex; justify-content: space-between; align-items: center;
+      border: 1px solid var(--line); background: var(--surface); color: var(--text);
+      padding: 11px 12px; border-radius: 14px; font-weight: 800; cursor: pointer;
+      box-shadow: var(--shadow);
+      font-family: inherit;
+    }
+
+    nav { display: grid; gap: 6px; margin-top: 14px; }
+    nav a {
+      text-decoration: none; color: var(--muted); padding: 10px 11px; border-radius: 12px;
+      display: flex; justify-content: space-between; font-size: 14px; font-weight: 700;
+    }
+    nav a:hover, nav a.active { background: var(--surface-3); color: var(--primary); }
+
+    main { max-width: 1180px; width: 100%; margin: 0 auto; padding: 30px; }
+
+    .hero {
+      position: relative; overflow: hidden; border-radius: 34px; padding: 36px;
+      color: white;
+      background:
+        radial-gradient(circle at 80% 20%, rgba(255,255,255,.18), transparent 32%),
+        linear-gradient(135deg, #2563eb, #7c3aed);
+      box-shadow: var(--shadow);
+    }
+    .hero::after {
+      content: ""; position: absolute; right: -70px; bottom: -120px;
+      width: 320px; height: 320px; border-radius: 999px; background: rgba(255,255,255,.13);
+    }
+    .kicker { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; position: relative; z-index: 1; }
+    .pill { padding: 7px 11px; border-radius: 999px; background: rgba(255,255,255,.16); font-size: 13px; font-weight: 800; }
+    .hero h2 { margin: 0; font-size: clamp(32px, 5vw, 56px); line-height: 1.04; letter-spacing: -.04em; max-width: 900px; position: relative; z-index: 1; }
+    .hero p { color: #dbeafe; max-width: 820px; margin: 18px 0 0; font-size: 17px; position: relative; z-index: 1; }
+    .hero-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 24px; position: relative; z-index: 1; }
+
+    button, .btn {
+      border: 0; cursor: pointer; padding: 11px 14px; border-radius: 13px; font-weight: 850; font-size: 14px;
+      transition: .18s; text-decoration: none; display: inline-flex; align-items: center; gap: 8px;
+      font-family: inherit;
+    }
+    button:hover, .btn:hover { transform: translateY(-1px); }
+    .btn-primary { background: white; color: #1d4ed8; }
+    .btn-ghost { background: rgba(255,255,255,.14); color: white; border: 1px solid rgba(255,255,255,.22); }
+
+    section { margin-top: 22px; }
+    .card {
+      background: var(--surface); border: 1px solid var(--line);
+      border-radius: var(--radius-xl); padding: 24px; box-shadow: var(--shadow);
+    }
+    .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 18px; }
+    .span-4 { grid-column: span 4; } .span-5 { grid-column: span 5; }
+    .span-6 { grid-column: span 6; } .span-7 { grid-column: span 7; }
+    .span-12 { grid-column: span 12; }
+
+    .section-head { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; margin-bottom: 16px; }
+    .section-head h3 { margin: 0; font-size: 24px; letter-spacing: -.02em; }
+    .section-head p { margin: 4px 0 0; color: var(--muted); font-size: 14px; }
+    .badge { display: inline-flex; padding: 6px 10px; border-radius: 999px; background: var(--surface-3); color: var(--primary); font-weight: 900; font-size: 12px; }
+
+    .callout {
+      border: 1px solid #bfdbfe; background: var(--surface-3); color: var(--text);
+      border-radius: var(--radius-lg); padding: 16px; margin: 14px 0;
+    }
+    .callout strong { display: block; margin-bottom: 6px; color: var(--primary); }
+    .warn { border-color: #fed7aa; background: rgba(249, 115, 22, .11); }
+    .danger { border-color: #fecaca; background: rgba(220, 38, 38, .10); }
+    .success { border-color: #bbf7d0; background: rgba(22, 163, 74, .10); }
+
+    .cards-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .mini-card { border: 1px solid var(--line); background: var(--surface-2); border-radius: var(--radius-lg); padding: 16px; }
+    .mini-card h4 { margin: 0 0 7px; font-size: 17px; }
+    .mini-card p { margin: 0; color: var(--muted); }
+
+    .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius-lg); }
+    table { width: 100%; border-collapse: collapse; background: var(--surface); }
+    th, td { padding: 12px 14px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+    th { color: var(--muted); font-size: 13px; background: var(--surface-2); }
+    tr:last-child td { border-bottom: 0; }
+
+    .flow { display: flex; flex-wrap: wrap; align-items: center; gap: 9px; margin-top: 14px; }
+    .flow-node {
+      border: 1px solid #bfdbfe; background: var(--surface-3); color: var(--primary);
+      padding: 11px 12px; border-radius: 14px; font-weight: 850; font-size: 13px;
+      animation: pulse 2.8s infinite ease-in-out;
+    }
+    .arrow { color: var(--muted); font-weight: 900; }
+    @keyframes pulse { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+
+    .tabs { display: flex; flex-wrap: wrap; gap: 8px; padding: 7px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 16px; margin-bottom: 16px; }
+    .tab { background: transparent; color: var(--muted); padding: 9px 12px; border-radius: 12px; }
+    .tab.active { background: var(--text); color: var(--surface); }
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    details { border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface); overflow: hidden; margin-bottom: 12px; }
+    summary { list-style: none; cursor: pointer; padding: 16px 18px; font-weight: 900; background: var(--surface-2); display: flex; justify-content: space-between; align-items: center; }
+    summary::-webkit-details-marker { display: none; }
+    details[open] summary { border-bottom: 1px solid var(--line); }
+    .step { padding: 18px; }
+    .step p { color: var(--muted); }
+
+    pre {
+      margin: 12px 0 0; padding: 16px; overflow: auto; border-radius: 15px;
+      background: var(--code-bg); color: var(--code-text); line-height: 1.55; font-size: 13px;
+      border: 1px solid rgba(148,163,184,.25);
+    }
+    code { font-family: Consolas, "Cascadia Code", "Courier New", monospace; }
+    .code-wrap { position: relative; }
+    .copy {
+      position: absolute; right: 9px; top: 9px; padding: 7px 10px; border-radius: 10px;
+      background: rgba(255,255,255,.12); color: white; border: 1px solid rgba(255,255,255,.18); font-size: 12px; z-index: 2;
+    }
+
+    .checklist { display: grid; gap: 10px; }
+    .check-item { display: flex; align-items: flex-start; gap: 11px; padding: 12px; border: 1px solid var(--line); background: var(--surface-2); border-radius: 15px; cursor: pointer; }
+    .check-item input { width: 18px; height: 18px; margin-top: 4px; accent-color: var(--success); }
+    .check-item span { font-weight: 700; }
+    .check-item small { display: block; color: var(--muted); font-weight: 500; }
+
+    .method { display: inline-flex; padding: 5px 9px; border-radius: 9px; color: white; font-weight: 950; font-size: 12px; }
+    .post { background: var(--success); } .get { background: var(--primary); } .fail { background: var(--danger); }
+    .status { display: inline-flex; padding: 6px 9px; border-radius: 999px; font-size: 12px; font-weight: 950; background: rgba(22,163,74,.15); color: var(--success); }
+    .status.red { background: rgba(220,38,38,.12); color: var(--danger); }
+
+    .quiz-option { width: 100%; text-align: left; margin-top: 8px; background: var(--surface-2); color: var(--text); border: 1px solid var(--line); }
+    .quiz-option.correct { border-color: #22c55e; background: rgba(34,197,94,.13); }
+    .quiz-option.wrong { border-color: #ef4444; background: rgba(239,68,68,.12); }
+
+    textarea { width: 100%; min-height: 120px; resize: vertical; border: 1px solid var(--line); border-radius: 14px; padding: 13px; background: var(--surface-2); color: var(--text); font-family: inherit; line-height: 1.5; }
+    .footer { text-align: center; color: var(--muted); padding: 24px; }
+
+    .mobile-nav { display: none; position: sticky; top: 0; z-index: 20; background: var(--surface); border-bottom: 1px solid var(--line); padding: 10px; }
+    .mobile-nav select { width: 100%; border: 1px solid var(--line); background: var(--surface-2); color: var(--text); border-radius: 12px; padding: 11px; font-weight: 800; font-family: inherit; }
+
+    @media (max-width: 980px) {
+      .layout { display: block; }
+      aside { display: none; }
+      .mobile-nav { display: block; }
+      main { padding: 16px; }
+      .hero { padding: 26px; }
+      .span-4,.span-5,.span-6,.span-7,.span-12 { grid-column: span 12; }
+      .cards-2 { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="mobile-nav">
+    <select id="mobileJump">
+      <option value="overview">Tổng quan</option>
+      <option value="concept">Ý tưởng chính</option>
+      <option value="practice">Thực hành</option>
+      <option value="postman">Postman Lab</option>
+      <option value="exercise">Bài tập</option>
+      <option value="review">Review</option>
+    </select>
+  </div>
+
+  <div class="layout">
+    <aside>
+      <div class="brand">
+        <div class="logo">📦</div>
+        <div>
+          <h1>MicroShop</h1>
+          <p>Buổi 15 • Ordering</p>
+        </div>
+      </div>
+
+      <div class="side-card">
+        <div class="progress-top"><span>Tiến độ bài học</span><b id="progressText">0%</b></div>
+        <div class="bar"><span id="progressBar"></span></div>
+      </div>
+
+      <button class="theme-btn" id="themeToggle"><span>Chế độ sáng/tối</span><span id="themeIcon">🌙</span></button>
+
+      <nav id="nav">
+        <a href="#overview" class="active">Tổng quan <span>01</span></a>
+        <a href="#concept">Ý tưởng chính <span>02</span></a>
+        <a href="#practice">Thực hành <span>03</span></a>
+        <a href="#postman">Postman Lab <span>04</span></a>
+        <a href="#exercise">Bài tập & Quiz <span>05</span></a>
+        <a href="#review">Review <span>06</span></a>
+      </nav>
+    </aside>
+
+    <main>
+      <section class="hero" id="overview">
+        <div class="kicker">
+          <span class="pill">Buổi 15</span>
+          <span class="pill">90–120 phút</span>
+          <span class="pill">Postman-first</span>
+          <span class="pill">Order Foundation</span>
+        </div>
+        <h2>OrderingService Foundation</h2>
+        <p>Tạo service quản lý đơn hàng cho MicroShop: Order domain model, database riêng, repository bằng Dapper, API tạo/xem order và Postman flow để chuẩn bị sang checkout ở Buổi 16.</p>
+        <div class="hero-actions">
+          <a class="btn btn-primary" href="#practice">Bắt đầu thực hành</a>
+          <a class="btn btn-ghost" href="#postman">Đi tới Postman Lab</a>
+        </div>
+      </section>
+
+      <section class="grid">
+        <div class="card span-7">
+          <div class="section-head">
+            <div><h3>Mục tiêu</h3><p>Tick lại trong quá trình học để progress chính xác hơn.</p></div>
+            <span class="badge">Must learn</span>
+          </div>
+          <div class="checklist">
+            <label class="check-item"><input type="checkbox" data-key="goal-service"><span>Tạo service mới tên OrderingService.<small>Có project, port riêng, chạy được.</small></span></label>
+            <label class="check-item"><input type="checkbox" data-key="goal-domain"><span>Thiết kế Order / OrderItem / OrderStatus.<small>Domain tự bảo vệ rule cơ bản.</small></span></label>
+            <label class="check-item"><input type="checkbox" data-key="goal-db"><span>Lưu order bằng database riêng.<small>OrderingService sở hữu Orders và OrderItems.</small></span></label>
+            <label class="check-item"><input type="checkbox" data-key="goal-api"><span>Tạo API POST/GET orders.<small>POST /orders, GET /orders, GET /orders/{id}.</small></span></label>
+            <label class="check-item"><input type="checkbox" data-key="goal-postman"><span>Test được flow tạo order bằng Postman.<small>Tạo order, lưu order_id, lấy chi tiết.</small></span></label>
+          </div>
+        </div>
+
+        <div class="card span-5">
+          <div class="section-head"><div><h3>Vấn đề bài này giải quyết</h3><p>MicroShop cần có khái niệm đơn hàng.</p></div></div>
+          <div class="cards-2">
+            <div class="mini-card"><h4>Trước bài 15</h4><p>Có Catalog, Basket, Identity nhưng chưa có Order.</p></div>
+            <div class="mini-card"><h4>Sau bài 15</h4><p>Có OrderingService để tạo và đọc đơn hàng cơ bản.</p></div>
+          </div>
+          <div class="callout"><strong>Câu nhớ</strong>OrderingService quản lý vòng đời đơn hàng, không ôm sản phẩm, giỏ hàng, thanh toán hay tồn kho.</div>
+        </div>
+      </section>
+
+      <section class="card" id="concept">
+        <div class="section-head">
+          <div><h3>Ý tưởng chính</h3><p>Gọn, đủ để hiểu vì sao service này được thiết kế như vậy.</p></div>
+          <span class="badge">Concept</span>
+        </div>
+
+        <div class="tabs">
+          <button class="tab active" data-tab="tab-boundary">Boundary</button>
+          <button class="tab" data-tab="tab-db">Database riêng</button>
+          <button class="tab" data-tab="tab-snapshot">Product snapshot</button>
+          <button class="tab" data-tab="tab-flow">Flow</button>
+        </div>
+
+        <div class="panel active" id="tab-boundary">
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Việc</th><th>Service phù hợp</th></tr></thead>
+              <tbody>
+                <tr><td>Quản lý sản phẩm</td><td><code>CatalogService</code></td></tr>
+                <tr><td>Quản lý giỏ hàng</td><td><code>BasketService</code></td></tr>
+                <tr><td>Đăng nhập/token</td><td><code>IdentityService</code></td></tr>
+                <tr><td>Tạo và quản lý order</td><td><code>OrderingService</code></td></tr>
+                <tr><td>Thanh toán</td><td><code>PaymentService</code> sau này</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="callout success"><strong>Điểm cần nhớ</strong>Một service tốt nên có boundary rõ. OrderingService không phải service ôm hết mọi thứ.</div>
+        </div>
+
+        <div class="panel" id="tab-db">
+          <p>Mỗi service nên sở hữu dữ liệu của chính nó. OrderingService có database riêng, ví dụ <code>ordering.db</code>.</p>
+          <div class="code-wrap"><button class="copy">Copy</button><pre><code>{
+  "ConnectionStrings": {
+    "OrderingDb": "Data Source=ordering.db"
+  }
+}</code></pre></div>
+          <div class="callout"><strong>Không làm</strong>OrderingService không join trực tiếp database của CatalogService.</div>
+        </div>
+
+        <div class="panel" id="tab-snapshot">
+          <p>OrderItem nên lưu <code>ProductName</code> và <code>UnitPrice</code> tại thời điểm tạo order. Đây là dữ liệu lịch sử của đơn hàng.</p>
+          <div class="cards-2">
+            <div class="mini-card"><h4>Chỉ lưu ProductId</h4><p>Order cũ có thể bị lệch khi sản phẩm đổi tên/giá.</p></div>
+            <div class="mini-card"><h4>Lưu snapshot</h4><p>Order cũ giữ đúng tên và giá tại thời điểm mua.</p></div>
+          </div>
+        </div>
+
+        <div class="panel" id="tab-flow">
+          <p>Flow tạo order baseline:</p>
+          <div class="flow">
+            <div class="flow-node">POST /orders</div><span class="arrow">→</span>
+            <div class="flow-node">OrderEndpoints</div><span class="arrow">→</span>
+            <div class="flow-node">CreateOrderCommand</div><span class="arrow">→</span>
+            <div class="flow-node">Handler</div><span class="arrow">→</span>
+            <div class="flow-node">Repository</div><span class="arrow">→</span>
+            <div class="flow-node">DB</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card" id="practice">
+        <div class="section-head">
+          <div><h3>Thực hành</h3><p>Mở từng bước để làm, code đã gom gọn theo docs-style.</p></div>
+          <span class="badge">Build</span>
+        </div>
+
+        <details open>
+          <summary>5.1. Tạo OrderingService project <span>⌄</span></summary>
+          <div class="step">
+            <p>Đứng ở root solution <code>MicroShop</code>, tạo service mới và add vào solution.</p>
+            <div class="code-wrap"><button class="copy">Copy</button><pre><code>dotnet new webapi -n OrderingService -o Services/OrderingService
+dotnet sln add Services/OrderingService/OrderingService.csproj
+dotnet run --project Services/OrderingService/OrderingService.csproj</code></pre></div>
+            <p>Port gợi ý: <code>OrderingService = http://localhost:5004</code>.</p>
+            <label class="check-item"><input type="checkbox" data-key="step-1"><span>OrderingService tạo được và chạy được.</span></label>
+          </div>
+        </details>
+
+        <details>
+          <summary>5.2. Cài package cần thiết <span>⌄</span></summary>
+          <div class="step">
+            <p>Bài này dùng Minimal API + MediatR + Dapper + SQLite.</p>
+            <div class="code-wrap"><button class="copy">Copy</button><pre><code>dotnet add Services/OrderingService/OrderingService.csproj package MediatR
+dotnet add Services/OrderingService/OrderingService.csproj package Dapper
+dotnet add Services/OrderingService/OrderingService.csproj package Microsoft.Data.Sqlite
+dotnet build Services/OrderingService/OrderingService.csproj</code></pre></div>
+            <label class="check-item"><input type="checkbox" data-key="step-2"><span>Cài package và build pass.</span></label>
+          </div>
+        </details>
+
+        <details>
+          <summary>5.3. Tạo folder structure <span>⌄</span></summary>
+          <div class="step">
+            <div class="code-wrap"><button class="copy">Copy</button><pre><code>Services/OrderingService/
+├── API/Endpoints
+├── Application/Abstractions
+├── Application/Orders/CreateOrder
+├── Application/Orders/GetOrderById
+├── Application/Orders/GetOrders
+├── Domain/Orders
+└── Infrastructure/Persistence</code></pre></div>
+            <p>PowerShell tạo nhanh:</p>
+            <div class="code-wrap"><button class="copy">Copy</button><pre><code>New-Item -ItemType Directory -Force Services/OrderingService/API/Endpoints
+New-Item -ItemType Directory -Force Services/OrderingService/Application/Abstractions
+New-Item -ItemType Directory -Force Services/OrderingService/Application/Orders/CreateOrder
+New-Item -ItemType Directory -Force Services/OrderingService/Application/Orders/GetOrderById
+New-Item -ItemType Directory -Force Services/OrderingService/Application/Orders/GetOrders
+New-Item -ItemType Directory -Force Services/OrderingService/Domain/Orders
+New-Item -ItemType Directory -Force Services/OrderingService/Infrastructure/Persistence</code></pre></div>
+            <label class="check-item"><input type="checkbox" data-key="step-3"><span>Folder API/Application/Domain/Infrastructure đã sẵn sàng.</span></label>
+          </div>
+        </details>
+
+        <details>
+          <summary>5.4. Thêm connection string <span>⌄</span></summary>
+          <div class="step">
+            <p>Sửa <code>Services/OrderingService/appsettings.Development.json</code>.</p>
+            <div class="code-wrap"><button class="copy">Copy</button><pre><code>{
+  "ConnectionStrings": {
+    "OrderingDb": "Data Source=ordering.db"
+  }
+}</code></pre></div>
+            <p>Database này thuộc riêng <code>OrderingService</code>.</p>
+            <label class="check-item"><input type="checkbox" data-key="step-4"><span>OrderingDb config đã có.</span></label>
+          </div>
+        </details>
+
+        <details>
+          <summary>5.5. Tạo Domain model Order và OrderItem <span>⌄</span></summary>
+          <div class="step">
+            <p>Tạo <code>Domain/Orders/OrderStatus.cs</code>.</p>
+            <div class="code-wrap"><button class="copy">Copy</button><pre><code>namespace OrderingService.Domain.Orders;
+
+public enum OrderStatus
+{
+    Pending = 1,
+    Confirmed = 2,
+    Cancelled = 3,
+    Completed = 4
+}</code></pre></div>
+            <p>Tạo <code>Domain/Orders/OrderItem.cs</code>.</p>
+            <div class="code-wrap"><button class="copy">Copy</button><pre><code>namespace OrderingService.Domain.Orders;
+
+public sealed class OrderItem
+{
+    public Guid Id { get; }
+    public Guid ProductId { get; }
+    public string ProductName { get; }
+    public decimal UnitPrice { get; }
+    public int Quantity { get; }
+
+    public decimal TotalPrice => UnitPrice * Quantity;
+
+    public OrderItem(Guid id, Guid productId, string productName, decimal unitPrice, int quantity)
+    {
+        if (id == Guid.Empty) throw new ArgumentException("Order item id cannot be empty.", nameof(id));
+        if (productId == Guid.Empty) throw new ArgumentException("Product id cannot be empty.", nameof(productId));
+        if (string.IsNullOrWhiteSpace(productName)) throw new ArgumentException("Product name is required.", nameof(productName));
+        if (unitPrice < 0) throw new ArgumentOutOfRangeException(nameof(unitPrice), "Unit price cannot be negative.");
+        if (quantity <= 0) throw new ArgumentOutOfRangeException(nameof(quantity), "Quantity must be greater than zero.");
+
+        Id = id;
+        ProductId = productId;
+        ProductName = productName;
+        UnitPrice = unitPrice;
+        Quantity = quantity;
+    }
+}</code></pre></div>
+            <p>Tạo <code>Domain/Orders/Order.cs</code>.</p>
+            <div class="code-wrap"><button class="copy">Copy</button><pre><code>namespace OrderingService.Domain.Orders;
+
+public sealed class Order
+{
+    private readonly List&lt;OrderItem&gt; _items = [];
+
+    public Guid Id { get; }
+    public Guid CustomerId { get; }
+    public DateTime CreatedAtUtc { get; }
+    public OrderStatus Status { get; private set; }
+    public IReadOnlyList&lt;OrderItem&gt; Items => _items;
+    public decimal TotalAmount => _items.Sum(item => item.TotalPrice);
+
+    public Order(Guid id, Guid customerId, DateTime createdAtUtc, OrderStatus status)
+    {
+        if (id == Guid.Empty) throw new ArgumentException("Order id cannot be empty.", nameof(id));
+        if (customerId == Guid.Empty) throw new ArgumentException("Customer id cannot be empty.", nameof(customerId));
+
+        Id = id;
+        CustomerId = customerId;
+        CreatedAtUtc = createdAtUtc;
+        Status = status;
+    }
+
+    public void AddItem(OrderItem item)
+    {
+        _items.Add(item);
+    }
+}</code></pre></div>
+            <label class="check-item"><input type="checkbox" data-key="step-5"><span>Domain model Order / OrderItem / OrderStatus đã có.</span></label>
+          </div>
+        </details>
+
+        <details>
+          <summary>5.6. Tạo DTO và repository interface <span>⌄</span></summary>
+          <div class="step">
+            <p>Tạo <code>Application/Orders/OrderDto.cs</code>.</p>
+            <div class="code-wrap"><button class="copy">Copy</button><pre><code>namespace OrderingService.Application.Orders;
+
+public sealed record OrderDto(
+    Guid Id,
+    Guid CustomerId,
+    DateTime CreatedAtUtc,
+    string Status,
+    decimal TotalAmount,
+    IReadOnlyList&lt;OrderItemDto&gt; Items);
+
+public sealed record OrderItemDto(
+    Guid Id,
+    Guid ProductId,
+    string ProductName,
+    decimal UnitPrice,
+    int Quantity,
+    decimal TotalPrice);</code></pre></div>
+            <p>Tạo <code>Application/Orders/OrderMapper.cs</code>.</p>
+            <div class="code-wrap"><button class="copy">Copy</button><pre><code>using OrderingService.Domain.Orders;
+
+namespace OrderingService.Application.Orders;
+
+public static class OrderMapper
+{
+    public static OrderDto ToDto(Order order)
+    {
+        return new OrderDto(
+            order.Id,
+            order.CustomerId,
+            order.CreatedAtUtc,
+            order.Status.ToString(),
+            order.TotalAmount,
+            order.Items.Select(item => new OrderItemDto(
+                item.Id,
+                item.ProductId,
+                item.ProductName,
+                item.UnitPrice,
+                item.Quantity,
+                item.TotalPrice)).ToList());
+    }
+}</code></pre></div>
+            <p>Tạo <code>Application/Abstractions/IOrderRepository.cs</code>.</p>
+            <div class="code-wrap"><button class="copy">Copy</button><pre><code>using OrderingService.Domain.Orders;
+
+namespace OrderingService.Application.Abstractions;
+
+public interface IOrderRepository
+{
+    Task&lt;IReadOnlyList&lt;Order&gt;&gt; GetAllAsync(CancellationToken cancellationToken = default);
+    Task&lt;Order?&gt; GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task&lt;Order&gt; CreateAsync(Order order, CancellationToken cancellationToken = default);
+}</code></pre></div>
+            <label class="check-item"><input type="checkbox" data-key="step-6"><span>DTO, mapper và IOrderRepository đã có.</span></label>
+          </div>
+        </details>
+
+        <details>
+          <summary>5.7. Tạo persistence với SQLite <span>⌄</span></summary>
+          <div class="step">
+            <p>Tạo <code>IDbConnectionFactory</code>, <code>SqliteConnectionFactory</code>, <code>DatabaseInitializer</code>.</p>
+            <div class="code-wrap"><button class="copy">Copy</button><pre><code>using System.Data;
+
+namespace OrderingService.Infrastructure.Persistence;
+
+public interface IDbConnectionFactory
+{
+    IDbConnection CreateConnection();
+}</code></pre></div>
+            <div class="code-wrap"><button class="copy">Copy</button><pre><code>using System.Data;
+using Microsoft.Data.Sqlite;
+
+namespace OrderingService.Infrastructure.Persistence;
+
+public sealed class SqliteConnectionFactory : IDbConnectionFactory
+{
+    private readonly string _connectionString;
+
+    public SqliteConnectionFactory(IConfiguration configuration)
+    {
+        _connectionString = configuration.GetConnectionString("OrderingDb")
+            ?? throw new InvalidOperationException("Connection string 'OrderingDb' is missing.");
+    }
+
+    public IDbConnection CreateConnection()
+    {
+        return new SqliteConnection(_connectionString);
+    }
+}</code></pre></div>
+            <div class="code-wrap"><button class="copy">Copy</button><pre><code>using Dapper;
+
+namespace OrderingService.Infrastructure.Persistence;
+
+public static class DatabaseInitializer
+{
+    public static async Task InitializeAsync(IServiceProvider serviceProvider)
+    {
+        using var scope = serviceProvider.CreateScope();
+        var connectionFactory = scope.ServiceProvider.GetRequiredService&lt;IDbConnectionFactory&gt;();
+
+        using var connection = connectionFactory.CreateConnection();
+
+        const string sql = """
+            CREATE TABLE IF NOT EXISTS Orders (
+                Id TEXT PRIMARY KEY,
+                CustomerId TEXT NOT NULL,
+                CreatedAtUtc TEXT NOT NULL,
+                Status TEXT NOT NULL,
+                TotalAmount REAL NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS OrderItems (
+                Id TEXT PRIMARY KEY,
+                OrderId TEXT NOT NULL,
+                ProductId TEXT NOT NULL,
+                ProductName TEXT NOT NULL,
+                UnitPrice REAL NOT NULL,
+                Quantity INTEGER NOT NULL,
+                TotalPrice REAL NOT NULL,
+                FOREIGN KEY (OrderId) REFERENCES Orders(Id)
+            );
+            """;
+
+        await connection.ExecuteAsync(sql);
+    }
+}</code></pre></div>
+            <label class="check-item"><input type="checkbox" data-key="step-7"><span>Persistence và database initializer đã có.</span></label>
+          </div>
+        </details>
+
+        <details>
+          <summary>5.8. Tạo DapperOrderRepository <span>⌄</span></summary>
+          <div class="step">
+            <p>Bản HTML này để gọn, phần repository dài nên dùng skeleton. Trong file MD có bản full nếu bro muốn copy đủ.</p>
+            <div class="code-wrap"><button class="copy">Copy</button><pre><code>using Dapper;
+using OrderingService.Application.Abstractions;
+using OrderingService.Domain.Orders;
+
+namespace OrderingService.Infrastructure.Persistence;
+
+public sealed class DapperOrderRepository : IOrderRepository
+{
+    private readonly IDbConnectionFactory _connectionFactory;
+
+    public DapperOrderRepository(IDbConnectionFactory connectionFactory)
+    {
+        _connectionFactory = connectionFactory;
+    }
+
+    public async Task&lt;IReadOnlyList&lt;Order&gt;&gt; GetAllAsync(CancellationToken cancellationToken = default)
+    {
+        // Query Orders + OrderItems, then map rows to Order domain model.
+        throw new NotImplementedException();
+    }
+
+    public async Task&lt;Order?&gt; GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        // Query one order + items by OrderId.
+        throw new NotImplementedException();
+    }
+
+    public async Task&lt;Order&gt; CreateAsync(Order order, CancellationToken cancellationToken = default)
+    {
+        // Insert Orders and OrderItems in one transaction.
+        throw new NotImplementedException();
+    }
+}</code></pre></div>
+            <div class="callout warn"><strong>Ghi chú</strong>Khi làm thật, dùng bản full trong file MD Buổi 15 để tránh thiếu code.</div>
+            <label class="check-item"><input type="checkbox" data-key="step-8"><span>DapperOrderRepository đã được tạo bằng bản full trong MD.</span></label>
+          </div>
+        </details>
+
+        <details>
+          <summary>5.9. Tạo Create/Get order use cases <span>⌄</span></summary>
+          <div class="step">
+            <p>Tạo command/query/handler cho: <code>CreateOrder</code>, <code>GetOrders</code>, <code>GetOrderById</code>.</p>
+            <div class="code-wrap"><button class="copy">Copy</button><pre><code>using MediatR;
+
+namespace OrderingService.Application.Orders.CreateOrder;
+
+public sealed record CreateOrderCommand(
+    Guid CustomerId,
+    IReadOnlyList&lt;CreateOrderItemCommand&gt; Items) : IRequest&lt;OrderDto&gt;;
+
+public sealed record CreateOrderItemCommand(
+    Guid ProductId,
+    string ProductName,
+    decimal UnitPrice,
+    int Quantity);</code></pre></div>
+            <div class="code-wrap"><button class="copy">Copy</button><pre><code>using MediatR;
+
+namespace OrderingService.Application.Orders.GetOrders;
+
+public sealed record GetOrdersQuery : IRequest&lt;IReadOnlyList&lt;OrderDto&gt;&gt;;</code></pre></div>
+            <div class="code-wrap"><button class="copy">Copy</button><pre><code>using MediatR;
+
+namespace OrderingService.Application.Orders.GetOrderById;
+
+public sealed record GetOrderByIdQuery(Guid Id) : IRequest&lt;OrderDto?&gt;;</code></pre></div>
+            <label class="check-item"><input type="checkbox" data-key="step-9"><span>Create/Get use cases đã có.</span></label>
+          </div>
+        </details>
+
+        <details>
+          <summary>5.10. Tạo OrderEndpoints và Program.cs <span>⌄</span></summary>
+          <div class="step">
+            <p>Tạo <code>API/Endpoints/OrderEndpoints.cs</code> với <code>GET /orders</code>, <code>GET /orders/{id}</code>, <code>POST /orders</code>.</p>
+            <div class="code-wrap"><button class="copy">Copy</button><pre><code>using MediatR;
+using OrderingService.Application.Orders.CreateOrder;
+using OrderingService.Application.Orders.GetOrderById;
+using OrderingService.Application.Orders.GetOrders;
+
+namespace OrderingService.API.Endpoints;
+
+public static class OrderEndpoints
+{
+    public static IEndpointRouteBuilder MapOrderEndpoints(this IEndpointRouteBuilder app)
+    {
+        var group = app.MapGroup("/orders").WithTags("Orders");
+
+        group.MapGet("/", async (ISender sender, CancellationToken cancellationToken) =>
+            Results.Ok(await sender.Send(new GetOrdersQuery(), cancellationToken)));
+
+        group.MapGet("/{id:guid}", async (Guid id, ISender sender, CancellationToken cancellationToken) =>
+        {
+            var result = await sender.Send(new GetOrderByIdQuery(id), cancellationToken);
+            return result is null ? Results.NotFound() : Results.Ok(result);
+        });
+
+        group.MapPost("/", async (CreateOrderRequest request, ISender sender, CancellationToken cancellationToken) =>
+        {
+            var command = new CreateOrderCommand(
+                request.CustomerId,
+                request.Items.Select(item => new CreateOrderItemCommand(
+                    item.ProductId,
+                    item.ProductName,
+                    item.UnitPrice,
+                    item.Quantity)).ToList());
+
+            var result = await sender.Send(command, cancellationToken);
+            return Results.Created($"/orders/{result.Id}", result);
+        });
+
+        return app;
+    }
+
+    private sealed record CreateOrderRequest(Guid CustomerId, IReadOnlyList&lt;CreateOrderItemRequest&gt; Items);
+    private sealed record CreateOrderItemRequest(Guid ProductId, string ProductName, decimal UnitPrice, int Quantity);
+}</code></pre></div>
+            <p>Sửa <code>Program.cs</code>:</p>
+            <div class="code-wrap"><button class="copy">Copy</button><pre><code>using OrderingService.API.Endpoints;
+using OrderingService.Application.Abstractions;
+using OrderingService.Infrastructure.Persistence;
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+
+builder.Services.AddMediatR(cfg =>
+    cfg.RegisterServicesFromAssembly(typeof(Program).Assembly));
+
+builder.Services.AddSingleton&lt;IDbConnectionFactory, SqliteConnectionFactory&gt;();
+builder.Services.AddScoped&lt;IOrderRepository, DapperOrderRepository&gt;();
+
+var app = builder.Build();
+
+await DatabaseInitializer.InitializeAsync(app.Services);
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
+app.MapOrderEndpoints();
+
+app.Run();</code></pre></div>
+            <label class="check-item"><input type="checkbox" data-key="step-10"><span>OrderEndpoints và Program.cs đã xong.</span></label>
+          </div>
+        </details>
+      </section>
+
+      <section class="card" id="postman">
+        <div class="section-head"><div><h3>Postman Lab</h3><p>Test flow tạo order và đọc order.</p></div><span class="badge">Lab</span></div>
+        <div class="callout"><strong>Environment</strong>Tạo biến <code>ordering_url = http://localhost:5004</code> và <code>order_id</code>.</div>
+
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>#</th><th>Request</th><th>Method</th><th>URL</th><th>Expected</th></tr></thead>
+            <tbody>
+              <tr><td>1</td><td>Create Order</td><td><span class="method post">POST</span></td><td><code>{{ordering_url}}/orders</code></td><td><span class="status">201 Created</span></td></tr>
+              <tr><td>2</td><td>Get Orders</td><td><span class="method get">GET</span></td><td><code>{{ordering_url}}/orders</code></td><td><span class="status">200 OK</span></td></tr>
+              <tr><td>3</td><td>Get Order By Id</td><td><span class="method get">GET</span></td><td><code>{{ordering_url}}/orders/{{order_id}}</code></td><td><span class="status">200 OK</span></td></tr>
+              <tr><td>4</td><td>Get Order Not Found</td><td><span class="method get">GET</span></td><td><code>{{ordering_url}}/orders/00000000-0000-0000-0000-000000000000</code></td><td><span class="status red">404</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="grid" style="margin-top:16px">
+          <div class="card span-6" style="box-shadow:none">
+            <h4>Create Order body</h4>
+            <div class="code-wrap"><button class="copy">Copy</button><pre><code>{
+  "customerId": "11111111-1111-1111-1111-111111111111",
+  "items": [
+    {
+      "productId": "22222222-2222-2222-2222-222222222222",
+      "productName": "MacBook Pro",
+      "unitPrice": 1999,
+      "quantity": 1
+    },
+    {
+      "productId": "33333333-3333-3333-3333-333333333333",
+      "productName": "Magic Mouse",
+      "unitPrice": 99,
+      "quantity": 2
+    }
+  ]
+}</code></pre></div>
+          </div>
+          <div class="card span-6" style="box-shadow:none">
+            <h4>Tests lưu order_id</h4>
+            <div class="code-wrap"><button class="copy">Copy</button><pre><code>const json = pm.response.json();
+pm.environment.set("order_id", json.id);</code></pre></div>
+            <div class="callout success"><strong>Expected</strong><code>totalAmount = 2197</code>, <code>status = Pending</code>, có danh sách items.</div>
+          </div>
+        </div>
+
+        <label class="check-item" style="margin-top:14px"><input type="checkbox" data-key="postman-pass"><span>Đã test đủ: Create, Get list, Get by id, Not found.</span></label>
+      </section>
+
+      <section class="grid" id="exercise">
+        <div class="card span-6">
+          <div class="section-head"><div><h3>Bài tập</h3><p>Làm để chắc kiến thức.</p></div></div>
+          <div class="checklist">
+            <label class="check-item"><input type="checkbox" data-key="ex-1"><span>Vẽ flow POST /orders → DB.</span></label>
+            <label class="check-item"><input type="checkbox" data-key="ex-2"><span>Ghi bảng kết quả Postman: 201 / 200 / 200 / 404.</span></label>
+            <label class="check-item"><input type="checkbox" data-key="ex-3"><span>Giải thích vì sao OrderItem lưu ProductName và UnitPrice.</span></label>
+            <label class="check-item"><input type="checkbox" data-key="ex-4"><span>Trả lời: OrderingService có nên query thẳng DB của CatalogService không?</span></label>
+          </div>
+        </div>
+
+        <div class="card span-6">
+          <div class="section-head"><div><h3>Quiz nhanh</h3><p>Chọn đáp án để tự kiểm tra.</p></div></div>
+          <div class="quiz" data-answer="b"><p><b>1. OrderingService chịu trách nhiệm chính việc gì?</b></p><button class="quiz-option" data-value="a">Quản lý sản phẩm</button><button class="quiz-option" data-value="b">Quản lý đơn hàng</button><button class="quiz-option" data-value="c">Đăng nhập user</button></div>
+          <hr style="border:0;border-top:1px solid var(--line);margin:18px 0">
+          <div class="quiz" data-answer="a"><p><b>2. Vì sao OrderItem nên lưu ProductName và UnitPrice?</b></p><button class="quiz-option" data-value="a">Để lưu snapshot tại thời điểm tạo order</button><button class="quiz-option" data-value="b">Để tránh tạo bảng OrderItems</button><button class="quiz-option" data-value="c">Vì ProductId không dùng được</button></div>
+          <hr style="border:0;border-top:1px solid var(--line);margin:18px 0">
+          <div class="quiz" data-answer="c"><p><b>3. Service nào sở hữu dữ liệu Orders?</b></p><button class="quiz-option" data-value="a">CatalogService</button><button class="quiz-option" data-value="b">BasketService</button><button class="quiz-option" data-value="c">OrderingService</button></div>
+          <hr style="border:0;border-top:1px solid var(--line);margin:18px 0">
+          <div class="quiz" data-answer="b"><p><b>4. Handler nên phụ thuộc gì?</b></p><button class="quiz-option" data-value="a">DapperOrderRepository</button><button class="quiz-option" data-value="b">IOrderRepository</button><button class="quiz-option" data-value="c">SqliteConnection</button></div>
+        </div>
+      </section>
+
+      <section class="card" id="review">
+        <div class="section-head"><div><h3>Review cuối bài</h3><p>Ghi lại để nhớ lâu và chuẩn bị sang Buổi 16.</p></div><span class="badge">Reflection</span></div>
+        <div class="cards-2">
+          <div class="mini-card"><h4>Không học trong buổi này</h4><p>Checkout từ Basket, Payment, Outbox, event-driven, Saga, idempotency, stock reservation.</p></div>
+          <div class="mini-card"><h4>Buổi tiếp theo</h4><p>Buổi 16: Checkout Flow, lấy basket, tạo order, clear basket, chuẩn bị cho event/payment sau này.</p></div>
+        </div>
+        <p><b>Tự trả lời:</b> Bài 15 giúp MicroShop tiến gần checkout flow hơn ở điểm nào?</p>
+        <textarea id="reviewNote" placeholder="Ví dụ: Trước bài 15, hệ thống chưa có khái niệm order. Sau bài 15, MicroShop có OrderingService để tạo và đọc order, chuẩn bị cho checkout flow ở bài 16..."></textarea>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">
+          <button id="saveNote" class="btn" style="background:var(--primary);color:white">Lưu review</button>
+          <button id="clearProgress" class="btn" style="background:var(--surface-2);color:var(--text);border:1px solid var(--line)">Reset progress</button>
+        </div>
+        <label class="check-item" style="margin-top:14px"><input type="checkbox" data-key="review-done"><span>Đã viết review cuối bài.</span></label>
+      </section>
+
+      <div class="footer">MicroShop Lesson 15 • Interactive HTML • Vietnamese-safe font stack</div>
+    </main>
+  </div>
+
+  <script>
+    const lessonKey = 'microshop-lesson-15-interactive';
+    const root = document.documentElement;
+    const savedTheme = localStorage.getItem(lessonKey + ':theme') || 'light';
+    root.dataset.theme = savedTheme;
+    document.getElementById('themeIcon').textContent = savedTheme === 'dark' ? '☀️' : '🌙';
+
+    document.getElementById('themeToggle').addEventListener('click', () => {
+      const next = root.dataset.theme === 'dark' ? 'light' : 'dark';
+      root.dataset.theme = next;
+      localStorage.setItem(lessonKey + ':theme', next);
+      document.getElementById('themeIcon').textContent = next === 'dark' ? '☀️' : '🌙';
+    });
+
+    const boxes = [...document.querySelectorAll('input[type="checkbox"][data-key]')];
+    boxes.forEach(box => {
+      const saved = localStorage.getItem(lessonKey + ':' + box.dataset.key);
+      box.checked = saved === '1';
+      box.addEventListener('change', () => {
+        localStorage.setItem(lessonKey + ':' + box.dataset.key, box.checked ? '1' : '0');
+        updateProgress();
+      });
+    });
+
+    const progressText = document.getElementById('progressText');
+    const progressBar = document.getElementById('progressBar');
+
+    function updateProgress() {
+      const total = boxes.length || 1;
+      const done = boxes.filter(x => x.checked).length;
+      const percent = Math.round(done / total * 100);
+      progressText.textContent = percent + '%';
+      progressBar.style.width = percent + '%';
+    }
+
+    updateProgress();
+
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        const container = tab.closest('.card');
+        container.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        container.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+        tab.classList.add('active');
+        container.querySelector('#' + tab.dataset.tab).classList.add('active');
+      });
+    });
+
+    document.querySelectorAll('.copy').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const text = btn.parentElement.querySelector('code').innerText;
+        try {
+          await navigator.clipboard.writeText(text);
+          const old = btn.textContent;
+          btn.textContent = 'Copied';
+          setTimeout(() => btn.textContent = old, 1200);
+        } catch {
+          btn.textContent = 'Copy failed';
+        }
+      });
+    });
+
+    document.querySelectorAll('.quiz').forEach((quiz, index) => {
+      const answer = quiz.dataset.answer;
+      const saved = localStorage.getItem(lessonKey + ':quiz:' + index);
+      const buttons = [...quiz.querySelectorAll('.quiz-option')];
+
+      function mark(value) {
+        buttons.forEach(b => {
+          b.classList.remove('correct', 'wrong');
+          if (b.dataset.value === answer) b.classList.add('correct');
+          if (b.dataset.value === value && value !== answer) b.classList.add('wrong');
+        });
+      }
+
+      if (saved) mark(saved);
+
+      buttons.forEach(btn => btn.addEventListener('click', () => {
+        localStorage.setItem(lessonKey + ':quiz:' + index, btn.dataset.value);
+        mark(btn.dataset.value);
+      }));
+    });
+
+    const note = document.getElementById('reviewNote');
+    note.value = localStorage.getItem(lessonKey + ':review') || '';
+
+    document.getElementById('saveNote').addEventListener('click', () => {
+      localStorage.setItem(lessonKey + ':review', note.value);
+      alert('Đã lưu review bài 15.');
+    });
+
+    document.getElementById('clearProgress').addEventListener('click', () => {
+      if (!confirm('Reset toàn bộ progress bài 15?')) return;
+      Object.keys(localStorage).forEach(k => {
+        if (k.startsWith(lessonKey + ':')) localStorage.removeItem(k);
+      });
+      location.reload();
+    });
+
+    const navLinks = [...document.querySelectorAll('#nav a')];
+    const sections = navLinks.map(a => document.querySelector(a.getAttribute('href')));
+
+    window.addEventListener('scroll', () => {
+      let current = sections[0].id;
+      sections.forEach(sec => {
+        if (sec.getBoundingClientRect().top < 160) current = sec.id;
+      });
+      navLinks.forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#' + current));
+    });
+
+    document.getElementById('mobileJump').addEventListener('change', e => {
+      document.getElementById(e.target.value).scrollIntoView({ behavior: 'smooth' });
+    });
+  </script>
+</body>
+</html>

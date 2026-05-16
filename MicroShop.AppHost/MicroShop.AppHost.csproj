@@ -1,10 +1,11 @@
 <Project Sdk="Aspire.AppHost.Sdk/13.2.4">
 
   <ItemGroup>
-    <ProjectReference Include="..\ApiGateway\ApiGateway.csproj" />
-    <ProjectReference Include="..\BasketService\BasketService.csproj" />
-    <ProjectReference Include="..\CatalogService\CatalogService.csproj" />
-    <ProjectReference Include="..\IdentityService\IdentityService.csproj" />
+    <ProjectReference Include="..\Services\ApiGateway\ApiGateway.csproj" />
+    <ProjectReference Include="..\Services\BasketService\BasketService.csproj" />
+    <ProjectReference Include="..\Services\CatalogService\CatalogService.csproj" />
+    <ProjectReference Include="..\Services\IdentityService\IdentityService.csproj" />
+    <ProjectReference Include="..\Services\OrderingService\OrderingService.csproj" />
     <ProjectReference Include="..\MicroShop.ServiceDefaults\MicroShop.ServiceDefaults.csproj" IsAspireProjectResource="false" />
   </ItemGroup>
 
