@@ -1,16 +1,63 @@
+using System.Text;
 using CatalogService.API.Endpoints;
 using CatalogService.API.GrpcServices;
 using FluentValidation;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.IdentityModel.Tokens;
 
 namespace CatalogService.API;
 
 public static class DependencyInjection
 {
-    public static IServiceCollection AddApi(this IServiceCollection services)
+    public static IServiceCollection AddApi(this IServiceCollection services, IConfiguration configuration)
     {
-        services.AddAuthorization();
+        services.AddCatalogAuthentication(configuration);
         services.AddGrpc();
+
+        return services;
+    }
+
+    private static IServiceCollection AddCatalogAuthentication(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        var issuer = configuration["Jwt:Issuer"]
+                     ?? throw new InvalidOperationException("Jwt:Issuer is missing.");
+
+        var audience = configuration["Jwt:Audience"]
+                       ?? throw new InvalidOperationException("Jwt:Audience is missing.");
+
+        var secretKey = configuration["Jwt:SecretKey"]
+                        ?? throw new InvalidOperationException("Jwt:SecretKey is missing.");
+
+        services
+            .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+            .AddJwtBearer(options =>
+            {
+                options.TokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidateIssuer = true,
+                    ValidIssuer = issuer,
+
+                    ValidateAudience = true,
+                    ValidAudience = audience,
+
+                    ValidateIssuerSigningKey = true,
+                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey)),
+
+                    ValidateLifetime = true,
+                    ClockSkew = TimeSpan.Zero
+                };
+            });
+
+        services.AddAuthorization(options =>
+        {
+            options.AddPolicy("AdminOnly", policy =>
+            {
+                policy.RequireRole("Admin");
+            });
+        });
 
         return services;
     }

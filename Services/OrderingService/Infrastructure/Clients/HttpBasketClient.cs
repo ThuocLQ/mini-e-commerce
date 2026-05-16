@@ -12,16 +12,35 @@ public sealed class HttpBasketClient : IBasketClient
 
     public async Task<BasketDto?> GetBasketAsync(Guid customerId, CancellationToken cancellationToken = default)
     {
-        var response = await _httpClient.GetAsync($"/baskets/{customerId}", cancellationToken);
-        if (response.StatusCode == HttpStatusCode.NotFound) return null;
-        response.EnsureSuccessStatusCode();
-        return await response.Content.ReadFromJsonAsync<BasketDto>(cancellationToken);
+        try
+        {
+            var response = await _httpClient.GetAsync($"/basket/{customerId}", cancellationToken);
+            if (response.StatusCode == HttpStatusCode.NotFound) return null;
+            response.EnsureSuccessStatusCode();
+            return await response.Content.ReadFromJsonAsync<BasketDto>(cancellationToken);
+        }
+        catch (Exception ex) when (!cancellationToken.IsCancellationRequested && IsDownstreamFailure(ex))
+        {
+            throw new BasketUnavailableException(ex);
+        }
     }
 
     public async Task ClearBasketAsync(Guid customerId, CancellationToken cancellationToken = default)
     {
-        var response = await _httpClient.DeleteAsync($"/baskets/{customerId}", cancellationToken);
-        if (response.StatusCode == HttpStatusCode.NotFound) return;
-        response.EnsureSuccessStatusCode();
-    } 
+        try
+        {
+            var response = await _httpClient.DeleteAsync($"/basket/{customerId}", cancellationToken);
+            if (response.StatusCode == HttpStatusCode.NotFound) return;
+            response.EnsureSuccessStatusCode();
+        }
+        catch (Exception ex) when (!cancellationToken.IsCancellationRequested && IsDownstreamFailure(ex))
+        {
+            throw new BasketUnavailableException(ex);
+        }
+    }
+
+    private static bool IsDownstreamFailure(Exception exception)
+    {
+        return exception is HttpRequestException or TaskCanceledException;
+    }
 }

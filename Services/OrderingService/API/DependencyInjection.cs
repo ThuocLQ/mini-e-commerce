@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Diagnostics;
+using OrderingService.Application.Baskets;
 using OrderingService.API.Endpoints;
 
 namespace OrderingService.API;
@@ -16,6 +17,7 @@ public static class DependencyInjection
     public static IEndpointRouteBuilder MapApiEndpoints(this IEndpointRouteBuilder app)
     {
         app.MapOrderEndpoints();
+        app.MapCheckoutEndpoints();
 
         return app;
     }
@@ -27,6 +29,18 @@ public static class DependencyInjection
             errorApp.Run(async context =>
             {
                 var exception = context.Features.Get<IExceptionHandlerFeature>()?.Error;
+
+                if (exception is BasketUnavailableException)
+                {
+                    await Results.Json(
+                        new
+                        {
+                            ErrorCode = "DOWNSTREAM_UNAVAILABLE",
+                            exception.Message
+                        },
+                        statusCode: StatusCodes.Status503ServiceUnavailable).ExecuteAsync(context);
+                    return;
+                }
 
                 if (exception is ArgumentException or InvalidOperationException)
                 {

@@ -14,12 +14,13 @@
         <PrivateAssets>all</PrivateAssets>
         <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       </PackageReference>
+      <PackageReference Include="MediatR" Version="14.1.0" />
       <PackageReference Include="Refit.HttpClientFactory" Version="10.1.6" />
       <PackageReference Include="StackExchange.Redis" Version="2.12.14" />
     </ItemGroup>
 
     <ItemGroup>
-        <Protobuf Include="Protos\catalog.proto" GrpcServices="Client" />
+        <Protobuf Include="Infrastructure\Catalog\Protos\catalog.proto" GrpcServices="Client" />
     </ItemGroup>
 
     <ItemGroup>

@@ -15,5 +15,9 @@ public sealed class CreateProductCommandValidator : AbstractValidator<CreateProd
         RuleFor(x => x.Price)
             .GreaterThanOrEqualTo(0)
             .WithMessage("Product price cannot be negative.");
+
+        RuleFor(x => x.Description)
+            .MaximumLength(1000)
+            .WithMessage("Product description must not exceed 1000 characters.");
     }
 }

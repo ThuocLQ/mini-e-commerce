@@ -1,0 +1,362 @@
+{
+  "info": {
+    "name": "MicroShop - Order Flow",
+    "_postman_id": "0f8d7b3e-8a9f-4f90-96cc-6a9ceccf5f4a",
+    "description": "End-to-end order flow through ApiGateway: pick product, add to basket, checkout, retry checkout, get orders.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "gatewayBaseUrl",
+      "value": "https://localhost:7001"
+    },
+    {
+      "key": "customerId",
+      "value": "00000000-0000-0000-0000-000000000001"
+    },
+    {
+      "key": "productId",
+      "value": ""
+    },
+    {
+      "key": "orderId",
+      "value": ""
+    },
+    {
+      "key": "idempotencyKey",
+      "value": "checkout-demo-001"
+    }
+  ],
+  "item": [
+    {
+      "name": "01 - Get products and set productId",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Products response is OK', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "",
+              "const products = pm.response.json();",
+              "pm.test('At least one product exists', function () {",
+              "  pm.expect(products.length, 'seed CatalogService first if this fails').to.be.greaterThan(0);",
+              "});",
+              "",
+              "if (Array.isArray(products) && products.length > 0) {",
+              "  pm.collectionVariables.set('productId', products[0].id);",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{gatewayBaseUrl}}/catalog/products",
+          "host": [
+            "{{gatewayBaseUrl}}"
+          ],
+          "path": [
+            "catalog",
+            "products"
+          ]
+        }
+      }
+    },
+    {
+      "name": "02 - Add product to basket",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Basket updated', function () {",
+              "  pm.response.to.have.status(200);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"productId\": \"{{productId}}\",\n  \"quantity\": 2\n}"
+        },
+        "url": {
+          "raw": "{{gatewayBaseUrl}}/cart/{{customerId}}/items",
+          "host": [
+            "{{gatewayBaseUrl}}"
+          ],
+          "path": [
+            "cart",
+            "{{customerId}}",
+            "items"
+          ]
+        }
+      }
+    },
+    {
+      "name": "03 - Get basket before checkout",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Basket has items', function () {",
+              "  pm.response.to.have.status(200);",
+              "  const basket = pm.response.json();",
+              "  pm.expect(basket.items.length).to.be.greaterThan(0);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{gatewayBaseUrl}}/cart/{{customerId}}",
+          "host": [
+            "{{gatewayBaseUrl}}"
+          ],
+          "path": [
+            "cart",
+            "{{customerId}}"
+          ]
+        }
+      }
+    },
+    {
+      "name": "04 - Checkout order",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Order created', function () {",
+              "  pm.response.to.have.status(201);",
+              "});",
+              "",
+              "const order = pm.response.json();",
+              "pm.collectionVariables.set('orderId', order.id);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "{{idempotencyKey}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"customerId\": \"{{customerId}}\"\n}"
+        },
+        "url": {
+          "raw": "{{gatewayBaseUrl}}/orders/checkout",
+          "host": [
+            "{{gatewayBaseUrl}}"
+          ],
+          "path": [
+            "orders",
+            "checkout"
+          ]
+        }
+      }
+    },
+    {
+      "name": "05 - Retry checkout with same idempotency key",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Same order returned', function () {",
+              "  pm.response.to.have.status(201);",
+              "  const order = pm.response.json();",
+              "  pm.expect(order.id).to.eql(pm.collectionVariables.get('orderId'));",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "{{idempotencyKey}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"customerId\": \"{{customerId}}\"\n}"
+        },
+        "url": {
+          "raw": "{{gatewayBaseUrl}}/orders/checkout",
+          "host": [
+            "{{gatewayBaseUrl}}"
+          ],
+          "path": [
+            "orders",
+            "checkout"
+          ]
+        }
+      }
+    },
+    {
+      "name": "06 - Get orders",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Orders response is OK', function () {",
+              "  pm.response.to.have.status(200);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{gatewayBaseUrl}}/orders",
+          "host": [
+            "{{gatewayBaseUrl}}"
+          ],
+          "path": [
+            "orders"
+          ]
+        }
+      }
+    },
+    {
+      "name": "07 - Get order by id",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Order found', function () {",
+              "  pm.response.to.have.status(200);",
+              "  const order = pm.response.json();",
+              "  pm.expect(order.id).to.eql(pm.collectionVariables.get('orderId'));",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{gatewayBaseUrl}}/orders/{{orderId}}",
+          "host": [
+            "{{gatewayBaseUrl}}"
+          ],
+          "path": [
+            "orders",
+            "{{orderId}}"
+          ]
+        }
+      }
+    },
+    {
+      "name": "08 - Get unknown order returns 404",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Order not found', function () {",
+              "  pm.response.to.have.status(404);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{gatewayBaseUrl}}/orders/11111111-1111-1111-1111-111111111111",
+          "host": [
+            "{{gatewayBaseUrl}}"
+          ],
+          "path": [
+            "orders",
+            "11111111-1111-1111-1111-111111111111"
+          ]
+        }
+      }
+    }
+  ]
+}

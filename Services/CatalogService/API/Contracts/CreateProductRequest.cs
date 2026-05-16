@@ -1,3 +1,3 @@
 namespace CatalogService.API.Contracts;
 
-public sealed record CreateProductRequest(string Name, decimal Price);
+public sealed record CreateProductRequest(string Name, decimal Price, string? Description = null);

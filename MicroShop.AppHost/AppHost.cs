@@ -16,7 +16,10 @@ var basket = builder.AddProject<Projects.BasketService>("BasketService")
 
 var identity = builder.AddProject<Projects.IdentityService>("IdentityService");
 
-var ordering = builder.AddProject<Projects.OrderingService>("OrderingService");
+var ordering = builder.AddProject<Projects.OrderingService>("OrderingService")
+    .WithReference(basket)
+    .WaitFor(basket)
+    .WithEnvironment("ServiceUrls__BasketHttp", "https+http://BasketService");
 
 var gateway = builder.AddProject<Projects.ApiGateway>("ApiGateway")
     .WithReference(catalog)

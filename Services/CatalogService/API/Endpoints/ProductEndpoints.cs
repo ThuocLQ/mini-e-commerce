@@ -79,7 +79,7 @@ public static class ProductEndpoints
             ISender sender,
             CancellationToken cancellationToken) =>
         {
-            var command = new CreateProductCommand(request.Name, request.Price);
+            var command = new CreateProductCommand(request.Name, request.Price, request.Description);
             var validationResult = await validator.ValidateAsync(command, cancellationToken);
 
             if (!validationResult.IsValid)
@@ -99,7 +99,7 @@ public static class ProductEndpoints
             ISender sender,
             CancellationToken cancellationToken) =>
         {
-            var command = new UpdateProductCommand(id, updatedProduct.Name, updatedProduct.Price);
+            var command = new UpdateProductCommand(id, updatedProduct.Name, updatedProduct.Price, updatedProduct.Description);
             var validationResult = await validator.ValidateAsync(command, cancellationToken);
 
             if (!validationResult.IsValid)

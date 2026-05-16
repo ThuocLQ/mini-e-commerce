@@ -19,9 +19,23 @@ public sealed class SqliteDatabaseInitializer : IDatabaseInitializer
             CREATE TABLE IF NOT EXISTS Products (
                 Id TEXT PRIMARY KEY,
                 Name TEXT NOT NULL,
+                Description TEXT NOT NULL DEFAULT '',
                 Price REAL NOT NULL DEFAULT 0
             );
             """, cancellationToken: cancellationToken));
+
+        var columns = await connection.QueryAsync<string>(new CommandDefinition("""
+            SELECT name
+            FROM pragma_table_info('Products');
+            """, cancellationToken: cancellationToken));
+
+        if (!columns.Contains("Description", StringComparer.OrdinalIgnoreCase))
+        {
+            await connection.ExecuteAsync(new CommandDefinition("""
+                ALTER TABLE Products
+                ADD COLUMN Description TEXT NOT NULL DEFAULT '';
+                """, cancellationToken: cancellationToken));
+        }
 
         await connection.ExecuteAsync(new CommandDefinition("""
             CREATE INDEX IF NOT EXISTS IX_Products_Name

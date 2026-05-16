@@ -4,3 +4,13 @@ GET {{OrderingService_HostAddress}}/orders
 Accept: application/json
 
 ###
+
+POST {{OrderingService_HostAddress}}/orders/checkout
+Content-Type: application/json
+Idempotency-Key: checkout-demo-001
+
+{
+  "customerId": "00000000-0000-0000-0000-000000000001"
+}
+
+###

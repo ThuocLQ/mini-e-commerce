@@ -44,7 +44,6 @@ public sealed class CatalogGrpcService : CatalogGrpc.CatalogGrpcBase
             Name = product.Name,
             Price = (double)product.Price,
             Found = true,
-            // TODO: Persist Description in the catalog database when the lesson reaches schema changes.
             Description = product.Description
         };
     }

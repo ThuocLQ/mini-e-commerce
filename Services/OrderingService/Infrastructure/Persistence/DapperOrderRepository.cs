@@ -1,4 +1,5 @@
 using Dapper;
+using Microsoft.Data.Sqlite;
 using OrderingService.Application.Abstractions;
 using OrderingService.Domain.Orders;
 
@@ -18,7 +19,7 @@ public sealed class DapperOrderRepository : IOrderRepository
         using var connection = _connectionFactory.CreateConnection();
 
         var orderRows = (await connection.QueryAsync<OrderRow>(new CommandDefinition("""
-            SELECT Id, CustomerId, CreatedAtUtc, Status
+            SELECT Id, CustomerId, CreatedAtUtc, Status, IdempotencyKey
             FROM Orders
             ORDER BY CreatedAtUtc DESC;
             """, cancellationToken: cancellationToken))).ToList();
@@ -36,7 +37,7 @@ public sealed class DapperOrderRepository : IOrderRepository
         using var connection = _connectionFactory.CreateConnection();
 
         var orderRow = await connection.QuerySingleOrDefaultAsync<OrderRow>(new CommandDefinition("""
-            SELECT Id, CustomerId, CreatedAtUtc, Status
+            SELECT Id, CustomerId, CreatedAtUtc, Status, IdempotencyKey
             FROM Orders
             WHERE Id = @Id;
             """, new { Id = id.ToString() }, cancellationToken: cancellationToken));
@@ -55,45 +56,97 @@ public sealed class DapperOrderRepository : IOrderRepository
         return MapOrder(orderRow, itemRows);
     }
 
+    public async Task<Order?> GetByCustomerAndIdempotencyKeyAsync(
+        Guid customerId,
+        string idempotencyKey,
+        CancellationToken cancellationToken = default)
+    {
+        using var connection = _connectionFactory.CreateConnection();
+
+        var orderRow = await connection.QuerySingleOrDefaultAsync<OrderRow>(new CommandDefinition("""
+            SELECT Id, CustomerId, CreatedAtUtc, Status, IdempotencyKey
+            FROM Orders
+            WHERE CustomerId = @CustomerId
+              AND IdempotencyKey = @IdempotencyKey;
+            """, new
+        {
+            CustomerId = customerId.ToString(),
+            IdempotencyKey = idempotencyKey
+        }, cancellationToken: cancellationToken));
+
+        if (orderRow is null)
+        {
+            return null;
+        }
+
+        var itemRows = await connection.QueryAsync<OrderItemRow>(new CommandDefinition("""
+            SELECT Id, OrderId, ProductId, ProductName, UnitPrice, Quantity
+            FROM OrderItems
+            WHERE OrderId = @OrderId;
+            """, new { OrderId = orderRow.Id }, cancellationToken: cancellationToken));
+
+        return MapOrder(orderRow, itemRows);
+    }
+
     public async Task<Order> CreateAsync(Order order, CancellationToken cancellationToken = default)
     {
         using var connection = _connectionFactory.CreateConnection();
         connection.Open();
 
-        using var transaction = connection.BeginTransaction();
-
-        await connection.ExecuteAsync(new CommandDefinition("""
-            INSERT INTO Orders (Id, CustomerId, CreatedAtUtc, Status, TotalAmount)
-            VALUES (@Id, @CustomerId, @CreatedAtUtc, @Status, @TotalAmount);
-            """, new
+        try
         {
-            Id = order.Id.ToString(),
-            CustomerId = order.CustomerId.ToString(),
-            CreatedAtUtc = order.CreatedAtUtc.ToString("O"),
-            Status = order.Status.ToString(),
-            order.TotalAmount
-        }, transaction, cancellationToken: cancellationToken));
+            using var transaction = connection.BeginTransaction();
 
-        foreach (var item in order.Items)
-        {
             await connection.ExecuteAsync(new CommandDefinition("""
-                INSERT INTO OrderItems (Id, OrderId, ProductId, ProductName, UnitPrice, Quantity, TotalPrice)
-                VALUES (@Id, @OrderId, @ProductId, @ProductName, @UnitPrice, @Quantity, @TotalPrice);
+                INSERT INTO Orders (Id, CustomerId, CreatedAtUtc, Status, TotalAmount, IdempotencyKey)
+                VALUES (@Id, @CustomerId, @CreatedAtUtc, @Status, @TotalAmount, @IdempotencyKey);
                 """, new
             {
-                Id = item.Id.ToString(),
-                OrderId = order.Id.ToString(),
-                ProductId = item.ProductId.ToString(),
-                item.ProductName,
-                item.UnitPrice,
-                item.Quantity,
-                item.TotalPrice
+                Id = order.Id.ToString(),
+                CustomerId = order.CustomerId.ToString(),
+                CreatedAtUtc = order.CreatedAtUtc.ToString("O"),
+                Status = order.Status.ToString(),
+                order.TotalAmount,
+                order.IdempotencyKey
             }, transaction, cancellationToken: cancellationToken));
+
+            foreach (var item in order.Items)
+            {
+                await connection.ExecuteAsync(new CommandDefinition("""
+                    INSERT INTO OrderItems (Id, OrderId, ProductId, ProductName, UnitPrice, Quantity, TotalPrice)
+                    VALUES (@Id, @OrderId, @ProductId, @ProductName, @UnitPrice, @Quantity, @TotalPrice);
+                    """, new
+                {
+                    Id = item.Id.ToString(),
+                    OrderId = order.Id.ToString(),
+                    ProductId = item.ProductId.ToString(),
+                    item.ProductName,
+                    item.UnitPrice,
+                    item.Quantity,
+                    item.TotalPrice
+                }, transaction, cancellationToken: cancellationToken));
+            }
+
+            transaction.Commit();
+
+            return order;
         }
+        catch (SqliteException ex) when (
+            ex.SqliteErrorCode == 19 &&
+            order.IdempotencyKey is not null)
+        {
+            var existingOrder = await GetByCustomerAndIdempotencyKeyAsync(
+                order.CustomerId,
+                order.IdempotencyKey,
+                cancellationToken);
 
-        transaction.Commit();
+            if (existingOrder is not null)
+            {
+                return existingOrder;
+            }
 
-        return order;
+            throw;
+        }
     }
 
     private static IReadOnlyList<Order> MapOrders(
@@ -113,7 +166,8 @@ public sealed class DapperOrderRepository : IOrderRepository
             Guid.Parse(row.Id),
             Guid.Parse(row.CustomerId),
             DateTime.Parse(row.CreatedAtUtc, null, System.Globalization.DateTimeStyles.RoundtripKind),
-            Enum.Parse<OrderStatus>(row.Status));
+            Enum.Parse<OrderStatus>(row.Status),
+            row.IdempotencyKey);
 
         foreach (var itemRow in itemRows)
         {
@@ -132,7 +186,8 @@ public sealed class DapperOrderRepository : IOrderRepository
         string Id,
         string CustomerId,
         string CreatedAtUtc,
-        string Status);
+        string Status,
+        string? IdempotencyKey);
 
     private sealed record OrderItemRow(
         string Id,

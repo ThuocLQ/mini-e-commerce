@@ -19,7 +19,7 @@ public sealed class UpdateProductHandler : IRequestHandler<UpdateProductCommand,
         var product = new Product(
             request.Id,
             request.Name,
-            string.Empty,
+            request.Description ?? string.Empty,
             request.Price);
 
         var updated = await _productRepository.UpdateAsync(product, cancellationToken);

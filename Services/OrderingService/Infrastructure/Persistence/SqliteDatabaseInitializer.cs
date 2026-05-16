@@ -21,7 +21,8 @@ public sealed class SqliteDatabaseInitializer : IDatabaseInitializer
                 CustomerId TEXT NOT NULL,
                 CreatedAtUtc TEXT NOT NULL,
                 Status TEXT NOT NULL,
-                TotalAmount REAL NOT NULL
+                TotalAmount REAL NOT NULL,
+                IdempotencyKey TEXT NULL
             );
 
             CREATE TABLE IF NOT EXISTS OrderItems (
@@ -34,6 +35,24 @@ public sealed class SqliteDatabaseInitializer : IDatabaseInitializer
                 TotalPrice REAL NOT NULL,
                 FOREIGN KEY (OrderId) REFERENCES Orders(Id)
             );
+            """, cancellationToken: cancellationToken));
+
+        var orderColumns = (await connection.QueryAsync<string>(new CommandDefinition("""
+            SELECT name
+            FROM pragma_table_info('Orders');
+            """, cancellationToken: cancellationToken))).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        if (!orderColumns.Contains("IdempotencyKey"))
+        {
+            await connection.ExecuteAsync(new CommandDefinition("""
+                ALTER TABLE Orders ADD COLUMN IdempotencyKey TEXT NULL;
+                """, cancellationToken: cancellationToken));
+        }
+
+        await connection.ExecuteAsync(new CommandDefinition("""
+            CREATE UNIQUE INDEX IF NOT EXISTS IX_Orders_CustomerId_IdempotencyKey
+            ON Orders(CustomerId, IdempotencyKey)
+            WHERE IdempotencyKey IS NOT NULL;
             """, cancellationToken: cancellationToken));
     }
 }

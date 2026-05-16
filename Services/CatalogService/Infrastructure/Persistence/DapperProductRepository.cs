@@ -19,12 +19,13 @@ public sealed class DapperProductRepository : IProductRepository
         using var connection = CreateConnection();
 
         await connection.ExecuteAsync(new CommandDefinition("""
-            INSERT INTO Products (Id, Name, Price)
-            VALUES (@Id, @Name, @Price)
+            INSERT INTO Products (Id, Name, Description, Price)
+            VALUES (@Id, @Name, @Description, @Price)
             """, new
         {
             product.Id,
             product.Name,
+            product.Description,
             product.Price
         }, cancellationToken: cancellationToken));
 
@@ -37,12 +38,13 @@ public sealed class DapperProductRepository : IProductRepository
 
         var affectedRows = await connection.ExecuteAsync(new CommandDefinition("""
             UPDATE Products
-            SET Name = @Name, Price = @Price
+            SET Name = @Name, Description = @Description, Price = @Price
             WHERE Id = @Id;
             """, new
         {
             product.Id,
             product.Name,
+            product.Description,
             product.Price
         }, cancellationToken: cancellationToken));
 
@@ -69,7 +71,7 @@ public sealed class DapperProductRepository : IProductRepository
         using var connection = CreateConnection();
 
         var rows = await connection.QueryAsync<ProductRow>(new CommandDefinition("""
-            SELECT Id, Name, Price
+            SELECT Id, Name, Description, Price
             FROM Products
             ORDER BY Name;
             """, cancellationToken: cancellationToken));
@@ -82,7 +84,7 @@ public sealed class DapperProductRepository : IProductRepository
         using var connection = CreateConnection();
 
         var row = await connection.QueryFirstOrDefaultAsync<ProductRow>(new CommandDefinition("""
-            SELECT Id, Name, Price
+            SELECT Id, Name, Description, Price
             FROM Products
             WHERE Id = @Id;
             """, new { Id = id }, cancellationToken: cancellationToken));
@@ -98,7 +100,7 @@ public sealed class DapperProductRepository : IProductRepository
         using var connection = CreateConnection();
 
         var rows = await connection.QueryAsync<ProductRow>(new CommandDefinition("""
-            SELECT Id, Name, Price
+            SELECT Id, Name, Description, Price
             FROM Products
             WHERE LOWER(Name) LIKE LOWER(@Keyword)
             ORDER BY Name;
@@ -121,7 +123,7 @@ public sealed class DapperProductRepository : IProductRepository
         using var connection = CreateConnection();
 
         var rows = await connection.QueryAsync<ProductRow>(new CommandDefinition("""
-            SELECT Id, Name, Price
+            SELECT Id, Name, Description, Price
             FROM Products
             WHERE Price BETWEEN @Min AND @Max
             ORDER BY Price;
@@ -137,9 +139,8 @@ public sealed class DapperProductRepository : IProductRepository
 
     private static Product ToDomain(ProductRow row)
     {
-        // TODO: Persist Description in the catalog database when the lesson reaches schema changes.
-        return new Product(row.Id, row.Name, string.Empty, Convert.ToDecimal(row.Price));
+        return new Product(row.Id, row.Name, row.Description, Convert.ToDecimal(row.Price));
     }
 
-    private sealed record ProductRow(string Id, string Name, double Price);
+    private sealed record ProductRow(string Id, string Name, string Description, double Price);
 }
