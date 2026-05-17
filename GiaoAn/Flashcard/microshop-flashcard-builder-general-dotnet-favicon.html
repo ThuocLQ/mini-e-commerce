@@ -1,0 +1,1047 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MicroShop Roadmap Flashcard Builder</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2064%2064%22%3E%0A%20%20%3Cdefs%3E%0A%20%20%20%20%3ClinearGradient%20id%3D%22g%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%221%22%20y2%3D%221%22%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%220%22%20stop-color%3D%22%23512BD4%22/%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%221%22%20stop-color%3D%22%237C3AED%22/%3E%0A%20%20%20%20%3C/linearGradient%3E%0A%20%20%3C/defs%3E%0A%20%20%3Crect%20width%3D%2264%22%20height%3D%2264%22%20rx%3D%2214%22%20fill%3D%22url%28%23g%29%22/%3E%0A%20%20%3Ccircle%20cx%3D%2212%22%20cy%3D%2248%22%20r%3D%224%22%20fill%3D%22%23fff%22/%3E%0A%20%20%3Ctext%20x%3D%2232%22%20y%3D%2239%22%20text-anchor%3D%22middle%22%0A%20%20%20%20%20%20%20%20font-family%3D%22Segoe%20UI%2C%20Arial%2C%20sans-serif%22%0A%20%20%20%20%20%20%20%20font-size%3D%2222%22%20font-weight%3D%22800%22%20fill%3D%22%23fff%22%3E.NET%3C/text%3E%0A%3C/svg%3E" />
+  <link rel="shortcut icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2064%2064%22%3E%0A%20%20%3Cdefs%3E%0A%20%20%20%20%3ClinearGradient%20id%3D%22g%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%221%22%20y2%3D%221%22%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%220%22%20stop-color%3D%22%23512BD4%22/%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%221%22%20stop-color%3D%22%237C3AED%22/%3E%0A%20%20%20%20%3C/linearGradient%3E%0A%20%20%3C/defs%3E%0A%20%20%3Crect%20width%3D%2264%22%20height%3D%2264%22%20rx%3D%2214%22%20fill%3D%22url%28%23g%29%22/%3E%0A%20%20%3Ccircle%20cx%3D%2212%22%20cy%3D%2248%22%20r%3D%224%22%20fill%3D%22%23fff%22/%3E%0A%20%20%3Ctext%20x%3D%2232%22%20y%3D%2239%22%20text-anchor%3D%22middle%22%0A%20%20%20%20%20%20%20%20font-family%3D%22Segoe%20UI%2C%20Arial%2C%20sans-serif%22%0A%20%20%20%20%20%20%20%20font-size%3D%2222%22%20font-weight%3D%22800%22%20fill%3D%22%23fff%22%3E.NET%3C/text%3E%0A%3C/svg%3E" />
+  <meta name="theme-color" content="#512BD4" />
+  <style>
+    :root {
+      --bg: #f6f8fb;
+      --surface: #ffffff;
+      --surface-2: #f8fafc;
+      --surface-3: #eef2ff;
+      --text: #0f172a;
+      --muted: #64748b;
+      --line: #e2e8f0;
+      --primary: #2563eb;
+      --primary-2: #7c3aed;
+      --success: #16a34a;
+      --warning: #f97316;
+      --danger: #dc2626;
+      --shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+      --radius-xl: 28px;
+      --radius-lg: 18px;
+    }
+
+    [data-theme="dark"] {
+      --bg: #0b1120;
+      --surface: #111827;
+      --surface-2: #0f172a;
+      --surface-3: rgba(96, 165, 250, 0.12);
+      --text: #e5e7eb;
+      --muted: #94a3b8;
+      --line: #243042;
+      --primary: #60a5fa;
+      --primary-2: #a78bfa;
+      --shadow: 0 18px 45px rgba(0, 0, 0, 0.32);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Arial, "Helvetica Neue", sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(37, 99, 235, .14), transparent 34%),
+        radial-gradient(circle at top right, rgba(124, 58, 237, .12), transparent 34%),
+        var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      text-rendering: optimizeLegibility;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .app {
+      max-width: 1260px;
+      margin: 0 auto;
+      padding: 26px;
+    }
+
+    .hero {
+      border-radius: 34px;
+      padding: 34px;
+      color: white;
+      background:
+        radial-gradient(circle at 80% 20%, rgba(255,255,255,.18), transparent 32%),
+        linear-gradient(135deg, #2563eb, #7c3aed);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .hero h1 {
+      margin: 0;
+      font-size: clamp(32px, 5vw, 56px);
+      letter-spacing: -0.04em;
+      line-height: 1.04;
+      max-width: 900px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .hero p {
+      color: #dbeafe;
+      max-width: 850px;
+      margin: 14px 0 0;
+      font-size: 17px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .pill {
+      display: inline-flex;
+      padding: 7px 11px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.16);
+      font-size: 13px;
+      font-weight: 800;
+      margin-bottom: 16px;
+    }
+
+    .hero-tools {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 24px;
+      position: relative;
+      z-index: 1;
+    }
+
+    button, .btn, input, textarea, select {
+      font-family: inherit;
+    }
+
+    button, .btn {
+      border: 0;
+      cursor: pointer;
+      padding: 11px 14px;
+      border-radius: 13px;
+      font-weight: 850;
+      font-size: 14px;
+      transition: .18s;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    button:hover, .btn:hover { transform: translateY(-1px); }
+
+    .btn-primary { background: white; color: #1d4ed8; }
+    .btn-ghost { background: rgba(255,255,255,.14); color: white; border: 1px solid rgba(255,255,255,.22); }
+    .btn-blue { background: var(--primary); color: white; }
+    .btn-soft { background: var(--surface-2); color: var(--text); border: 1px solid var(--line); }
+    .btn-green { background: var(--success); color: white; }
+    .btn-red { background: var(--danger); color: white; }
+    .btn-orange { background: var(--warning); color: white; }
+    .btn-small { padding: 8px 10px; font-size: 13px; border-radius: 10px; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 18px;
+      margin-top: 22px;
+    }
+
+    .span-4 { grid-column: span 4; }
+    .span-5 { grid-column: span 5; }
+    .span-7 { grid-column: span 7; }
+    .span-8 { grid-column: span 8; }
+    .span-12 { grid-column: span 12; }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-xl);
+      padding: 22px;
+      box-shadow: var(--shadow);
+    }
+
+    .section-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: flex-start;
+      margin-bottom: 16px;
+    }
+
+    .section-head h2 {
+      margin: 0;
+      font-size: 24px;
+      letter-spacing: -0.02em;
+    }
+
+    .section-head p {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .badge {
+      display: inline-flex;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: var(--surface-3);
+      color: var(--primary);
+      font-weight: 900;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .field { display: grid; gap: 7px; margin-bottom: 12px; }
+    label { font-weight: 800; font-size: 14px; }
+
+    input, textarea, select {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 12px 13px;
+      color: var(--text);
+      background: var(--surface-2);
+      outline: none;
+      font-size: 14px;
+    }
+
+    textarea {
+      min-height: 90px;
+      resize: vertical;
+      line-height: 1.55;
+    }
+
+    input:focus, textarea:focus, select:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 4px rgba(37, 99, 235, .12);
+    }
+
+    .form-actions, .toolbar, .study-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .form-actions { margin-top: 12px; }
+    .toolbar { margin-bottom: 14px; }
+    .toolbar input, .toolbar select { width: auto; min-width: 180px; flex: 1; }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+    }
+
+    .stat {
+      background: var(--surface-2);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 14px;
+    }
+
+    .stat b { display: block; font-size: 22px; line-height: 1; margin-bottom: 5px; }
+    .stat span { color: var(--muted); font-size: 13px; font-weight: 700; }
+
+    .list {
+      display: grid;
+      gap: 10px;
+      max-height: 570px;
+      overflow: auto;
+      padding-right: 4px;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      align-items: center;
+      border: 1px solid var(--line);
+      background: var(--surface-2);
+      border-radius: 18px;
+      padding: 13px;
+    }
+
+    .row-title { font-weight: 900; margin-bottom: 2px; }
+    .row-sub { color: var(--muted); font-size: 13px; }
+    .row-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+
+    .study-wrap { perspective: 1200px; }
+
+    .flashcard {
+      width: 100%;
+      min-height: 320px;
+      position: relative;
+      transform-style: preserve-3d;
+      transition: transform .55s ease;
+      cursor: pointer;
+    }
+
+    .flashcard.flipped { transform: rotateY(180deg); }
+
+    .face {
+      position: absolute;
+      inset: 0;
+      backface-visibility: hidden;
+      border: 1px solid var(--line);
+      border-radius: 30px;
+      background:
+        radial-gradient(circle at top right, rgba(37, 99, 235, .09), transparent 36%),
+        var(--surface-2);
+      display: grid;
+      place-items: center;
+      padding: 26px;
+      text-align: center;
+    }
+
+    .face.back {
+      transform: rotateY(180deg);
+      background:
+        radial-gradient(circle at top left, rgba(124, 58, 237, .10), transparent 36%),
+        var(--surface-2);
+    }
+
+    .card-label {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: var(--surface-3);
+      color: var(--primary);
+      font-weight: 900;
+      font-size: 12px;
+    }
+
+    .card-content h3 {
+      font-size: clamp(30px, 5vw, 54px);
+      line-height: 1.05;
+      letter-spacing: -0.04em;
+      margin: 0;
+    }
+
+    .card-content p {
+      margin: 12px auto 0;
+      max-width: 720px;
+      font-size: 18px;
+      color: var(--muted);
+    }
+
+    .study-actions { margin-top: 16px; justify-content: center; }
+    .progress { color: var(--muted); font-weight: 800; text-align: center; margin-top: 12px; }
+
+    .import-area {
+      min-height: 170px;
+      font-family: Consolas, "Cascadia Code", monospace;
+      font-size: 13px;
+    }
+
+    .hint { color: var(--muted); font-size: 13px; margin-top: 8px; }
+
+    .empty {
+      text-align: center;
+      padding: 26px;
+      color: var(--muted);
+      border: 1px dashed var(--line);
+      border-radius: 20px;
+      background: var(--surface-2);
+    }
+
+    .toast {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      background: var(--text);
+      color: var(--surface);
+      padding: 12px 14px;
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+      font-weight: 800;
+      z-index: 50;
+      opacity: 0;
+      transform: translateY(12px);
+      transition: .2s;
+      pointer-events: none;
+    }
+
+    .toast.show { opacity: 1; transform: translateY(0); }
+
+    @media (max-width: 980px) {
+      .app { padding: 16px; }
+      .hero { padding: 26px; }
+      .span-4, .span-5, .span-7, .span-8, .span-12 { grid-column: span 12; }
+      .stats { grid-template-columns: 1fr 1fr; }
+      .toolbar input, .toolbar select { min-width: 100%; }
+      .row { grid-template-columns: 1fr; }
+      .row-actions { justify-content: flex-start; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <section class="hero">
+      <div class="pill">.NET MicroShop Roadmap Learning Tool</div>
+      <h1>Flashcard Builder</h1>
+      <p>Tạo flashcard học chung cho toàn bộ lộ trình MicroShop: lesson, phase, topic, pattern, command, kiến trúc, security, messaging, database, observability. Không bị khóa riêng vào Bài 17.</p>
+      <div class="hero-tools">
+        <button class="btn-primary" id="loadCoreBtn">Nạp bộ từ vựng core</button>
+        <button class="btn-ghost" id="themeToggle">Đổi sáng/tối <span id="themeIcon">🌙</span></button>
+        <button class="btn-ghost" id="shuffleBtn">Shuffle</button>
+        <button class="btn-ghost" id="resetAllBtn">Reset toàn bộ</button>
+      </div>
+    </section>
+
+    <section class="grid">
+      <div class="card span-4">
+        <div class="section-head">
+          <div>
+            <h2>Tạo flashcard</h2>
+            <p>Dùng cho bất kỳ bài nào trong roadmap.</p>
+          </div>
+          <span class="badge" id="editBadge">New</span>
+        </div>
+
+        <input type="hidden" id="editingId" />
+
+        <div class="field">
+          <label for="frontInput">Mặt trước</label>
+          <input id="frontInput" placeholder="Ví dụ: OutboxPattern" />
+        </div>
+
+        <div class="field">
+          <label for="backInput">Mặt sau</label>
+          <textarea id="backInput" placeholder="Ví dụ: Lưu event cùng transaction DB để tránh mất event khi publish fail."></textarea>
+        </div>
+
+        <div class="field">
+          <label for="lessonInput">Bài / Phase</label>
+          <input id="lessonInput" placeholder="Ví dụ: Lesson23 hoặc Phase1.5" />
+        </div>
+
+        <div class="field">
+          <label for="tagInput">Tag / Topic</label>
+          <input id="tagInput" placeholder="Ví dụ: Messaging, Reliability, Architecture" />
+        </div>
+
+        <div class="form-actions">
+          <button class="btn-blue" id="saveBtn">Lưu card</button>
+          <button class="btn-soft" id="clearFormBtn">Xóa form</button>
+        </div>
+
+        <div class="hint">Phím tắt: Space = lật thẻ, ←/→ = chuyển thẻ, K = đã nhớ, U = chưa nhớ.</div>
+      </div>
+
+      <div class="card span-8">
+        <div class="section-head">
+          <div>
+            <h2>Học flashcard</h2>
+            <p>Lật thẻ, đánh dấu nhớ/chưa nhớ, học theo filter bên dưới.</p>
+          </div>
+          <span class="badge">Study</span>
+        </div>
+
+        <div class="stats" style="margin-bottom: 16px;">
+          <div class="stat"><b id="totalCount">0</b><span>Tổng card</span></div>
+          <div class="stat"><b id="knownCount">0</b><span>Đã nhớ</span></div>
+          <div class="stat"><b id="unknownCount">0</b><span>Chưa nhớ</span></div>
+          <div class="stat"><b id="newCount">0</b><span>Card mới</span></div>
+        </div>
+
+        <div class="study-wrap">
+          <div class="flashcard" id="flashcard">
+            <div class="face front">
+              <span class="card-label">Front</span>
+              <div class="card-content">
+                <h3 id="studyFront">Chưa có flashcard</h3>
+                <p id="studyMeta">Hãy tạo card hoặc nạp bộ từ vựng core.</p>
+              </div>
+            </div>
+            <div class="face back">
+              <span class="card-label">Back</span>
+              <div class="card-content">
+                <h3 id="studyBackTitle">Giải thích</h3>
+                <p id="studyBack">Mặt sau sẽ hiện ở đây.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="progress" id="studyProgress">0 / 0</div>
+
+        <div class="study-actions">
+          <button class="btn-soft" id="prevBtn">← Trước</button>
+          <button class="btn-blue" id="flipBtn">Lật thẻ</button>
+          <button class="btn-soft" id="nextBtn">Sau →</button>
+          <button class="btn-green" id="knownBtn">Đã nhớ</button>
+          <button class="btn-orange" id="unknownBtn">Chưa nhớ</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid">
+      <div class="card span-7">
+        <div class="section-head">
+          <div>
+            <h2>Danh sách flashcard</h2>
+            <p>Tìm kiếm, lọc theo lesson/phase và tag.</p>
+          </div>
+          <span class="badge" id="visibleCount">0 cards</span>
+        </div>
+
+        <div class="toolbar">
+          <input id="searchInput" placeholder="Tìm keyword hoặc nghĩa..." />
+          <select id="lessonFilter">
+            <option value="">Tất cả lesson/phase</option>
+          </select>
+          <select id="tagFilter">
+            <option value="">Tất cả tag</option>
+          </select>
+        </div>
+
+        <div class="list" id="cardList"></div>
+      </div>
+
+      <div class="card span-5">
+        <div class="section-head">
+          <div>
+            <h2>Import / Export</h2>
+            <p>Dán JSON để import hoặc export backup.</p>
+          </div>
+          <span class="badge">JSON</span>
+        </div>
+
+        <div class="field">
+          <label for="jsonArea">JSON</label>
+          <textarea class="import-area" id="jsonArea" placeholder='[
+  {
+    "front": "CleanArchitecture",
+    "back": "Đặt logic đúng chỗ và kiểm soát dependency.",
+    "lesson": "Lesson11",
+    "tag": "Architecture"
+  }
+]'></textarea>
+        </div>
+
+        <div class="form-actions">
+          <button class="btn-blue" id="importBtn">Import JSON</button>
+          <button class="btn-soft" id="copyJsonBtn">Copy JSON</button>
+          <button class="btn-soft" id="downloadJsonBtn">Tải JSON</button>
+          <button class="btn-soft" id="downloadHtmlBtn">Tải HTML hiện tại</button>
+        </div>
+
+        <div class="hint">Format hỗ trợ: mảng object có <code>front</code>, <code>back</code>, <code>lesson</code>, <code>tag</code>.</div>
+      </div>
+    </section>
+  </div>
+
+  <div class="toast" id="toast">Done</div>
+
+  <script>
+    const STORAGE_KEY = "microshop-roadmap-flashcards:v2";
+    const THEME_KEY = "microshop-roadmap-flashcards:theme";
+
+    const defaultCoreCards = [
+      { front: "MicroShop", back: "Project học microservices .NET end-to-end.", lesson: "Roadmap", tag: "General" },
+      { front: "CatalogService", back: "Service quản lý sản phẩm/catalog.", lesson: "Lesson1", tag: "Service" },
+      { front: "BasketService", back: "Service quản lý giỏ hàng, thường dùng Redis.", lesson: "Lesson3", tag: "Service" },
+      { front: "IdentityService", back: "Service đăng nhập, cấp JWT và quản lý identity.", lesson: "Lesson13", tag: "Security" },
+      { front: "OrderingService", back: "Service tạo và quản lý đơn hàng.", lesson: "Lesson15", tag: "Service" },
+      { front: "DiscountService", back: "Service kiểm tra và tính mã giảm giá.", lesson: "Lesson17", tag: "Service" },
+      { front: "PaymentService", back: "Service xử lý thanh toán hoặc mô phỏng thanh toán.", lesson: "Lesson18", tag: "Service" },
+
+      { front: "CleanArchitecture", back: "Đặt logic đúng chỗ và kiểm soát dependency giữa API, Application, Domain, Infrastructure.", lesson: "Lesson11", tag: "Architecture" },
+      { front: "DependencyRule", back: "Code dependency nên đi từ ngoài vào trong, Domain không phụ thuộc technical details.", lesson: "Lesson11", tag: "Architecture" },
+      { front: "API Layer", back: "Nhận HTTP request, bind input, gọi use case, trả HTTP response.", lesson: "Lesson11", tag: "Architecture" },
+      { front: "Application Layer", back: "Chứa use case, command/query/handler và abstraction.", lesson: "Lesson11", tag: "Architecture" },
+      { front: "Domain Layer", back: "Chứa model và business rule cốt lõi, không phụ thuộc framework.", lesson: "Lesson11", tag: "Architecture" },
+      { front: "Infrastructure Layer", back: "Chứa DB, Redis, HTTP client, external integration implementation.", lesson: "Lesson11", tag: "Architecture" },
+
+      { front: "Validation", back: "Kiểm tra input để trả lỗi rõ ràng trước khi xử lý use case.", lesson: "Lesson12", tag: "Validation" },
+      { front: "ExplicitMapping", back: "Map object rõ ràng giữa Request, Command, Domain, DTO.", lesson: "Lesson12", tag: "Mapping" },
+      { front: "DTO", back: "Object truyền dữ liệu ra/vào API hoặc use case.", lesson: "Lesson12", tag: "Mapping" },
+      { front: "Command", back: "Request đại diện cho hành động hoặc use case xử lý thay đổi.", lesson: "Lesson12", tag: "CQRS" },
+      { front: "Query", back: "Request đại diện cho use case đọc dữ liệu.", lesson: "Lesson12", tag: "CQRS" },
+      { front: "Handler", back: "Class xử lý Command hoặc Query.", lesson: "Lesson12", tag: "CQRS" },
+
+      { front: "JWT", back: "Token có chữ ký, chứa claims và thời hạn hết hạn.", lesson: "Lesson13", tag: "Security" },
+      { front: "Claim", back: "Thông tin về user/token, ví dụ sub, name, role, exp.", lesson: "Lesson13", tag: "Security" },
+      { front: "Role", back: "Một claim đặc biệt dùng để nhóm quyền, ví dụ Admin/Customer.", lesson: "Lesson14", tag: "Security" },
+      { front: "Policy", back: "Rule authorization có tên, ví dụ AdminOnly.", lesson: "Lesson14", tag: "Security" },
+      { front: "401 Unauthorized", back: "Thiếu token, token sai hoặc token hết hạn.", lesson: "Lesson14", tag: "Security" },
+      { front: "403 Forbidden", back: "Token hợp lệ nhưng user không đủ quyền.", lesson: "Lesson14", tag: "Security" },
+
+      { front: "Checkout", back: "Flow lấy basket, tạo order và clear basket.", lesson: "Lesson16", tag: "Ordering" },
+      { front: "ServiceBoundary", back: "Ranh giới trách nhiệm của một service.", lesson: "General", tag: "Architecture" },
+      { front: "StrategyPattern", back: "Tách từng thuật toán/cách xử lý thành class riêng.", lesson: "Lesson17", tag: "Pattern" },
+      { front: "Repository", back: "Abstraction/implementation để truy cập dữ liệu.", lesson: "General", tag: "Architecture" },
+
+      { front: "RabbitMQ", back: "Message broker thường dùng cho command/event async trong microservices.", lesson: "Stage1", tag: "Messaging" },
+      { front: "Kafka", back: "Distributed log/event streaming platform, phù hợp projection/analytics/event stream.", lesson: "Stage1", tag: "Messaging" },
+      { front: "OutboxPattern", back: "Lưu event cùng transaction DB để publish an toàn sau đó.", lesson: "Stage1/2", tag: "Reliability" },
+      { front: "Idempotency", back: "Đảm bảo request/event lặp lại không tạo side effect sai.", lesson: "Stage1/2", tag: "Reliability" },
+      { front: "Saga", back: "Pattern điều phối transaction phân tán qua nhiều service.", lesson: "Stage2", tag: "Consistency" },
+      { front: "Retry", back: "Thử lại khi lỗi tạm thời.", lesson: "Stage2", tag: "Resilience" },
+      { front: "CircuitBreaker", back: "Ngắt gọi downstream tạm thời khi service lỗi liên tục.", lesson: "Stage2", tag: "Resilience" },
+      { front: "OpenTelemetry", back: "Chuẩn observability cho tracing, metrics và logs.", lesson: "Stage2/3", tag: "Observability" },
+      { front: "ADR", back: "Architecture Decision Record, ghi lại quyết định kiến trúc và lý do.", lesson: "General", tag: "Docs" }
+    ];
+
+    let cards = loadCards();
+    let currentIndex = 0;
+
+    const els = {
+      root: document.documentElement,
+      frontInput: document.getElementById("frontInput"),
+      backInput: document.getElementById("backInput"),
+      lessonInput: document.getElementById("lessonInput"),
+      tagInput: document.getElementById("tagInput"),
+      editingId: document.getElementById("editingId"),
+      editBadge: document.getElementById("editBadge"),
+      saveBtn: document.getElementById("saveBtn"),
+      clearFormBtn: document.getElementById("clearFormBtn"),
+      cardList: document.getElementById("cardList"),
+      searchInput: document.getElementById("searchInput"),
+      lessonFilter: document.getElementById("lessonFilter"),
+      tagFilter: document.getElementById("tagFilter"),
+      totalCount: document.getElementById("totalCount"),
+      knownCount: document.getElementById("knownCount"),
+      unknownCount: document.getElementById("unknownCount"),
+      newCount: document.getElementById("newCount"),
+      visibleCount: document.getElementById("visibleCount"),
+      flashcard: document.getElementById("flashcard"),
+      studyFront: document.getElementById("studyFront"),
+      studyBackTitle: document.getElementById("studyBackTitle"),
+      studyBack: document.getElementById("studyBack"),
+      studyMeta: document.getElementById("studyMeta"),
+      studyProgress: document.getElementById("studyProgress"),
+      prevBtn: document.getElementById("prevBtn"),
+      nextBtn: document.getElementById("nextBtn"),
+      flipBtn: document.getElementById("flipBtn"),
+      knownBtn: document.getElementById("knownBtn"),
+      unknownBtn: document.getElementById("unknownBtn"),
+      loadCoreBtn: document.getElementById("loadCoreBtn"),
+      shuffleBtn: document.getElementById("shuffleBtn"),
+      resetAllBtn: document.getElementById("resetAllBtn"),
+      themeToggle: document.getElementById("themeToggle"),
+      themeIcon: document.getElementById("themeIcon"),
+      jsonArea: document.getElementById("jsonArea"),
+      importBtn: document.getElementById("importBtn"),
+      copyJsonBtn: document.getElementById("copyJsonBtn"),
+      downloadJsonBtn: document.getElementById("downloadJsonBtn"),
+      downloadHtmlBtn: document.getElementById("downloadHtmlBtn"),
+      toast: document.getElementById("toast")
+    };
+
+    initTheme();
+    renderAll();
+
+    els.saveBtn.addEventListener("click", saveCardFromForm);
+    els.clearFormBtn.addEventListener("click", clearForm);
+    els.searchInput.addEventListener("input", renderList);
+    els.lessonFilter.addEventListener("change", renderList);
+    els.tagFilter.addEventListener("change", renderList);
+    els.flashcard.addEventListener("click", flipCard);
+    els.flipBtn.addEventListener("click", flipCard);
+    els.prevBtn.addEventListener("click", prevCard);
+    els.nextBtn.addEventListener("click", nextCard);
+    els.knownBtn.addEventListener("click", () => markCurrent("known"));
+    els.unknownBtn.addEventListener("click", () => markCurrent("unknown"));
+    els.loadCoreBtn.addEventListener("click", loadCoreCards);
+    els.shuffleBtn.addEventListener("click", shuffleCards);
+    els.resetAllBtn.addEventListener("click", resetAll);
+    els.themeToggle.addEventListener("click", toggleTheme);
+    els.importBtn.addEventListener("click", importJson);
+    els.copyJsonBtn.addEventListener("click", copyJson);
+    els.downloadJsonBtn.addEventListener("click", downloadJson);
+    els.downloadHtmlBtn.addEventListener("click", downloadHtml);
+
+    document.addEventListener("keydown", (event) => {
+      if (event.target.tagName === "INPUT" || event.target.tagName === "TEXTAREA" || event.target.tagName === "SELECT") return;
+      if (event.key === " ") { event.preventDefault(); flipCard(); }
+      if (event.key === "ArrowRight") nextCard();
+      if (event.key === "ArrowLeft") prevCard();
+      if (event.key.toLowerCase() === "k") markCurrent("known");
+      if (event.key.toLowerCase() === "u") markCurrent("unknown");
+    });
+
+    function makeId() {
+      return crypto?.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random());
+    }
+
+    function normalizeCard(card) {
+      return {
+        id: card.id || makeId(),
+        front: String(card.front || "").trim(),
+        back: String(card.back || "").trim(),
+        lesson: String(card.lesson || "General").trim() || "General",
+        tag: String(card.tag || "General").trim() || "General",
+        status: card.status || "new",
+        createdAt: card.createdAt || new Date().toISOString()
+      };
+    }
+
+    function loadCards() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return [];
+        const parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed)) return [];
+        return parsed.map(normalizeCard).filter(c => c.front && c.back);
+      } catch {
+        return [];
+      }
+    }
+
+    function persist() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(cards, null, 2));
+    }
+
+    function renderAll() {
+      renderStats();
+      renderFilters();
+      renderList();
+      renderStudy();
+      syncJsonArea();
+    }
+
+    function renderStats() {
+      els.totalCount.textContent = cards.length;
+      els.knownCount.textContent = cards.filter(c => c.status === "known").length;
+      els.unknownCount.textContent = cards.filter(c => c.status === "unknown").length;
+      els.newCount.textContent = cards.filter(c => c.status === "new").length;
+    }
+
+    function renderFilters() {
+      const selectedLesson = els.lessonFilter.value;
+      const selectedTag = els.tagFilter.value;
+
+      const lessons = [...new Set(cards.map(c => c.lesson).filter(Boolean))].sort();
+      const tags = [...new Set(cards.map(c => c.tag).filter(Boolean))].sort();
+
+      els.lessonFilter.innerHTML = '<option value="">Tất cả lesson/phase</option>' + lessons.map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join("");
+      els.tagFilter.innerHTML = '<option value="">Tất cả tag</option>' + tags.map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join("");
+
+      els.lessonFilter.value = lessons.includes(selectedLesson) ? selectedLesson : "";
+      els.tagFilter.value = tags.includes(selectedTag) ? selectedTag : "";
+    }
+
+    function getFilteredCards() {
+      const q = els.searchInput.value.trim().toLowerCase();
+      const lesson = els.lessonFilter.value;
+      const tag = els.tagFilter.value;
+
+      return cards.filter(card => {
+        const matchText = !q
+          || card.front.toLowerCase().includes(q)
+          || card.back.toLowerCase().includes(q)
+          || card.lesson.toLowerCase().includes(q)
+          || card.tag.toLowerCase().includes(q);
+
+        const matchLesson = !lesson || card.lesson === lesson;
+        const matchTag = !tag || card.tag === tag;
+        return matchText && matchLesson && matchTag;
+      });
+    }
+
+    function renderList() {
+      const visible = getFilteredCards();
+      els.visibleCount.textContent = `${visible.length} cards`;
+
+      if (visible.length === 0) {
+        els.cardList.innerHTML = '<div class="empty">Không có card nào khớp. Hãy tạo flashcard hoặc nạp bộ từ vựng core.</div>';
+        return;
+      }
+
+      els.cardList.innerHTML = visible.map(card => `
+        <div class="row">
+          <div>
+            <div class="row-title">${escapeHtml(card.front)}</div>
+            <div class="row-sub">${escapeHtml(card.back)}</div>
+            <div class="row-sub">Lesson: ${escapeHtml(card.lesson)} • Tag: ${escapeHtml(card.tag)} • Status: ${escapeHtml(card.status)}</div>
+          </div>
+          <div class="row-actions">
+            <button class="btn-soft btn-small" onclick="studyCard('${card.id}')">Học</button>
+            <button class="btn-soft btn-small" onclick="editCard('${card.id}')">Sửa</button>
+            <button class="btn-red btn-small" onclick="deleteCard('${card.id}')">Xóa</button>
+          </div>
+        </div>
+      `).join("");
+    }
+
+    function renderStudy() {
+      const studyCards = getFilteredCards();
+
+      if (studyCards.length === 0) {
+        els.studyFront.textContent = "Chưa có flashcard";
+        els.studyBackTitle.textContent = "Giải thích";
+        els.studyBack.textContent = "Hãy tạo card hoặc nạp bộ từ vựng core.";
+        els.studyMeta.textContent = "0 cards";
+        els.studyProgress.textContent = "0 / 0";
+        els.flashcard.classList.remove("flipped");
+        return;
+      }
+
+      if (currentIndex < 0) currentIndex = 0;
+      if (currentIndex >= studyCards.length) currentIndex = studyCards.length - 1;
+
+      const card = studyCards[currentIndex];
+      els.studyFront.textContent = card.front;
+      els.studyBackTitle.textContent = card.front;
+      els.studyBack.textContent = card.back;
+      els.studyMeta.textContent = `Lesson: ${card.lesson} • Tag: ${card.tag} • Status: ${card.status}`;
+      els.studyProgress.textContent = `${currentIndex + 1} / ${studyCards.length}`;
+      els.flashcard.classList.remove("flipped");
+    }
+
+    function saveCardFromForm() {
+      const front = els.frontInput.value.trim();
+      const back = els.backInput.value.trim();
+      const lesson = els.lessonInput.value.trim() || "General";
+      const tag = els.tagInput.value.trim() || "General";
+      const editingId = els.editingId.value;
+
+      if (!front || !back) {
+        showToast("Cần nhập cả mặt trước và mặt sau.");
+        return;
+      }
+
+      if (editingId) {
+        const card = cards.find(c => c.id === editingId);
+        if (card) {
+          card.front = front;
+          card.back = back;
+          card.lesson = lesson;
+          card.tag = tag;
+          showToast("Đã cập nhật card.");
+        }
+      } else {
+        cards.unshift(normalizeCard({ front, back, lesson, tag }));
+        currentIndex = 0;
+        showToast("Đã thêm flashcard.");
+      }
+
+      persist();
+      clearForm();
+      renderAll();
+    }
+
+    function clearForm() {
+      els.frontInput.value = "";
+      els.backInput.value = "";
+      els.lessonInput.value = "";
+      els.tagInput.value = "";
+      els.editingId.value = "";
+      els.editBadge.textContent = "New";
+    }
+
+    window.editCard = function(id) {
+      const card = cards.find(c => c.id === id);
+      if (!card) return;
+      els.frontInput.value = card.front;
+      els.backInput.value = card.back;
+      els.lessonInput.value = card.lesson;
+      els.tagInput.value = card.tag;
+      els.editingId.value = card.id;
+      els.editBadge.textContent = "Editing";
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    window.deleteCard = function(id) {
+      if (!confirm("Xóa flashcard này?")) return;
+      const idx = cards.findIndex(c => c.id === id);
+      if (idx >= 0) {
+        cards.splice(idx, 1);
+        if (currentIndex >= cards.length) currentIndex = Math.max(0, cards.length - 1);
+        persist();
+        renderAll();
+        showToast("Đã xóa card.");
+      }
+    }
+
+    window.studyCard = function(id) {
+      const visible = getFilteredCards();
+      const idx = visible.findIndex(c => c.id === id);
+      if (idx >= 0) {
+        currentIndex = idx;
+        renderStudy();
+        document.querySelector(".study-wrap").scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }
+
+    function flipCard() {
+      if (getFilteredCards().length === 0) return;
+      els.flashcard.classList.toggle("flipped");
+    }
+
+    function nextCard() {
+      const visible = getFilteredCards();
+      if (visible.length === 0) return;
+      currentIndex = (currentIndex + 1) % visible.length;
+      renderStudy();
+    }
+
+    function prevCard() {
+      const visible = getFilteredCards();
+      if (visible.length === 0) return;
+      currentIndex = (currentIndex - 1 + visible.length) % visible.length;
+      renderStudy();
+    }
+
+    function markCurrent(status) {
+      const visible = getFilteredCards();
+      if (visible.length === 0) return;
+      const current = visible[currentIndex];
+      const card = cards.find(c => c.id === current.id);
+      if (!card) return;
+      card.status = status;
+      persist();
+      renderStats();
+      renderList();
+      renderStudy();
+      showToast(status === "known" ? "Đã đánh dấu: nhớ" : "Đã đánh dấu: chưa nhớ");
+      setTimeout(nextCard, 250);
+    }
+
+    function loadCoreCards() {
+      const existing = new Set(cards.map(c => c.front.toLowerCase()));
+      let added = 0;
+
+      defaultCoreCards.forEach(card => {
+        if (!existing.has(card.front.toLowerCase())) {
+          cards.push(normalizeCard(card));
+          added++;
+        }
+      });
+
+      persist();
+      currentIndex = 0;
+      renderAll();
+      showToast(`Đã nạp ${added} flashcard core.`);
+    }
+
+    function shuffleCards() {
+      for (let i = cards.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [cards[i], cards[j]] = [cards[j], cards[i]];
+      }
+      currentIndex = 0;
+      persist();
+      renderAll();
+      showToast("Đã shuffle.");
+    }
+
+    function resetAll() {
+      if (!confirm("Reset toàn bộ flashcard?")) return;
+      cards = [];
+      currentIndex = 0;
+      persist();
+      clearForm();
+      renderAll();
+      showToast("Đã reset.");
+    }
+
+    function importJson() {
+      try {
+        const parsed = JSON.parse(els.jsonArea.value);
+        if (!Array.isArray(parsed)) throw new Error("JSON phải là array.");
+
+        const imported = parsed.map(normalizeCard).filter(c => c.front && c.back);
+        if (imported.length === 0) {
+          showToast("Không có card hợp lệ để import.");
+          return;
+        }
+
+        const existing = new Set(cards.map(c => c.front.toLowerCase()));
+        let added = 0;
+
+        imported.forEach(card => {
+          if (!existing.has(card.front.toLowerCase())) {
+            cards.push(card);
+            existing.add(card.front.toLowerCase());
+            added++;
+          }
+        });
+
+        persist();
+        currentIndex = 0;
+        renderAll();
+        showToast(`Import xong ${added} card.`);
+      } catch {
+        showToast("JSON không hợp lệ.");
+      }
+    }
+
+    function exportCards() {
+      return cards.map(({front, back, lesson, tag}) => ({front, back, lesson, tag}));
+    }
+
+    function syncJsonArea() {
+      els.jsonArea.value = JSON.stringify(exportCards(), null, 2);
+    }
+
+    async function copyJson() {
+      const json = JSON.stringify(exportCards(), null, 2);
+      els.jsonArea.value = json;
+      try {
+        await navigator.clipboard.writeText(json);
+        showToast("Đã copy JSON.");
+      } catch {
+        showToast("Không copy được, hãy copy thủ công.");
+      }
+    }
+
+    function downloadJson() {
+      const json = JSON.stringify(exportCards(), null, 2);
+      downloadBlob(json, "microshop-roadmap-flashcards.json", "application/json;charset=utf-8");
+      showToast("Đã tạo file JSON.");
+    }
+
+    function downloadHtml() {
+      const html = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
+      downloadBlob(html, "microshop-flashcard-builder.html", "text/html;charset=utf-8");
+      showToast("Đã tạo file HTML.");
+    }
+
+    function downloadBlob(content, filename, mime) {
+      const blob = new Blob([content], { type: mime });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function initTheme() {
+      const theme = localStorage.getItem(THEME_KEY) || "light";
+      els.root.dataset.theme = theme;
+      els.themeIcon.textContent = theme === "dark" ? "☀️" : "🌙";
+    }
+
+    function toggleTheme() {
+      const next = els.root.dataset.theme === "dark" ? "light" : "dark";
+      els.root.dataset.theme = next;
+      localStorage.setItem(THEME_KEY, next);
+      els.themeIcon.textContent = next === "dark" ? "☀️" : "🌙";
+    }
+
+    function showToast(message) {
+      els.toast.textContent = message;
+      els.toast.classList.add("show");
+      clearTimeout(showToast.timer);
+      showToast.timer = setTimeout(() => els.toast.classList.remove("show"), 1800);
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,325 @@
+{
+  "info": {
+    "name": "MicroShop - Discount Flow",
+    "_postman_id": "8df948f1-3f35-4b05-ae23-a906e4a10cc7",
+    "description": "Full DiscountService flow through ApiGateway: get seeded coupons and apply valid/invalid discounts.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "gatewayBaseUrl",
+      "value": "https://localhost:7001"
+    },
+    {
+      "key": "orderAmount",
+      "value": "200"
+    }
+  ],
+  "item": [
+    {
+      "name": "01 - Get SAVE10 coupon",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Coupon found', function () {",
+              "  pm.response.to.have.status(200);",
+              "  const coupon = pm.response.json();",
+              "  pm.expect(coupon.code).to.eql('SAVE10');",
+              "  pm.expect(coupon.type).to.eql('Percentage');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{gatewayBaseUrl}}/discounts/SAVE10",
+          "host": [
+            "{{gatewayBaseUrl}}"
+          ],
+          "path": [
+            "discounts",
+            "SAVE10"
+          ]
+        }
+      }
+    },
+    {
+      "name": "02 - Apply SAVE10 percentage discount",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('SAVE10 applied', function () {",
+              "  pm.response.to.have.status(200);",
+              "  const result = pm.response.json();",
+              "  pm.expect(result.isValid).to.eql(true);",
+              "  pm.expect(result.discountAmount).to.eql(20);",
+              "  pm.expect(result.finalAmount).to.eql(180);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"couponCode\": \"SAVE10\",\n  \"orderAmount\": {{orderAmount}}\n}"
+        },
+        "url": {
+          "raw": "{{gatewayBaseUrl}}/discounts/apply",
+          "host": [
+            "{{gatewayBaseUrl}}"
+          ],
+          "path": [
+            "discounts",
+            "apply"
+          ]
+        }
+      }
+    },
+    {
+      "name": "03 - Apply WELCOME50 fixed discount",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('WELCOME50 applied', function () {",
+              "  pm.response.to.have.status(200);",
+              "  const result = pm.response.json();",
+              "  pm.expect(result.isValid).to.eql(true);",
+              "  pm.expect(result.discountAmount).to.eql(50);",
+              "  pm.expect(result.finalAmount).to.eql(150);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"couponCode\": \"WELCOME50\",\n  \"orderAmount\": {{orderAmount}}\n}"
+        },
+        "url": {
+          "raw": "{{gatewayBaseUrl}}/discounts/apply",
+          "host": [
+            "{{gatewayBaseUrl}}"
+          ],
+          "path": [
+            "discounts",
+            "apply"
+          ]
+        }
+      }
+    },
+    {
+      "name": "04 - Apply expired coupon",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Expired coupon is invalid', function () {",
+              "  pm.response.to.have.status(200);",
+              "  const result = pm.response.json();",
+              "  pm.expect(result.isValid).to.eql(false);",
+              "  pm.expect(result.discountAmount).to.eql(0);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"couponCode\": \"EXPIRED20\",\n  \"orderAmount\": {{orderAmount}}\n}"
+        },
+        "url": {
+          "raw": "{{gatewayBaseUrl}}/discounts/apply",
+          "host": [
+            "{{gatewayBaseUrl}}"
+          ],
+          "path": [
+            "discounts",
+            "apply"
+          ]
+        }
+      }
+    },
+    {
+      "name": "05 - Apply disabled coupon",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Disabled coupon is invalid', function () {",
+              "  pm.response.to.have.status(200);",
+              "  const result = pm.response.json();",
+              "  pm.expect(result.isValid).to.eql(false);",
+              "  pm.expect(result.discountAmount).to.eql(0);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"couponCode\": \"DISABLED15\",\n  \"orderAmount\": {{orderAmount}}\n}"
+        },
+        "url": {
+          "raw": "{{gatewayBaseUrl}}/discounts/apply",
+          "host": [
+            "{{gatewayBaseUrl}}"
+          ],
+          "path": [
+            "discounts",
+            "apply"
+          ]
+        }
+      }
+    },
+    {
+      "name": "06 - Apply missing coupon",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Missing coupon is invalid', function () {",
+              "  pm.response.to.have.status(200);",
+              "  const result = pm.response.json();",
+              "  pm.expect(result.isValid).to.eql(false);",
+              "  pm.expect(result.message).to.include('not found');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"couponCode\": \"NOPE\",\n  \"orderAmount\": {{orderAmount}}\n}"
+        },
+        "url": {
+          "raw": "{{gatewayBaseUrl}}/discounts/apply",
+          "host": [
+            "{{gatewayBaseUrl}}"
+          ],
+          "path": [
+            "discounts",
+            "apply"
+          ]
+        }
+      }
+    },
+    {
+      "name": "07 - Get unknown coupon returns 404",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Coupon not found', function () {",
+              "  pm.response.to.have.status(404);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{gatewayBaseUrl}}/discounts/NOPE",
+          "host": [
+            "{{gatewayBaseUrl}}"
+          ],
+          "path": [
+            "discounts",
+            "NOPE"
+          ]
+        }
+      }
+    }
+  ]
+}

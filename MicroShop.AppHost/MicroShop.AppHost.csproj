@@ -4,6 +4,7 @@
     <ProjectReference Include="..\Services\ApiGateway\ApiGateway.csproj" />
     <ProjectReference Include="..\Services\BasketService\BasketService.csproj" />
     <ProjectReference Include="..\Services\CatalogService\CatalogService.csproj" />
+    <ProjectReference Include="..\Services\DiscountService\DiscountService.csproj" />
     <ProjectReference Include="..\Services\IdentityService\IdentityService.csproj" />
     <ProjectReference Include="..\Services\OrderingService\OrderingService.csproj" />
     <ProjectReference Include="..\MicroShop.ServiceDefaults\MicroShop.ServiceDefaults.csproj" IsAspireProjectResource="false" />

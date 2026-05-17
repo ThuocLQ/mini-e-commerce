@@ -1,0 +1,17 @@
+@DiscountService_HostAddress = http://localhost:5097
+
+GET {{DiscountService_HostAddress}}/discounts/SAVE10
+Accept: application/json
+
+###
+
+POST {{DiscountService_HostAddress}}/discounts/apply
+Content-Type: application/json
+Accept: application/json
+
+{
+  "couponCode": "SAVE10",
+  "orderAmount": 200
+}
+
+###

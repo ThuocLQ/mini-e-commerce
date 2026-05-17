@@ -1,0 +1,905 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"/><title>Lộ trình Microservices .NET VIP Compact</title><style>
+/* cspell:disable-file */
+/* webkit printing magic: print all background colors */
+html {
+	-webkit-print-color-adjust: exact;
+}
+* {
+	box-sizing: border-box;
+	-webkit-print-color-adjust: exact;
+}
+
+html,
+body {
+	margin: 0;
+	padding: 0;
+}
+@media only screen {
+	body {
+		margin: 2em auto;
+		max-width: 900px;
+		color: rgb(55, 53, 47);
+	}
+}
+
+body {
+	line-height: 1.5;
+	white-space: pre-wrap;
+}
+
+a,
+a.visited {
+	color: inherit;
+	text-decoration: underline;
+}
+
+.pdf-relative-link-path {
+	font-size: 80%;
+	color: #444;
+}
+
+h1,
+h2,
+h3 {
+	letter-spacing: -0.01em;
+	line-height: 1.2;
+	font-weight: 600;
+	margin-bottom: 0;
+}
+
+/* Override strong tags inside headings to maintain consistent weight */
+h1 strong,
+h2 strong,
+h3 strong {
+	font-weight: 600;
+}
+
+.page-title {
+	font-size: 2.5rem;
+	font-weight: 700;
+	margin-top: 0;
+	margin-bottom: 0.75em;
+}
+
+h1 {
+	font-size: 1.875rem;
+	margin-top: 1.875rem;
+}
+
+h2 {
+	font-size: 1.5rem;
+	margin-top: 1.5rem;
+}
+
+h3 {
+	font-size: 1.25rem;
+	margin-top: 1.25rem;
+}
+
+.source {
+	border: 1px solid #ddd;
+	border-radius: 3px;
+	padding: 1.5em;
+	word-break: break-all;
+}
+
+.callout {
+	border-radius: 10px;
+	padding: 1rem;
+}
+
+figure {
+	margin: 1.25em 0;
+	page-break-inside: avoid;
+}
+
+figcaption {
+	opacity: 0.5;
+	font-size: 85%;
+	margin-top: 0.5em;
+}
+
+mark {
+	background-color: transparent;
+}
+
+.indented {
+	padding-left: 1.5em;
+}
+
+hr {
+	background: transparent;
+	display: block;
+	width: 100%;
+	height: 1px;
+	visibility: visible;
+	border: none;
+	border-bottom: 1px solid rgba(55, 53, 47, 0.09);
+}
+
+img {
+	max-width: 100%;
+}
+
+@media only print {
+	img {
+		max-height: 100vh;
+		object-fit: contain;
+	}
+
+	table.collection-content {
+		width: 100%;
+		table-layout: fixed;
+	}
+
+	table.collection-content th,
+	table.collection-content td {
+		overflow-wrap: anywhere;
+	}
+
+	table.collection-content td > .user,
+	table.collection-content td > time {
+		white-space: pre-wrap;
+	}
+}
+
+@page {
+	margin: 1in;
+}
+
+.collection-content-wrapper {
+	overflow-x: auto;
+}
+
+@media only print {
+	.collection-content-wrapper {
+		overflow-x: visible;
+	}
+}
+
+.collection-content {
+	font-size: 0.875rem;
+}
+
+.collection-content td {
+	white-space: pre-wrap;
+	word-break: break-word;
+}
+
+.column-list {
+	display: flex;
+	gap: 46px;
+}
+
+.column {
+	min-width: 0;
+	overflow: hidden;
+}
+
+.column > *:first-child {
+	margin-top: 0;
+}
+
+.table_of_contents-item {
+	display: block;
+	font-size: 0.875rem;
+	line-height: 1.3;
+	padding: 0.125rem;
+}
+
+.table_of_contents-indent-1 {
+	margin-left: 1.5rem;
+}
+
+.table_of_contents-indent-2 {
+	margin-left: 3rem;
+}
+
+.table_of_contents-indent-3 {
+	margin-left: 4.5rem;
+}
+
+.table_of_contents-link {
+	text-decoration: none;
+	opacity: 0.7;
+	border-bottom: 1px solid rgba(55, 53, 47, 0.18);
+}
+
+table,
+th,
+td {
+	border: 1px solid rgba(55, 53, 47, 0.09);
+}
+
+table {
+	border-collapse: collapse;
+	border-left: none;
+	border-right: none;
+}
+
+th,
+td {
+	font-weight: normal;
+	padding: 0.25em 0.5em;
+	line-height: 1.5;
+	min-height: 1.5em;
+	text-align: left;
+}
+
+th {
+	color: rgba(55, 53, 47, 0.6);
+}
+
+ol,
+ul {
+	margin: 0;
+	margin-block-start: 0.6em;
+	margin-block-end: 0.6em;
+}
+
+li > ol:first-child,
+li > ul:first-child {
+	margin-block-start: 0.6em;
+}
+
+ul > li {
+	list-style: disc;
+}
+
+ul.to-do-list {
+	padding-inline-start: 0;
+}
+
+ul.to-do-list > li {
+	list-style: none;
+}
+
+.to-do-children-checked {
+	text-decoration: line-through;
+	opacity: 0.375;
+}
+
+ul.toggle > li {
+	list-style: none;
+}
+
+ul {
+	padding-inline-start: 1.7em;
+}
+
+ul > li {
+	padding-left: 0.1em;
+}
+
+ol {
+	padding-inline-start: 1.6em;
+}
+
+ol.numbered-list.numbered-list-digits-2 {
+	padding-inline-start: 2em;
+}
+
+ol.numbered-list.numbered-list-digits-3plus {
+	padding-inline-start: 2.4em;
+}
+
+ol > li {
+	padding-left: 0.2em;
+}
+
+.mono ol {
+	padding-inline-start: 2em;
+}
+
+.mono ol > li {
+	text-indent: -0.4em;
+}
+
+.toggle {
+	padding-inline-start: 0em;
+	list-style-type: none;
+}
+
+/* Indent toggle children */
+.toggle > li > details {
+	padding-left: 1.7em;
+}
+
+.toggle > li > details > summary {
+	margin-left: -1.1em;
+}
+
+.selected-value {
+	display: inline-block;
+	padding: 0 0.5em;
+	background: rgba(206, 205, 202, 0.5);
+	border-radius: 3px;
+	margin-right: 0.5em;
+	margin-top: 0.3em;
+	margin-bottom: 0.3em;
+	white-space: nowrap;
+}
+
+.collection-title {
+	display: inline-block;
+	margin-right: 1em;
+}
+
+.page-description {
+	margin-bottom: 2em;
+}
+
+.simple-table {
+	margin-top: 1em;
+	font-size: 0.875rem;
+	empty-cells: show;
+}
+.simple-table td {
+	height: 29px;
+	min-width: 120px;
+}
+
+.simple-table th {
+	height: 29px;
+	min-width: 120px;
+}
+
+.simple-table-header-color {
+	background: rgb(247, 246, 243);
+	color: black;
+}
+.simple-table-header {
+	font-weight: 500;
+}
+
+time {
+	opacity: 0.5;
+}
+
+.icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	max-width: 1.2em;
+	max-height: 1.2em;
+	text-decoration: none;
+	vertical-align: text-bottom;
+	margin-right: 0.5em;
+}
+
+img.icon {
+	border-radius: 3px;
+}
+
+.callout img.notion-static-icon {
+	width: 1em;
+	height: 1em;
+}
+
+.callout p {
+	margin: 0;
+}
+
+.callout h1,
+.callout h2,
+.callout h3 {
+	margin: 0 0 0.6rem;
+}
+
+.user-icon {
+	width: 1.5em;
+	height: 1.5em;
+	border-radius: 100%;
+	margin-right: 0.5rem;
+}
+
+.user-icon-inner {
+	font-size: 0.8em;
+}
+
+.text-icon {
+	border: 1px solid #000;
+	text-align: center;
+}
+
+.page-cover-image {
+	display: block;
+	object-fit: cover;
+	width: 100%;
+	max-height: 30vh;
+}
+
+.page-header-icon {
+	font-size: 3rem;
+	margin-bottom: 1rem;
+}
+
+.page-header-icon-with-cover {
+	margin-top: -0.72em;
+	margin-left: 0.07em;
+}
+
+.page-header-icon img {
+	border-radius: 3px;
+}
+
+.link-to-page {
+	margin: 1em 0;
+	padding: 0;
+	border: none;
+	font-weight: 500;
+}
+
+p > .user {
+	opacity: 0.5;
+}
+
+td > .user,
+td > time {
+	white-space: nowrap;
+}
+
+input[type="checkbox"] {
+	transform: scale(1.5);
+	margin-right: 0.6em;
+	vertical-align: middle;
+}
+
+p {
+	margin-top: 0.5em;
+	margin-bottom: 0.5em;
+}
+
+.image {
+	border: none;
+	margin: 1.5em 0;
+	padding: 0;
+	border-radius: 0;
+	text-align: center;
+}
+
+.code,
+code {
+	background: rgba(135, 131, 120, 0.15);
+	border-radius: 3px;
+	padding: 0.2em 0.4em;
+	border-radius: 3px;
+	font-size: 85%;
+	tab-size: 2;
+}
+
+code {
+	color: #eb5757;
+}
+
+.code {
+	padding: 1.5em 1em;
+}
+
+.code-wrap {
+	white-space: pre-wrap;
+	word-break: break-all;
+}
+
+.code > code {
+	background: none;
+	padding: 0;
+	font-size: 100%;
+	color: inherit;
+}
+
+blockquote {
+	font-size: 1em;
+	margin: 1em 0;
+	padding-left: 1em;
+	border-left: 3px solid rgb(55, 53, 47);
+}
+
+blockquote.quote-large {
+	font-size: 1.25em;
+}
+
+.bookmark {
+	text-decoration: none;
+	max-height: 8em;
+	padding: 0;
+	display: flex;
+	width: 100%;
+	align-items: stretch;
+}
+
+.bookmark-title {
+	font-size: 0.85em;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	height: 1.75em;
+	white-space: nowrap;
+}
+
+.bookmark-text {
+	display: flex;
+	flex-direction: column;
+}
+
+.bookmark-info {
+	flex: 4 1 180px;
+	padding: 12px 14px 14px;
+	display: flex;
+	flex-direction: column;
+	justify-content: space-between;
+}
+
+.bookmark-image {
+	width: 33%;
+	flex: 1 1 180px;
+	display: block;
+	position: relative;
+	object-fit: cover;
+	border-radius: 1px;
+}
+
+.bookmark-description {
+	color: rgba(55, 53, 47, 0.6);
+	font-size: 0.75em;
+	overflow: hidden;
+	max-height: 4.5em;
+	word-break: break-word;
+}
+
+.bookmark-href {
+	font-size: 0.75em;
+	margin-top: 0.25em;
+}
+
+.sans { font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI Variable Display", "Segoe UI", Helvetica, "Apple Color Emoji", "Noto Sans Arabic", "Noto Sans Hebrew", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol"; }
+.code { font-family: "SFMono-Regular", Menlo, Consolas, "PT Mono", "Liberation Mono", Courier, monospace; }
+.serif { font-family: Lyon-Text, Georgia, ui-serif, serif; }
+.mono { font-family: iawriter-mono, Nitti, Menlo, Courier, monospace; }
+.pdf .sans { font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI Variable Display", "Segoe UI", Helvetica, "Apple Color Emoji", "Noto Sans Arabic", "Noto Sans Hebrew", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol", 'Twemoji', 'Noto Color Emoji', 'Noto Sans CJK JP'; }
+.pdf:lang(zh-CN) .sans { font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI Variable Display", "Segoe UI", Helvetica, "Apple Color Emoji", "Noto Sans Arabic", "Noto Sans Hebrew", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol", 'Twemoji', 'Noto Color Emoji', 'Noto Sans CJK SC'; }
+.pdf:lang(zh-TW) .sans { font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI Variable Display", "Segoe UI", Helvetica, "Apple Color Emoji", "Noto Sans Arabic", "Noto Sans Hebrew", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol", 'Twemoji', 'Noto Color Emoji', 'Noto Sans CJK TC'; }
+.pdf:lang(ko-KR) .sans { font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI Variable Display", "Segoe UI", Helvetica, "Apple Color Emoji", "Noto Sans Arabic", "Noto Sans Hebrew", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol", 'Twemoji', 'Noto Color Emoji', 'Noto Sans CJK KR'; }
+.pdf .code { font-family: Source Code Pro, "SFMono-Regular", Menlo, Consolas, "PT Mono", "Liberation Mono", Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK JP'; }
+.pdf:lang(zh-CN) .code { font-family: Source Code Pro, "SFMono-Regular", Menlo, Consolas, "PT Mono", "Liberation Mono", Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK SC'; }
+.pdf:lang(zh-TW) .code { font-family: Source Code Pro, "SFMono-Regular", Menlo, Consolas, "PT Mono", "Liberation Mono", Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK TC'; }
+.pdf:lang(ko-KR) .code { font-family: Source Code Pro, "SFMono-Regular", Menlo, Consolas, "PT Mono", "Liberation Mono", Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK KR'; }
+.pdf .serif { font-family: PT Serif, Lyon-Text, Georgia, ui-serif, serif, 'Twemoji', 'Noto Color Emoji', 'Noto Serif CJK JP'; }
+.pdf:lang(zh-CN) .serif { font-family: PT Serif, Lyon-Text, Georgia, ui-serif, serif, 'Twemoji', 'Noto Color Emoji', 'Noto Serif CJK SC'; }
+.pdf:lang(zh-TW) .serif { font-family: PT Serif, Lyon-Text, Georgia, ui-serif, serif, 'Twemoji', 'Noto Color Emoji', 'Noto Serif CJK TC'; }
+.pdf:lang(ko-KR) .serif { font-family: PT Serif, Lyon-Text, Georgia, ui-serif, serif, 'Twemoji', 'Noto Color Emoji', 'Noto Serif CJK KR'; }
+.pdf .mono { font-family: PT Mono, iawriter-mono, Nitti, Menlo, Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK JP'; }
+.pdf:lang(zh-CN) .mono { font-family: PT Mono, iawriter-mono, Nitti, Menlo, Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK SC'; }
+.pdf:lang(zh-TW) .mono { font-family: PT Mono, iawriter-mono, Nitti, Menlo, Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK TC'; }
+.pdf:lang(ko-KR) .mono { font-family: PT Mono, iawriter-mono, Nitti, Menlo, Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK KR'; }
+.highlight-default {
+	color: rgba(44, 44, 43, 1);
+}
+.highlight-gray {
+	color: rgba(125, 122, 117, 1);
+	fill: rgba(125, 122, 117, 1);
+}
+.highlight-brown {
+	color: rgba(159, 118, 90, 1);
+	fill: rgba(159, 118, 90, 1);
+}
+.highlight-orange {
+	color: rgba(210, 123, 45, 1);
+	fill: rgba(210, 123, 45, 1);
+}
+.highlight-yellow {
+	color: rgba(203, 148, 52, 1);
+	fill: rgba(203, 148, 52, 1);
+}
+.highlight-teal {
+	color: rgba(80, 148, 110, 1);
+	fill: rgba(80, 148, 110, 1);
+}
+.highlight-blue {
+	color: rgba(56, 125, 201, 1);
+	fill: rgba(56, 125, 201, 1);
+}
+.highlight-purple {
+	color: rgba(154, 107, 180, 1);
+	fill: rgba(154, 107, 180, 1);
+}
+.highlight-pink {
+	color: rgba(193, 76, 138, 1);
+	fill: rgba(193, 76, 138, 1);
+}
+.highlight-red {
+	color: rgba(207, 81, 72, 1);
+	fill: rgba(207, 81, 72, 1);
+}
+.highlight-default_background {
+	color: rgba(44, 44, 43, 1);
+}
+.highlight-gray_background {
+	background: rgba(42, 28, 0, 0.07);
+}
+.highlight-brown_background {
+	background: rgba(139, 46, 0, 0.086);
+}
+.highlight-orange_background {
+	background: rgba(224, 101, 1, 0.129);
+}
+.highlight-yellow_background {
+	background: rgba(211, 168, 0, 0.137);
+}
+.highlight-teal_background {
+	background: rgba(0, 100, 45, 0.09);
+}
+.highlight-blue_background {
+	background: rgba(0, 124, 215, 0.094);
+}
+.highlight-purple_background {
+	background: rgba(102, 0, 178, 0.078);
+}
+.highlight-pink_background {
+	background: rgba(197, 0, 93, 0.086);
+}
+.highlight-red_background {
+	background: rgba(223, 22, 0, 0.094);
+}
+.block-color-default {
+	color: inherit;
+	fill: inherit;
+}
+.block-color-gray {
+	color: rgba(125, 122, 117, 1);
+	fill: rgba(125, 122, 117, 1);
+}
+.block-color-brown {
+	color: rgba(159, 118, 90, 1);
+	fill: rgba(159, 118, 90, 1);
+}
+.block-color-orange {
+	color: rgba(210, 123, 45, 1);
+	fill: rgba(210, 123, 45, 1);
+}
+.block-color-yellow {
+	color: rgba(203, 148, 52, 1);
+	fill: rgba(203, 148, 52, 1);
+}
+.block-color-teal {
+	color: rgba(80, 148, 110, 1);
+	fill: rgba(80, 148, 110, 1);
+}
+.block-color-blue {
+	color: rgba(56, 125, 201, 1);
+	fill: rgba(56, 125, 201, 1);
+}
+.block-color-purple {
+	color: rgba(154, 107, 180, 1);
+	fill: rgba(154, 107, 180, 1);
+}
+.block-color-pink {
+	color: rgba(193, 76, 138, 1);
+	fill: rgba(193, 76, 138, 1);
+}
+.block-color-red {
+	color: rgba(207, 81, 72, 1);
+	fill: rgba(207, 81, 72, 1);
+}
+.block-color-default_background {
+	color: inherit;
+	fill: inherit;
+}
+.block-color-gray_background {
+	background: rgba(240, 239, 237, 1);
+}
+.block-color-brown_background {
+	background: rgba(245, 237, 233, 1);
+}
+.block-color-orange_background {
+	background: rgba(251, 235, 222, 1);
+}
+.block-color-yellow_background {
+	background: rgba(249, 243, 220, 1);
+}
+.block-color-teal_background {
+	background: rgba(232, 241, 236, 1);
+}
+.block-color-blue_background {
+	background: rgba(229, 242, 252, 1);
+}
+.block-color-purple_background {
+	background: rgba(243, 235, 249, 1);
+}
+.block-color-pink_background {
+	background: rgba(250, 233, 241, 1);
+}
+.block-color-red_background {
+	background: rgba(252, 233, 231, 1);
+}
+.select-value-color-default { background-color: rgba(42, 28, 0, 0.07); }
+.select-value-color-gray { background-color: rgba(28, 19, 1, 0.11); }
+.select-value-color-brown { background-color: rgba(127, 51, 0, 0.156); }
+.select-value-color-orange { background-color: rgba(196, 88, 0, 0.203); }
+.select-value-color-yellow { background-color: rgba(209, 156, 0, 0.282); }
+.select-value-color-green { background-color: rgba(0, 96, 38, 0.156); }
+.select-value-color-blue { background-color: rgba(0, 118, 217, 0.203); }
+.select-value-color-purple { background-color: rgba(92, 0, 163, 0.141); }
+.select-value-color-pink { background-color: rgba(183, 0, 78, 0.152); }
+.select-value-color-red { background-color: rgba(206, 24, 0, 0.164); }
+
+.checkbox {
+	display: inline-flex;
+	vertical-align: text-bottom;
+	width: 16;
+	height: 16;
+	background-size: 16px;
+	margin-left: 2px;
+	margin-right: 5px;
+}
+
+.checkbox-on {
+	background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2016%2016%22%20fill%3D%22none%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%0A%3Crect%20width%3D%2216%22%20height%3D%2216%22%20fill%3D%22%2358A9D7%22%2F%3E%0A%3Cpath%20d%3D%22M6.71429%2012.2852L14%204.9995L12.7143%203.71436L6.71429%209.71378L3.28571%206.2831L2%207.57092L6.71429%2012.2852Z%22%20fill%3D%22white%22%2F%3E%0A%3C%2Fsvg%3E");
+}
+
+.checkbox-off {
+	background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2016%2016%22%20fill%3D%22none%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%0A%3Crect%20x%3D%220.75%22%20y%3D%220.75%22%20width%3D%2214.5%22%20height%3D%2214.5%22%20fill%3D%22white%22%20stroke%3D%22%2336352F%22%20stroke-width%3D%221.5%22%2F%3E%0A%3C%2Fsvg%3E");
+}
+	
+</style></head><body><article id="3504edb4-5b77-8085-a5ae-c0e51de40fbf" class="page sans"><header><div class="page-header-icon undefined"><span class="icon">🍍</span></div><h1 class="page-title" dir="auto">Lộ trình Microservices .NET VIP Compact</h1><p class="page-description" dir="auto"></p></header><div class="page-body"><div style="display:contents" dir="auto"><div id="3524edb4-5b77-80e3-892b-f3d4af4b1c21" class="column-list"><div style="display:contents" dir="auto"><div id="3524edb4-5b77-807d-bc0a-d1fe7788ccba" style="width:100%" class="column"><div style="display:contents" dir="auto"><div style="display:contents" dir="ltr"><figure id="34e4edb4-5b77-800a-b4e2-d567456d16c7" class="link-to-page"><a href="https://www.notion.so/Bu-i-1-Microservices-Mindset-Minimal-API-CQRS-v-i-MediatR-34e4edb45b77800ab4e2d567456d16c7?pvs=21"><span class="icon">🫘</span>Buổi 1: Microservices Mindset + Minimal API + CQRS với MediatR</a></figure></div></div><div style="display:contents" dir="auto"><div style="display:contents" dir="ltr"><figure id="3504edb4-5b77-8002-ad48-c673ce83df52" class="link-to-page"><a href="https://www.notion.so/Bu-i-4-REST-Refit-Service-Communication-Production-Ready-Mindset-3504edb45b778002ad48c673ce83df52?pvs=21"><span class="icon">🫘</span>Buổi 4: REST/Refit Service Communication - Production-Ready Mindset</a></figure></div></div><div style="display:contents" dir="auto"><div style="display:contents" dir="ltr"><figure id="3564edb4-5b77-8011-af61-f13ad705f18a" class="link-to-page"><a href="https://www.notion.so/Bu-i-7-YARP-API-Gateway-3564edb45b778011af61f13ad705f18a?pvs=21"><span class="icon">🫘</span>Buổi 7: YARP API Gateway</a></figure></div></div><div style="display:contents" dir="auto"><div style="display:contents" dir="ltr"><figure id="35b4edb4-5b77-80ca-891c-d5ef3c2b0fdc" class="link-to-page"><a href="https://www.notion.so/Bu-i-10-Config-Local-Secrets-35b4edb45b7780ca891cd5ef3c2b0fdc?pvs=21"><span class="icon">🫘</span>Buổi 10: Config + Local Secrets</a></figure></div></div><div style="display:contents" dir="auto"><div style="display:contents" dir="ltr"><figure id="35c4edb4-5b77-800f-bba3-e655779d02e3" class="link-to-page"><a href="https://www.notion.so/Bu-i-11-Clean-Architecture-Baseline-35c4edb45b77800fbba3e655779d02e3?pvs=21"><span class="icon">🥦</span>Buổi 11: Clean Architecture Baseline</a></figure></div></div></div></div><div style="display:contents" dir="auto"><div id="3524edb4-5b77-8056-b17b-c967f842e162" style="width:100%" class="column"><div style="display:contents" dir="auto"><div style="display:contents" dir="ltr"><figure id="34e4edb4-5b77-80bc-b1f7-c0f92e0b8b77" class="link-to-page"><a href="https://www.notion.so/Bu-i-2-Database-Repository-Pattern-Dapper-34e4edb45b7780bcb1f7c0f92e0b8b77?pvs=21"><span class="icon">🫘</span>Buổi 2: Database + Repository Pattern + Dapper</a></figure></div></div><div style="display:contents" dir="auto"><div style="display:contents" dir="ltr"><figure id="3524edb4-5b77-801f-82da-ea215ea5c75a" class="link-to-page"><a href="https://www.notion.so/Bu-i-5-gRPC-Service-Communication-CatalogService-gRPC-BasketService-gRPC-Client-3524edb45b77801f82daea215ea5c75a?pvs=21"><span class="icon">🫘</span>Buổi 5: gRPC Service Communication - CatalogService gRPC + BasketService gRPC Client</a></figure></div></div><div style="display:contents" dir="auto"><div style="display:contents" dir="ltr"><figure id="3574edb4-5b77-809d-b319-ec1b2ae2cd23" class="link-to-page"><a href="https://www.notion.so/Bu-i-8-Docker-Compose-c-b-n-3574edb45b77809db319ec1b2ae2cd23?pvs=21"><span class="icon">🫘</span>Buổi 8: Docker Compose cơ bản</a></figure></div></div><div style="display:contents" dir="auto"><p id="35c4edb4-5b77-807c-9483-c6be9ccf5076" class="">
+</p></div></div></div><div style="display:contents" dir="auto"><div id="3524edb4-5b77-80c8-8bd7-e22b4131cb41" style="width:100%" class="column"><div style="display:contents" dir="auto"><div style="display:contents" dir="ltr"><figure id="34f4edb4-5b77-8090-88a9-f48a7b17cea1" class="link-to-page"><a href="https://www.notion.so/Bu-i-3-T-ch-Service-th-t-CatalogService-BasketService-Redis-34f4edb45b77809088a9f48a7b17cea1?pvs=21"><span class="icon">🫘</span>Buổi 3: Tách Service thật - CatalogService + BasketService + Redis</a></figure></div></div><div style="display:contents" dir="auto"><div style="display:contents" dir="ltr"><figure id="3544edb4-5b77-80fa-85a5-f49feac2c71a" class="link-to-page"><a href="https://www.notion.so/Bu-i-6-REST-vs-gRPC-Failure-Mindset-3544edb45b7780fa85a5f49feac2c71a?pvs=21"><span class="icon">🫘</span>Buổi 6: REST vs gRPC + Failure Mindset</a></figure></div></div><div style="display:contents" dir="auto"><div style="display:contents" dir="ltr"><figure id="3594edb4-5b77-80bd-ad54-f77b52130830" class="link-to-page"><a href="https://www.notion.so/Bu-i-9-NET-Aspire-Intro-3594edb45b7780bdad54f77b52130830?pvs=21"><span class="icon">🫘</span>Buổi 9: .NET Aspire Intro</a></figure></div></div><div style="display:contents" dir="auto"><p id="35b4edb4-5b77-809e-92df-c63359206878" class="">
+</p></div></div></div></div></div><div style="display:contents" dir="auto"><h1 id="3584edb4-5b77-8042-8362-f19b5dbd7f52" class="">Lộ trình Microservices .NET VIP Compact V2</h1></div><div style="display:contents" dir="auto"><h2 id="3584edb4-5b77-80e2-abd6-d030758de65b" class="">0. Mục tiêu bản V2</h2></div><div style="display:contents" dir="auto"><p id="3584edb4-5b77-8022-bd63-fcee3bfaa357" class="">Bản V2 nâng cấp từ bản VIP Compact sau khi review các phần production còn thiếu như Webhook, API docs, alerting, Inbox/WebhookLog, background jobs, standard error response, SSO/OIDC, audit logging, centralized configuration và các chuẩn vận hành production.</p></div><div style="display:contents" dir="auto"><p id="3584edb4-5b77-8016-87c0-c63c0352b2a1" class="">Nguyên tắc giữ nguyên:</p></div><div style="display:contents" dir="auto"><script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js" integrity="sha512-7Z9J3l1+EYfeaPKcGXu3MS/7T+w19WtKQY/n+xzmw4hZhJ9tyYmcUS+4QqAlzhicE5LAfMQSF3iFTK9bQdTxXg==" crossorigin="anonymous" referrerPolicy="no-referrer"></script><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css" integrity="sha512-tN7Ec6zAFaVSG3TpNAKtk4DOHNpSwKHxxrsiw4GHKESGPs5njn/0sMCUMl2svV4wo4BK/rCP7juYz+zx+l6oeQ==" crossorigin="anonymous" referrerPolicy="no-referrer"/><pre id="3584edb4-5b77-8002-a070-dc7e0c59e3f8" class="code code-wrap"><code style="white-space:pre-wrap;word-break:break-all">1. Không phân mảnh roadmap thành quá nhiều buổi rời rạc.
+2. Một buổi = một learning outcome chính + một output rõ ràng.
+3. Các phần production nhỏ được gắn vào bài liên quan dưới dạng Production add-on.
+4. Kafka và MongoDB vẫn được học tương đối sớm, nhưng đúng vai trò.
+5. Webhook được gắn với PaymentService/Saga vì đây là use case thực tế nhất.
+6. Identity không dừng ở JWT tự cấp; roadmap có hướng nâng cấp lên SSO/OIDC/External Identity Provider như Keycloak, Microsoft Entra ID, Auth0/Okta ở mức production mindset.
+7. Project cuối khóa phải có đủ dấu hiệu của hệ production: audit log, config/secrets chuẩn, error format chuẩn, observability, runbook, failure testing và deployment mindset.</code></pre></div><div style="display:contents" dir="auto"><hr id="3584edb4-5b77-8033-be8e-e743bde203c8"/></div><div style="display:contents" dir="auto"><h2 id="3584edb4-5b77-807c-b22a-f89772eda99b" class="">1. Tổng quan mới</h2></div><div style="display:contents" dir="ltr"><table id="3584edb4-5b77-80d4-a59e-d35a28888f62" class="simple-table"><thead class="simple-table-header"><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-80a0-a8ab-f5fc9e5d464a"><th id="{gG}" class="simple-table-header-color simple-table-header">Stage</th><th id="IegU" class="simple-table-header-color simple-table-header">Tên</th><th id="DT?b" class="simple-table-header-color simple-table-header">Số buổi</th><th id="frPn" class="simple-table-header-color simple-table-header">Mục tiêu</th></tr></div></thead><tbody><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-80ef-b4cb-ef852ee4c711"><td id="{gG}" class="">Stage 1</td><td id="IegU" class="">Foundation Build</td><td id="DT?b" class="">30</td><td id="frPn" class="">Build MicroShop end-to-end</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-80d1-8ea7-d0c552a4200d"><td id="{gG}" class="">Stage 2</td><td id="IegU" class="">Production Hardening</td><td id="DT?b" class="">20</td><td id="frPn" class="">Nâng project lên senior backend</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-8025-8a60-e34875c426f3"><td id="{gG}" class="">Stage 3</td><td id="IegU" class="">Enterprise Deep Dive</td><td id="DT?b" class="">10-15</td><td id="frPn" class="">Cloud-native/tech lead showcase</td></tr></div></tbody></table></div><div style="display:contents" dir="auto"><p id="3584edb4-5b77-809b-bc26-faeb2ff7c79d" class="">Tổng chính:</p></div><div style="display:contents" dir="auto"><pre id="3584edb4-5b77-8077-85b8-d2bcbcbe93f7" class="code code-wrap"><code style="white-space:pre-wrap;word-break:break-all">60 buổi</code></pre></div><div style="display:contents" dir="auto"><p id="3584edb4-5b77-80bf-ba44-d8681208ff3e" class="">Full optional:</p></div><div style="display:contents" dir="auto"><pre id="3584edb4-5b77-800b-9717-c1c73885bbef" class="code code-wrap"><code style="white-space:pre-wrap;word-break:break-all">65 buổi</code></pre></div><div style="display:contents" dir="auto"><p id="3584edb4-5b77-80a8-8a3b-c7e36812d32b" class="">Hiện tại:</p></div><div style="display:contents" dir="auto"><pre id="3584edb4-5b77-80af-9674-df06d9d01996" class="code code-wrap"><code style="white-space:pre-wrap;word-break:break-all">Done: Buổi 1 → Buổi 6 + Checkpoint
+Current: Buổi 8 - Docker Compose cơ bản
+Next: Buổi 9 - .NET Aspire Intro</code></pre></div><div style="display:contents" dir="auto"><hr id="3584edb4-5b77-80a5-a2ed-e12b9d391921"/></div><div style="display:contents" dir="auto"><h1 id="3584edb4-5b77-8026-ac91-f7a7f29d6e31" class="">STAGE 1: FOUNDATION BUILD — 30 buổi</h1></div><div style="display:contents" dir="auto"><h2 id="3584edb4-5b77-8043-a3d9-ebe58487cfa0" class="">Mục tiêu Stage 1</h2></div><div style="display:contents" dir="auto"><p id="3584edb4-5b77-80a7-93a9-dfce11615c28" class="">Sau Stage 1, project có flow:</p></div><div style="display:contents" dir="auto"><pre id="3584edb4-5b77-80b2-b4fa-db94b6bfa925" class="code code-wrap"><code style="white-space:pre-wrap;word-break:break-all">Client
+  ↓
+ApiGateway
+  ↓
+CatalogService  → SQL DB
+BasketService   → Redis
+IdentityService → JWT/Auth → SSO/OIDC mindset
+OrderingService → SQL DB + Outbox basic
+DiscountService → coupon/discount rule
+PaymentService  → payment giả lập + webhook intro
+  ↓
+RabbitMQ → NotificationWorker
+  ↓
+Kafka → ProjectionWorker / AnalyticsWorker
+  ↓
+MongoDB → Read Model</code></pre></div><div style="display:contents" dir="auto"><p id="3584edb4-5b77-808b-ad1e-fc71a842bab8" class="">Cấu trúc project mục tiêu:</p></div><div style="display:contents" dir="auto"><pre id="3584edb4-5b77-8014-a4b7-e6528f44b8d0" class="code code-wrap"><code style="white-space:pre-wrap;word-break:break-all">MicroShop/
+├── ApiGateway
+├── Aspire
+├── BuildingBlocks
+│   ├── Contracts
+│   ├── Logging
+│   └── Messaging
+├── Services
+│   ├── CatalogService
+│   ├── BasketService
+│   ├── IdentityService
+│   ├── OrderingService
+│   ├── DiscountService
+│   └── PaymentService
+├── Workers
+│   ├── NotificationWorker
+│   ├── ProjectionWorker
+│   └── AnalyticsWorker
+├── docker-compose.yml
+└── docs
+    ├── architecture-diagram.md
+    ├── communication-decisions.md
+    ├── docker-compose-decision.md
+    ├── api-error-format.md
+    ├── webhook-decision.md
+    └── adr</code></pre></div><div style="display:contents" dir="auto"><hr id="3584edb4-5b77-80de-a809-d0448dd8c7bf"/></div><div style="display:contents" dir="auto"><h2 id="3584edb4-5b77-80fc-8bcb-c15debf766e2" class="">Phase 1.1 - Service Foundation</h2></div><div style="display:contents" dir="ltr"><table id="3584edb4-5b77-8071-a251-c8aca57614fe" class="simple-table"><thead class="simple-table-header"><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-8041-87e8-e3e00718bf91"><th id="cCDG" class="simple-table-header-color simple-table-header">Buổi</th><th id="fsMt" class="simple-table-header-color simple-table-header">Chủ đề</th><th id="[bKL" class="simple-table-header-color simple-table-header">Output chính</th><th id="CEp{" class="simple-table-header-color simple-table-header">Production add-on</th></tr></div></thead><tbody><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-801b-9d4d-dc120b7b0c4b"><td id="cCDG" class="">1</td><td id="fsMt" class="">Catalog Minimal API + CQRS + MediatR</td><td id="[bKL" class="">Catalog CRUD/Search</td><td id="CEp{" class="">Endpoint mỏng, command/query rõ</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-8083-98e0-cc85836dd100"><td id="cCDG" class="">2</td><td id="fsMt" class="">Catalog DB + Repository + Dapper</td><td id="[bKL" class="">Catalog lưu DB</td><td id="CEp{" class="">Migration/seed mindset nhẹ</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-80eb-bd29-c3f8d2761365"><td id="cCDG" class="">3</td><td id="fsMt" class="">BasketService + Redis</td><td id="[bKL" class="">Basket lưu Redis</td><td id="CEp{" class="">Data ownership, TTL mindset</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-8007-a2f3-f73bc4c9291c"><td id="cCDG" class="">4</td><td id="fsMt" class="">REST/Refit communication</td><td id="[bKL" class="">Basket gọi Catalog bằng REST</td><td id="CEp{" class="">Runtime coupling note</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-8018-898a-f0f83580db99"><td id="cCDG" class="">5</td><td id="fsMt" class="">gRPC communication</td><td id="[bKL" class="">Catalog gRPC + Basket client</td><td id="CEp{" class="">Contract-first note</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-805a-a237-da1e9342d869"><td id="cCDG" class="">6</td><td id="fsMt" class="">REST vs gRPC + Failure Mindset</td><td id="[bKL" class="">Timeout/log/error handling</td><td id="CEp{" class="">Standard error response intro + Checkpoint</td></tr></div></tbody></table></div><div style="display:contents" dir="auto"><p id="3584edb4-5b77-8051-979d-ef7c4bebd5c0" class="">Checkpoint 1:</p></div><div style="display:contents" dir="auto"><pre id="3584edb4-5b77-809b-a52f-fba444374aa3" class="code code-wrap"><code style="white-space:pre-wrap;word-break:break-all">Endpoint → MediatR → Handler → Repository → DB
+Basket/Catalog tách boundary rõ
+REST/gRPC chạy được
+Hiểu runtime coupling và downstream failure
+Biết error response nên có errorCode/message/traceId</code></pre></div><div style="display:contents" dir="auto"><hr id="3584edb4-5b77-8009-a8e1-fc437202e656"/></div><div style="display:contents" dir="auto"><h2 id="3584edb4-5b77-802a-a003-c5e653065c76" class="">Phase 1.2 - Gateway + Local Runtime</h2></div><div style="display:contents" dir="ltr"><table id="3584edb4-5b77-8072-a82a-d14a1cf521ad" class="simple-table"><thead class="simple-table-header"><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-8049-9c71-c98c4d454a88"><th id="rfIu" class="simple-table-header-color simple-table-header">Buổi</th><th id=";m`~" class="simple-table-header-color simple-table-header">Chủ đề</th><th id="VGJh" class="simple-table-header-color simple-table-header">Output chính</th><th id="Oj^v" class="simple-table-header-color simple-table-header">Production add-on</th></tr></div></thead><tbody><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-809b-8bf3-f93b277dbabe"><td id="rfIu" class="">7</td><td id=";m`~" class="">YARP API Gateway</td><td id="VGJh" class="">Client gọi qua Gateway</td><td id="Oj^v" class="">Gateway không ôm business logic</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-80ee-b878-fc1b7deda8ad"><td id="rfIu" class="">8</td><td id=";m`~" class="">Docker Compose</td><td id="VGJh" class="">Redis + RabbitMQ chạy bằng Compose</td><td id="Oj^v" class="">localhost vs service name</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-801e-9b50-c9c3d4c8027e"><td id="rfIu" class="">9</td><td id=";m`~" class="">.NET Aspire Intro</td><td id="VGJh" class="">AppHost chạy local distributed app</td><td id="Oj^v" class="">Aspire vs Compose mindset</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-80e7-8db2-f02c88e490bf"><td id="rfIu" class="">10</td><td id=";m`~" class="">Config + Local Secrets</td><td id="VGJh" class="">appsettings/env/user-secrets</td><td id="Oj^v" class="">Không hardcode secrets</td></tr></div></tbody></table></div><div style="display:contents" dir="auto"><p id="3584edb4-5b77-80c8-a661-c0206e622038" class="">Checkpoint 2:</p></div><div style="display:contents" dir="auto"><pre id="3584edb4-5b77-807c-a680-fbaf3013bd48" class="code code-wrap"><code style="white-space:pre-wrap;word-break:break-all">Client gọi Catalog/Basket qua Gateway.
+Infra chạy được bằng Docker Compose.
+Hiểu Compose và Aspire dùng để giải quyết vấn đề gì.
+Config tách khỏi code.</code></pre></div><div style="display:contents" dir="auto"><hr id="3584edb4-5b77-800f-b09f-c72961e3a0cb"/></div><div style="display:contents" dir="auto"><h2 id="3584edb4-5b77-8047-9b34-f0f0dad42f12" class="">Phase 1.3 - Clean Baseline + Security</h2></div><div style="display:contents" dir="ltr"><table id="3584edb4-5b77-8044-a6d9-d008edb50789" class="simple-table"><thead class="simple-table-header"><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-8054-b803-d243fd4f78f3"><th id="DmXg" class="simple-table-header-color simple-table-header">Buổi</th><th id="aTTU" class="simple-table-header-color simple-table-header">Chủ đề</th><th id="rMM=" class="simple-table-header-color simple-table-header">Output chính</th><th id="P|\{" class="simple-table-header-color simple-table-header">Production add-on</th></tr></div></thead><tbody><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-8065-8b23-f49d4fd42409"><td id="DmXg" class="">11</td><td id="aTTU" class="">Clean Architecture Baseline</td><td id="rMM=" class="">Tách API/Application/Domain/Infrastructure nhẹ</td><td id="P|\{" class="">Dependency rule</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-8053-9e92-e7b8bb9dfe37"><td id="DmXg" class="">12</td><td id="aTTU" class="">Validation + Explicit Mapping</td><td id="rMM=" class="">Request validation + DTO mapping</td><td id="P|\{" class="">Không dùng magic mapping bừa</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-8068-98b6-f720c70b2cac"><td id="DmXg" class="">13</td><td id="aTTU" class="">IdentityService + JWT</td><td id="rMM=" class="">Login/token/protected endpoint</td><td id="P|\{" class="">Token expiration, refresh token mindset, SSO/OIDC/External IdP overview</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-801f-a6fd-c0d001dde4f9"><td id="DmXg" class="">14</td><td id="aTTU" class="">Role/Claim + Secure Internal Call Intro</td><td id="rMM=" class="">Policy/role demo</td><td id="P|\{" class="">RBAC/ABAC mindset, Gateway token validation, internal API security</td></tr></div></tbody></table></div><div style="display:contents" dir="auto"><p id="3584edb4-5b77-8048-86f1-c7cf9fe453f9" class="">Checkpoint 3:</p></div><div style="display:contents" dir="auto"><pre id="3584edb4-5b77-80c9-ba8f-fc810fba73ce" class="code code-wrap"><code style="white-space:pre-wrap;word-break:break-all">Project bắt đầu có structure rõ.
+Endpoint không còn ôm logic nặng.
+Có IdentityService và JWT cơ bản.
+Biết hướng nâng cấp production là SSO/OIDC/External Identity Provider, không tự build auth quá sâu nếu không cần.</code></pre></div><div style="display:contents" dir="auto"><hr id="3584edb4-5b77-8010-8c14-c6638cb3aa82"/></div><div style="display:contents" dir="auto"><h2 id="3584edb4-5b77-805b-82e6-ea7779da66ee" class="">Phase 1.4 - Ordering + Checkout + Payment/Webhook Intro</h2></div><div style="display:contents" dir="ltr"><table id="3584edb4-5b77-80ab-9109-cad4c124fcc2" class="simple-table"><thead class="simple-table-header"><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-8070-9529-f29b251fc865"><th id="pXyV" class="simple-table-header-color simple-table-header">Buổi</th><th id="L[JH" class="simple-table-header-color simple-table-header">Chủ đề</th><th id="H&gt;OX" class="simple-table-header-color simple-table-header">Output chính</th><th id="w~Xh" class="simple-table-header-color simple-table-header">Production add-on</th></tr></div></thead><tbody><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-80ec-910b-dca9de3a5005"><td id="pXyV" class="">15</td><td id="L[JH" class="">OrderingService</td><td id="H&gt;OX" class="">Order API + Order DB</td><td id="w~Xh" class="">Order owns data</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-80d1-98e4-c4224f22570c"><td id="pXyV" class="">16</td><td id="L[JH" class="">Checkout Flow</td><td id="H&gt;OX" class="">Basket → Order</td><td id="w~Xh" class="">Distributed consistency intro</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-80c9-b45e-cab7d78f290e"><td id="pXyV" class="">17</td><td id="L[JH" class="">DiscountService + Strategy Intro</td><td id="H&gt;OX" class="">Coupon/discount rule</td><td id="w~Xh" class="">Strategy pattern mindset</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-8080-8011-ce467f0a748c"><td id="pXyV" class="">18</td><td id="L[JH" class="">PaymentService + Payment Webhook Intro</td><td id="H&gt;OX" class="">Payment success/fail giả lập + <code>POST /webhooks/payment</code> demo</td><td id="w~Xh" class="">Webhook khác RabbitMQ/Kafka, webhook log mindset</td></tr></div></tbody></table></div><div style="display:contents" dir="auto"><p id="3584edb4-5b77-806f-8b26-f2add3e5658d" class="">Checkpoint 4:</p></div><div style="display:contents" dir="auto"><pre id="3584edb4-5b77-802c-8be7-c530112a8c47" class="code code-wrap"><code style="white-space:pre-wrap;word-break:break-all">Có checkout flow.
+Có Order, Discount, Payment skeleton.
+Có webhook endpoint giả lập cho PaymentService.
+Hiểu webhook là external system gọi HTTP vào hệ thống mình.</code></pre></div><div style="display:contents" dir="auto"><hr id="3584edb4-5b77-80de-86a9-f3c09766707c"/></div><div style="display:contents" dir="auto"><h2 id="3584edb4-5b77-80a9-9417-c03ee995725d" class="">Phase 1.5 - RabbitMQ + Reliability Basic</h2></div><div style="display:contents" dir="ltr"><table id="3584edb4-5b77-8075-8e38-ed6a7f00feae" class="simple-table"><thead class="simple-table-header"><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-80d8-99ee-c6d4511a30d5"><th id="bMwn" class="simple-table-header-color simple-table-header">Buổi</th><th id="yW~M" class="simple-table-header-color simple-table-header">Chủ đề</th><th id="XUG]" class="simple-table-header-color simple-table-header">Output chính</th><th id="H?Ue" class="simple-table-header-color simple-table-header">Production add-on</th></tr></div></thead><tbody><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-80ec-b8b2-cced42562ec8"><td id="bMwn" class="">19</td><td id="yW~M" class="">RabbitMQ + MassTransit</td><td id="XUG]" class="">Publish OrderCreatedEvent</td><td id="H?Ue" class="">RabbitMQ vs sync call</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-80a2-8409-d361ee878e30"><td id="bMwn" class="">20</td><td id="yW~M" class="">BuildingBlocks.Contracts + Event Design</td><td id="XUG]" class="">Shared event contracts</td><td id="H?Ue" class="">Event naming/versioning note</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-80bc-8f53-c92bcb7ac922"><td id="bMwn" class="">21</td><td id="yW~M" class="">NotificationWorker</td><td id="XUG]" class="">Consume OrderCreatedEvent</td><td id="H?Ue" class="">Worker separation</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-80b7-9d15-e0a623c098be"><td id="bMwn" class="">22</td><td id="yW~M" class="">Retry/DLQ + Idempotency Basic</td><td id="XUG]" class="">Retry, DLQ, processed message check</td><td id="H?Ue" class="">Duplicate message + Inbox mindset</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-801d-9557-e5d2b03d3a4d"><td id="bMwn" class="">23</td><td id="yW~M" class="">Outbox Basic + Background Publisher Intro</td><td id="XUG]" class="">Outbox table + simple publisher</td><td id="H?Ue" class="">DB saved but publish failed problem, background job concept</td></tr></div></tbody></table></div><div style="display:contents" dir="auto"><p id="3584edb4-5b77-8045-b99d-f610df79e2ad" class="">Checkpoint 5:</p></div><div style="display:contents" dir="auto"><pre id="3584edb4-5b77-8064-a56c-edb6483ea52e" class="code code-wrap"><code style="white-space:pre-wrap;word-break:break-all">Order event publish được.
+Worker consume được.
+Có retry/DLQ/idempotency cơ bản.
+Hiểu Outbox giải quyết lỗi mất event.
+Hiểu background publisher là nền móng của outbox worker.</code></pre></div><div style="display:contents" dir="auto"><hr id="3584edb4-5b77-8060-b0ba-c0a1e12149e0"/></div><div style="display:contents" dir="auto"><h2 id="3584edb4-5b77-8041-8d8a-ffee42ca44d6" class="">Phase 1.6 - Kafka + MongoDB đúng vai trò</h2></div><div style="display:contents" dir="ltr"><table id="3584edb4-5b77-8078-af46-f65036bac50f" class="simple-table"><thead class="simple-table-header"><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-8075-897f-e4c0ed91947e"><th id="Z|KS" class="simple-table-header-color simple-table-header">Buổi</th><th id="E^je" class="simple-table-header-color simple-table-header">Chủ đề</th><th id="ECxB" class="simple-table-header-color simple-table-header">Output chính</th><th id="[bkj" class="simple-table-header-color simple-table-header">Production add-on</th></tr></div></thead><tbody><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-802a-a6c8-c18319a1824f"><td id="Z|KS" class="">24</td><td id="E^je" class="">RabbitMQ vs Kafka</td><td id="ECxB" class="">Decision matrix</td><td id="[bkj" class="">Queue vs event stream</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-8002-b887-e4e25243c0fe"><td id="Z|KS" class="">25</td><td id="E^je" class="">Kafka Intro</td><td id="ECxB" class="">Topic/partition/offset/consumer group demo</td><td id="[bkj" class="">Kafka không thay RabbitMQ bừa bãi</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-8040-831f-cedf0fee8b74"><td id="Z|KS" class="">26</td><td id="E^je" class="">MongoDB Read Model</td><td id="ECxB" class="">OrderSummaryReadModel collection</td><td id="[bkj" class="">MongoDB cho read model/projection</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-80f4-a25c-f3c777ecf1a9"><td id="Z|KS" class="">27</td><td id="E^je" class="">Kafka → MongoDB Projection</td><td id="ECxB" class="">ProjectionWorker demo</td><td id="[bkj" class="">Projection rebuild note nhẹ</td></tr></div></tbody></table></div><div style="display:contents" dir="auto"><p id="3584edb4-5b77-80bb-ada4-c040231fe896" class="">Checkpoint 6:</p></div><div style="display:contents" dir="auto"><pre id="3584edb4-5b77-80c9-ba22-d5b151a69715" class="code code-wrap"><code style="white-space:pre-wrap;word-break:break-all">Biết RabbitMQ dùng cho workflow nghiệp vụ.
+Biết Kafka dùng cho streaming/analytics/projection.
+Biết MongoDB dùng cho read model/document projection.
+Có flow event → projection → MongoDB.</code></pre></div><div style="display:contents" dir="auto"><hr id="3584edb4-5b77-80e5-ae43-f1ea5808b9f7"/></div><div style="display:contents" dir="auto"><h2 id="3584edb4-5b77-80f6-a5c1-d61df3e4dec1" class="">Phase 1.7 - Foundation Review</h2></div><div style="display:contents" dir="ltr"><table id="3584edb4-5b77-8087-84c9-fd5f17d13909" class="simple-table"><thead class="simple-table-header"><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-801a-b01e-d0f7bcdd17ef"><th id="Rteb" class="simple-table-header-color simple-table-header">Buổi</th><th id="Dy^c" class="simple-table-header-color simple-table-header">Chủ đề</th><th id="bWQ?" class="simple-table-header-color simple-table-header">Output chính</th><th id="P^UC" class="simple-table-header-color simple-table-header">Production add-on</th></tr></div></thead><tbody><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-80f9-93e2-f011ec08aafa"><td id="Rteb" class="">28</td><td id="Dy^c" class="">Logging + Health Checks</td><td id="bWQ?" class="">/health + structured logs nhẹ</td><td id="P^UC" class="">Runbook intro</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-80fa-8e10-d2722230d366"><td id="Rteb" class="">29</td><td id="Dy^c" class="">README + Architecture Diagram + ADR + OpenAPI Review</td><td id="bWQ?" class="">README, diagram, ADR đầu tiên, Swagger/OpenAPI docs review</td><td id="P^UC" class="">Portfolio documentation + API docs</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-8002-abb2-e270aec1bd01"><td id="Rteb" class="">30</td><td id="Dy^c" class="">Foundation Demo + Checkpoint</td><td id="bWQ?" class="">Demo end-to-end + tag v30-foundation</td><td id="P^UC" class="">Final review Stage 1</td></tr></div></tbody></table></div><div style="display:contents" dir="auto"><p id="3584edb4-5b77-804d-a6ec-dd31876ad63b" class="">Kết quả cuối Stage 1:</p></div><div style="display:contents" dir="auto"><pre id="3584edb4-5b77-804d-a3f6-f28b5f3dca05" class="code code-wrap"><code style="white-space:pre-wrap;word-break:break-all">Có project MicroShop end-to-end.
+Có Gateway, Docker Compose, Aspire Intro.
+Có Catalog, Basket, Identity, Order, Discount, Payment.
+Có Payment webhook intro.
+Có Redis, RabbitMQ, Kafka intro, MongoDB read model.
+Có Outbox, Idempotency, Worker, Health, Logging, README, Diagram, ADR, OpenAPI review.</code></pre></div><div style="display:contents" dir="auto"><hr id="3584edb4-5b77-8062-bbd6-d3a6a7d5e9c8"/></div><div style="display:contents" dir="auto"><h1 id="3584edb4-5b77-808f-b54a-f226dfd4894e" class="">STAGE 2: PRODUCTION HARDENING — 20 buổi</h1></div><div style="display:contents" dir="auto"><h2 id="3584edb4-5b77-8047-8fa9-c1e6938d5699" class="">Mục tiêu Stage 2</h2></div><div style="display:contents" dir="auto"><p id="3584edb4-5b77-80b2-8ddc-deb8953f45a5" class="">Không tạo project mới. Nâng chính MicroShop thành project senior backend.</p></div><div style="display:contents" dir="auto"><hr id="3584edb4-5b77-8017-ad92-ec9b0be004c2"/></div><div style="display:contents" dir="auto"><h2 id="3584edb4-5b77-802a-b837-db090a30e842" class="">Phase 2.1 - Architecture + API/Data Lifecycle</h2></div><div style="display:contents" dir="ltr"><table id="3584edb4-5b77-8039-928f-f8f94c1da101" class="simple-table"><thead class="simple-table-header"><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-806f-9128-cbbe91c3666d"><th id="y[\r" class="simple-table-header-color simple-table-header">Buổi</th><th id="Q~s&lt;" class="simple-table-header-color simple-table-header">Chủ đề</th><th id="Q`EQ" class="simple-table-header-color simple-table-header">Output chính</th></tr></div></thead><tbody><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-80d4-80c2-f139f78421eb"><td id="y[\r" class="">31</td><td id="Q~s&lt;" class="">Clean Architecture / Hexagonal Review</td><td id="Q`EQ" class="">Refactor backlog + ports/adapters</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-80d5-b599-c3ea3d79db72"><td id="y[\r" class="">32</td><td id="Q~s&lt;" class="">API Versioning + Backward Compatibility + Standard Error Format</td><td id="Q`EQ" class="">v1/v2 API strategy + <code>errorCode/message/traceId</code> format</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-8040-ad1d-dc3bd3915d09"><td id="y[\r" class="">33</td><td id="Q~s&lt;" class="">SQLite → PostgreSQL + Database Migration + Schema Evolution</td><td id="Q`EQ" class="">Nâng Catalog/Order từ SQLite sang PostgreSQL, migration/seed/rollback mindset</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-80c8-b999-c4b39e9c3869"><td id="y[\r" class="">34</td><td id="Q~s&lt;" class="">FluentValidation Pipeline + Mapping nâng cao</td><td id="Q`EQ" class="">Validation pipeline + mapping rules</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-806f-9bcf-eb202d12e637"><td id="y[\r" class="">35</td><td id="Q~s&lt;" class="">Specification Pattern</td><td id="Q`EQ" class="">Query specifications</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-801b-97a6-c5f3fb710f3c"><td id="y[\r" class="">36</td><td id="Q~s&lt;" class="">Strategy Pattern nâng cao + Audit Log + Advanced Identity Review</td><td id="Q`EQ" class="">Discount/Payment strategies + audit log policy + SSO/OIDC decision note</td></tr></div></tbody></table></div><div style="display:contents" dir="auto"><hr id="3584edb4-5b77-80d8-86a9-c54a8cb9f600"/></div><div style="display:contents" dir="auto"><h2 id="3584edb4-5b77-803e-9a86-eb75b4a46dd6" class="">Phase 2.2 - Reliable Event-Driven nâng cao</h2></div><div style="display:contents" dir="ltr"><table id="3584edb4-5b77-8094-888f-e1a0c54fe222" class="simple-table"><thead class="simple-table-header"><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-80b1-bc83-f2719fd1dcff"><th id="YrzG" class="simple-table-header-color simple-table-header">Buổi</th><th id="x^_m" class="simple-table-header-color simple-table-header">Chủ đề</th><th id="SQh_" class="simple-table-header-color simple-table-header">Output chính</th></tr></div></thead><tbody><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-80c2-8456-e55eddd480d3"><td id="YrzG" class="">37</td><td id="x^_m" class="">CloudEvents / Event Envelope</td><td id="SQh_" class="">Standard event envelope</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-8047-8e55-ea4ba45ee82c"><td id="YrzG" class="">38</td><td id="x^_m" class="">Transactional Outbox chuẩn</td><td id="SQh_" class="">DB + Outbox same transaction</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-801d-9b5c-f7c5871ed6e7"><td id="YrzG" class="">39</td><td id="x^_m" class="">Outbox Publisher + Idempotency nâng cao + Inbox/WebhookLog</td><td id="SQh_" class="">Robust publisher + processed messages + webhook event log</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-8006-8082-cb8d2a65d4cb"><td id="YrzG" class="">40</td><td id="x^_m" class="">Kafka Consumer Group + Rebalance</td><td id="SQh_" class="">Scale consumer correctly</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-8019-891f-e6ae92060be6"><td id="YrzG" class="">41</td><td id="x^_m" class="">MongoDB Projection Rebuild</td><td id="SQh_" class="">Rebuild read model strategy</td></tr></div></tbody></table></div><div style="display:contents" dir="auto"><hr id="3584edb4-5b77-80a8-87d5-dd370e6501d5"/></div><div style="display:contents" dir="auto"><h2 id="3584edb4-5b77-8037-aa7b-c8065a467df7" class="">Phase 2.3 - Distributed Workflow + Resilience + Webhook Production</h2></div><div style="display:contents" dir="ltr"><table id="3584edb4-5b77-8029-bb71-d430e7deb559" class="simple-table"><thead class="simple-table-header"><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-807d-a7f4-ca53e00ae3aa"><th id="}Sre" class="simple-table-header-color simple-table-header">Buổi</th><th id="&gt;&gt;[U" class="simple-table-header-color simple-table-header">Chủ đề</th><th id="&lt;cMm" class="simple-table-header-color simple-table-header">Output chính</th></tr></div></thead><tbody><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-80ab-9746-fb16bc907e16"><td id="}Sre" class="">42</td><td id="&gt;&gt;[U" class="">Distributed Consistency Mindset</td><td id="&lt;cMm" class="">Strong vs eventual consistency note</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-8057-a455-d0c7c62c21a6"><td id="}Sre" class="">43</td><td id="&gt;&gt;[U" class="">Payment Saga Orchestration</td><td id="&lt;cMm" class="">Order → Payment saga orchestrator</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-80d1-bfa5-c3e2681aa245"><td id="}Sre" class="">44</td><td id="&gt;&gt;[U" class="">Saga Choreography + Compensation + Payment Webhook Production Handling</td><td id="&lt;cMm" class="">Event choreography + cancel/refund/release flow + signature/idempotency/logging</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-80ec-a599-c397c6888227"><td id="}Sre" class="">45</td><td id="&gt;&gt;[U" class="">Timeout / Retry / Circuit Breaker</td><td id="&lt;cMm" class="">Resilience policy demo</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-8099-b7fd-f8b026918f72"><td id="}Sre" class="">46</td><td id="&gt;&gt;[U" class="">Gateway Load Balancing + Rate Limiting + Auth at Edge</td><td id="&lt;cMm" class="">YARP multi-destination/rate limit demo + Gateway JWT/SSO integration mindset</td></tr></div></tbody></table></div><div style="display:contents" dir="auto"><p id="3584edb4-5b77-804f-91cc-e3f594be2124" class="">Webhook production handling phải có:</p></div><div style="display:contents" dir="auto"><pre id="3584edb4-5b77-807c-b635-d1252eee4660" class="code code-wrap"><code style="white-space:pre-wrap;word-break:break-all">[ ] POST /webhooks/payment
+[ ] Verify signature / shared secret concept
+[ ] Check eventId idempotency
+[ ] Save webhook event log
+[ ] Return 2xx nhanh
+[ ] Publish PaymentSucceeded/PaymentFailed event
+[ ] Không xử lý nghiệp vụ nặng trực tiếp trong HTTP webhook request</code></pre></div><div style="display:contents" dir="auto"><hr id="3584edb4-5b77-8076-8a38-ff7d0cc1e973"/></div><div style="display:contents" dir="auto"><h2 id="3584edb4-5b77-8022-ab4b-ff04047bf61e" class="">Phase 2.4 - Observability + Testing + Ops</h2></div><div style="display:contents" dir="ltr"><table id="3584edb4-5b77-80f4-bd92-d672e010ecf5" class="simple-table"><thead class="simple-table-header"><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-80ff-85e9-d47c53cec7e7"><th id="==yb" class="simple-table-header-color simple-table-header">Buổi</th><th id="gseR" class="simple-table-header-color simple-table-header">Chủ đề</th><th id="Fs~?" class="simple-table-header-color simple-table-header">Output chính</th></tr></div></thead><tbody><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-80fa-83f3-d640f8cc69b6"><td id="==yb" class="">47</td><td id="gseR" class="">Correlation ID + OpenTelemetry</td><td id="Fs~?" class="">Trace Gateway → Basket → Catalog</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-8010-87de-f42fab5a1e3a"><td id="==yb" class="">48</td><td id="gseR" class="">Metrics + Prometheus/Grafana + Alerting Intro</td><td id="Fs~?" class="">Basic dashboard/report + alert concept</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-805f-a91f-dcc4b6c12c5e"><td id="==yb" class="">49</td><td id="gseR" class="">Testing: Unit + Integration + Testcontainers</td><td id="Fs~?" class="">Test strategy + samples</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-80cd-9938-dade21db6f90"><td id="==yb" class="">50</td><td id="gseR" class="">Production Hardening Checkpoint</td><td id="Fs~?" class="">Failure test report + parity checklist</td></tr></div></tbody></table></div><div style="display:contents" dir="auto"><p id="3584edb4-5b77-80bb-b9aa-d8d0d43bdf9b" class="">Kết quả cuối Stage 2:</p></div><div style="display:contents" dir="auto"><pre id="3584edb4-5b77-80e4-981b-ecee2eb8caf7" class="code code-wrap"><code style="white-space:pre-wrap;word-break:break-all">Project có Clean/Hexagonal structure tốt hơn.
+Có API versioning, migration mindset, validation pipeline.
+Có audit log policy và SSO/OIDC decision note cho hướng production.
+Có standard error response.
+Có Outbox/Inbox/WebhookLog/Idempotency/Saga/Resilience nghiêm túc hơn.
+Có webhook production handling.
+Có tracing/metrics/alerting/testing/failure report.
+Đủ làm side project senior backend/microservices.</code></pre></div><div style="display:contents" dir="auto"><hr id="3584edb4-5b77-8022-9837-f208f69cd10e"/></div><div style="display:contents" dir="auto"><h1 id="3584edb4-5b77-8073-aeb0-c5c86878126f" class="">STAGE 3: ENTERPRISE DEEP DIVE — 10 buổi chính + 5 buổi optional</h1></div><div style="display:contents" dir="auto"><h2 id="3584edb4-5b77-800f-a238-fb4fa9205e38" class="">10 buổi chính</h2></div><div style="display:contents" dir="ltr"><table id="3584edb4-5b77-8034-99eb-c614d0ced85d" class="simple-table"><thead class="simple-table-header"><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-809c-852e-cbcfab756b18"><th id="`B|c" class="simple-table-header-color simple-table-header">Buổi</th><th id="R=~N" class="simple-table-header-color simple-table-header">Chủ đề</th><th id="jpjk" class="simple-table-header-color simple-table-header">Output chính</th></tr></div></thead><tbody><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-80ca-8947-cebef9797a63"><td id="`B|c" class="">51</td><td id="R=~N" class="">Dockerfile Production</td><td id="jpjk" class="">Dockerfile review</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-8015-931f-cd7f6e1e917c"><td id="`B|c" class="">52</td><td id="R=~N" class="">Kubernetes Fundamentals</td><td id="jpjk" class="">Pod/Service/Deployment/ConfigMap/Secret</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-8087-85e9-d860a3165888"><td id="`B|c" class="">53</td><td id="R=~N" class="">Kubernetes Service Load Balancing</td><td id="jpjk" class="">Replica + service LB concept</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-806d-b908-c4d50923f2e3"><td id="`B|c" class="">54</td><td id="R=~N" class="">Helm</td><td id="jpjk" class="">Helm chart basic</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-806c-a0d2-ea661c521f7d"><td id="`B|c" class="">55</td><td id="R=~N" class="">Gateway Options</td><td id="jpjk" class="">YARP/Ocelot/NGINX/Azure API Gateway matrix</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-80fe-b926-ffdb934a437d"><td id="`B|c" class="">56</td><td id="R=~N" class="">Deployment Strategies</td><td id="jpjk" class="">Rolling/Blue-Green/Canary/Rollback</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-809d-bd21-c8dc086801aa"><td id="`B|c" class="">57</td><td id="R=~N" class="">Secrets Management nâng cao</td><td id="jpjk" class="">K8s Secret / Azure Key Vault concept</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-8006-873e-d89f1cd74cfa"><td id="`B|c" class="">58</td><td id="R=~N" class="">CI/CD Basic</td><td id="jpjk" class="">Build/test pipeline</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-8059-b9ce-e352690df0ab"><td id="`B|c" class="">59</td><td id="R=~N" class="">Operational Runbook + Incident Simulation</td><td id="jpjk" class="">docs/runbooks + incident report</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-8090-86a3-c39cedbe71ff"><td id="`B|c" class="">60</td><td id="R=~N" class="">Final Enterprise Demo</td><td id="jpjk" class="">Final presentation + portfolio review</td></tr></div></tbody></table></div><div style="display:contents" dir="auto"><h2 id="3584edb4-5b77-8061-b284-f2df3c6cee10" class="">Optional Deep Dive</h2></div><div style="display:contents" dir="ltr"><table id="3584edb4-5b77-8024-815f-cfe4bb358193" class="simple-table"><thead class="simple-table-header"><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-807c-b952-d456bd8a0fed"><th id="Ge[l" class="simple-table-header-color simple-table-header">Buổi</th><th id="cTAx" class="simple-table-header-color simple-table-header">Chủ đề</th><th id="KWK?" class="simple-table-header-color simple-table-header">Khi nào học</th></tr></div></thead><tbody><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-806f-b4bd-dc126f763ea7"><td id="Ge[l" class="">61</td><td id="cTAx" class="">Event Sourcing</td><td id="KWK?" class="">Khi muốn hiểu event stream sâu hơn</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-80bb-bfed-e6624aad689d"><td id="Ge[l" class="">62</td><td id="cTAx" class="">Schema Registry Concept</td><td id="KWK?" class="">Khi dùng Kafka/event contract nghiêm túc hơn</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-8030-b143-eea7cfac34a7"><td id="Ge[l" class="">63</td><td id="cTAx" class="">Contract Testing nâng cao</td><td id="KWK?" class="">Khi cần bảo vệ consumer/provider contract</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-80f9-b36f-c04a2c688b80"><td id="Ge[l" class="">64</td><td id="cTAx" class="">Performance/Load Testing với k6</td><td id="KWK?" class="">Khi muốn benchmark p95/p99</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-8090-bacd-fa2b03eaee92"><td id="Ge[l" class="">65</td><td id="cTAx" class="">Service Mesh / Istio</td><td id="KWK?" class="">Khi đã hiểu K8s và cần traffic/mTLS nâng cao</td></tr></div></tbody></table></div><div style="display:contents" dir="auto"><hr id="3584edb4-5b77-80c7-9689-ce93aea16804"/></div><div style="display:contents" dir="auto"><h1 id="3584edb4-5b77-80da-be76-d8f70f5a73c6" class="">4. Production Add-on Map</h1></div><div style="display:contents" dir="auto"><p id="3584edb4-5b77-80a5-93f6-ee30129c4c2a" class="">Các mục production quan trọng không bị bỏ, nhưng được gắn vào bài phù hợp:</p></div><div style="display:contents" dir="ltr"><table id="3584edb4-5b77-80e9-9528-fdf8fd30d362" class="simple-table"><thead class="simple-table-header"><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-80f6-b887-f014485348d6"><th id="OLsY" class="simple-table-header-color simple-table-header">Production topic</th><th id="n@cj" class="simple-table-header-color simple-table-header">Gắn vào buổi</th></tr></div></thead><tbody><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-808c-9d96-f8df25d1cddc"><td id="OLsY" class="">Standard Error Response</td><td id="n@cj" class="">6, 32</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-808e-a923-d23e5765dba8"><td id="OLsY" class="">Local Secrets / Env vars</td><td id="n@cj" class="">10</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-8018-9007-f2fd5bf108db"><td id="OLsY" class="">Centralized Config mindset</td><td id="n@cj" class="">10, 57</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-8046-a148-d7edacc36b49"><td id="OLsY" class="">Load Balancing concept</td><td id="n@cj" class="">7, 46, 53</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-80c6-b183-e37ad1f2083b"><td id="OLsY" class="">Rate Limiting</td><td id="n@cj" class="">46</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-803a-9708-c4f1c2814b18"><td id="OLsY" class="">CORS / Security Headers</td><td id="n@cj" class="">7, 32</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-8042-9145-f5feecc8198b"><td id="OLsY" class="">SSO / OIDC / External Identity Provider</td><td id="n@cj" class="">13, 14, 36, 46</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-80af-a958-f6cb9d5e7490"><td id="OLsY" class="">RBAC / ABAC mindset</td><td id="n@cj" class="">14, 36</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-800a-b240-f50f6af9d4c2"><td id="OLsY" class="">Audit Logging</td><td id="n@cj" class="">36, 59</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-8075-b6b1-e209935dc9be"><td id="OLsY" class="">API Versioning</td><td id="n@cj" class="">32</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-802a-aa7c-d986c1719ff2"><td id="OLsY" class="">SQLite → PostgreSQL upgrade</td><td id="n@cj" class="">33</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-80b8-bd6f-cd96f77550a5"><td id="OLsY" class="">Database Migration</td><td id="n@cj" class="">33</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-8017-bf8e-e6bb0baa4043"><td id="OLsY" class="">Backup/Restore mindset</td><td id="n@cj" class="">33, 59</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-80c8-a443-c9b3dfaec8ae"><td id="OLsY" class="">Webhook Intro</td><td id="n@cj" class="">18</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-8074-82db-f80210a4c4af"><td id="OLsY" class="">Webhook Security / Idempotency / Log</td><td id="n@cj" class="">44</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-8063-9c82-da0e3cbb6383"><td id="OLsY" class="">Inbox Pattern / WebhookLog</td><td id="n@cj" class="">39, 44</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-806a-83d4-ca925d72b541"><td id="OLsY" class="">Background Jobs / Publisher</td><td id="n@cj" class="">23, 39, 41</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-80e2-9720-c22cc9dfc00d"><td id="OLsY" class="">API Docs / OpenAPI</td><td id="n@cj" class="">29</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-800e-82ee-fbe9875e8204"><td id="OLsY" class="">Alerting</td><td id="n@cj" class="">48</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-808c-976c-c9ad87dd1387"><td id="OLsY" class="">Event Contract Governance</td><td id="n@cj" class="">20, 37, 62 optional</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-80e2-b64f-c3c235d7acf1"><td id="OLsY" class="">Distributed Consistency</td><td id="n@cj" class="">42</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-80aa-a793-f9bff420595a"><td id="OLsY" class="">Runbook / Incident Response</td><td id="n@cj" class="">28, 59</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-8086-9e37-f4781f194b9b"><td id="OLsY" class="">Performance / Load Testing</td><td id="n@cj" class="">64 optional</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-806b-a800-e28477b0d4d4"><td id="OLsY" class="">Deployment Strategies</td><td id="n@cj" class="">56</td></tr></div><div style="display:contents" dir="ltr"><tr id="3584edb4-5b77-80fe-91ca-df7f5b01931e"><td id="OLsY" class="">Secrets Management nâng cao</td><td id="n@cj" class="">57</td></tr></div></tbody></table></div><div style="display:contents" dir="auto"><hr id="3584edb4-5b77-806c-8afd-f5ed57cad1c9"/></div><div style="display:contents" dir="auto"><h1 id="3584edb4-5b77-8003-a5c2-e59b9ad00238" class="">5. Final Project Parity Checklist</h1></div><div style="display:contents" dir="auto"><p id="3584edb4-5b77-80ed-9786-f55073bf58c0" class="">Project hoàn chỉnh cần có:</p></div><div style="display:contents" dir="auto"><pre id="3584edb4-5b77-807f-9451-eb4223893064" class="code code-wrap"><code style="white-space:pre-wrap;word-break:break-all">[ ] ApiGateway
+[ ] Aspire AppHost intro
+[ ] BuildingBlocks.Contracts / EventBus.Messages
+[ ] BuildingBlocks.Logging
+[ ] CatalogService
+[ ] BasketService
+[ ] IdentityService
+[ ] OrderingService
+[ ] DiscountService
+[ ] PaymentService
+[ ] Payment webhook endpoint
+[ ] Webhook signature/idempotency/log concept
+[ ] NotificationWorker
+[ ] ProjectionWorker
+[ ] Redis
+[ ] RabbitMQ
+[ ] Kafka
+[ ] MongoDB read model/projection
+[ ] PostgreSQL cho Catalog/Ordering production persistence
+[ ] SQL Server hoặc MySQL comparison note nếu muốn mở rộng
+[ ] Docker Compose
+[ ] Clean Architecture baseline
+[ ] CQRS + MediatR
+[ ] Repository + Specification Pattern
+[ ] Strategy Pattern cho Discount/Payment
+[ ] gRPC internal communication
+[ ] REST public/debug API
+[ ] JWT auth
+[ ] SSO/OIDC decision note, hướng tích hợp Keycloak / Microsoft Entra ID / Auth0 / Okta
+[ ] RBAC/ABAC authorization mindset
+[ ] Audit log policy cho hành động quan trọng
+[ ] API Versioning
+[ ] Standard Error Response
+[ ] Centralized configuration mindset
+[ ] Không hardcode secrets, có hướng quản lý secrets production
+[ ] Database Migration mindset
+[ ] Outbox Pattern
+[ ] Inbox/WebhookLog mindset
+[ ] Idempotent Consumer
+[ ] Saga Payment success/failure
+[ ] Compensation flow
+[ ] Gateway rate limiting/load balancing concept
+[ ] Health Checks
+[ ] Structured Logging
+[ ] Correlation ID
+[ ] OpenTelemetry intro
+[ ] Metrics dashboard concept
+[ ] Alerting concept
+[ ] Audit logs / security logs concept
+[ ] Unit/Integration/Testcontainers samples
+[ ] README + Architecture Diagram
+[ ] OpenAPI/Swagger review
+[ ] ADR folder
+[ ] Runbooks
+[ ] Branch/tag theo lesson milestone
+[ ] Failure test report
+[ ] Final demo script</code></pre></div><div style="display:contents" dir="auto"><hr id="3584edb4-5b77-80c3-9c11-f39db770442f"/></div><div style="display:contents" dir="auto"><h1 id="3584edb4-5b77-80b6-b625-d7b1a31484e0" class="">6. Quy tắc giữ khóa học liền mạch</h1></div><div style="display:contents" dir="auto"><p id="3584edb4-5b77-8095-a10c-f06db1d47020" class="">Không tách lẻ quá nhiều bài chỉ để “có topic”. Mỗi buổi phải thuộc một trong ba loại:</p></div><div style="display:contents" dir="auto"><pre id="3584edb4-5b77-8045-9c8e-d3a2b6f8a5b0" class="code code-wrap"><code style="white-space:pre-wrap;word-break:break-all">1. Build feature mới.
+2. Nâng cấp feature cũ để production hơn.
+3. Review/checkpoint để chắc kiến thức.</code></pre></div><div style="display:contents" dir="auto"><p id="3584edb4-5b77-8022-9f3f-e13b0364ca0b" class="">Nếu một nội dung chỉ là mindset hoặc checklist nhỏ, nó sẽ được đưa vào phần <strong>Production add-on</strong> của bài liên quan, không tách thành buổi riêng.</p></div><div style="display:contents" dir="auto"><p id="3584edb4-5b77-804f-9d2a-e76948a59b11" class="">Ví dụ:</p></div><div style="display:contents" dir="auto"><pre id="3584edb4-5b77-8015-992d-ce20d70f2132" class="code code-wrap"><code style="white-space:pre-wrap;word-break:break-all">Identity → JWT → SSO/OIDC
+vì hệ production doanh nghiệp thường không tự xử lý toàn bộ đăng nhập mà tích hợp Identity Provider như Keycloak, Microsoft Entra ID, Auth0/Okta.
+
+Payment → Webhook → Saga
+vì hệ payment thật thường nhận kết quả từ bên ngoài qua webhook.
+
+Gateway → Docker Compose → Aspire → Config
+vì sau khi có Gateway, ta cần chạy nhiều service và quản lý local runtime.
+
+Order → RabbitMQ → Outbox → Saga
+vì sau khi có checkout, ta cần xử lý workflow phân tán đáng tin cậy.
+
+Outbox/Event → Kafka → MongoDB Projection
+vì sau khi có event, ta có thể stream event sang read model/analytics.
+
+Logging/Health → Tracing/Metrics/Alerting → Runbook
+vì muốn xử lý failure tốt thì phải quan sát được failure trước.</code></pre></div></div></article><span class="sans" style="font-size:14px;padding-top:2em"></span></body></html>

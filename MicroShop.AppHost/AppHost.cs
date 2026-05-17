@@ -21,9 +21,12 @@ var ordering = builder.AddProject<Projects.OrderingService>("OrderingService")
     .WaitFor(basket)
     .WithEnvironment("ServiceUrls__BasketHttp", "https+http://BasketService");
 
+var discount = builder.AddProject<Projects.DiscountService>("DiscountService");
+
 var gateway = builder.AddProject<Projects.ApiGateway>("ApiGateway")
     .WithReference(catalog)
     .WithReference(basket)
-    .WithReference(ordering);
+    .WithReference(ordering)
+    .WithReference(discount);
 
 builder.Build().Run();

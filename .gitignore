@@ -25,5 +25,6 @@ TestResults/
 # OS files
 Thumbs.db
 ehthumbs.db
+Services/DiscountService/discount.db
 Desktop.ini
 .DS_Store
