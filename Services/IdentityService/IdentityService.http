@@ -1,6 +1,18 @@
 @IdentityService_HostAddress = http://localhost:5023
 
-GET {{IdentityService_HostAddress}}/weatherforecast/
+POST {{IdentityService_HostAddress}}/auth/login
+Content-Type: application/json
 Accept: application/json
+
+{
+  "userName": "admin",
+  "password": "Admin@123"
+}
+
+###
+
+GET {{IdentityService_HostAddress}}/auth/me
+Accept: application/json
+Authorization: Bearer {{accessToken}}
 
 ###

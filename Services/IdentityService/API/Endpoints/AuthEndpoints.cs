@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using IdentityService.API.Contracts;
 using IdentityService.Application.Auth;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -38,8 +39,4 @@ public static class AuthEndpoints
 
         return app;
     }
-
-    private sealed record LoginRequest(
-        string UserName,
-        string Password);
 }

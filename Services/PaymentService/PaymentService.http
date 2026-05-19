@@ -1,0 +1,32 @@
+@PaymentService_HostAddress = http://localhost:5289
+
+POST {{PaymentService_HostAddress}}/payments
+Content-Type: application/json
+Accept: application/json
+
+{
+  "orderId": "22222222-2222-2222-2222-222222222222",
+  "customerId": "00000000-0000-0000-0000-000000000001",
+  "amount": 180,
+  "currency": "USD"
+}
+
+###
+
+GET {{PaymentService_HostAddress}}/payments/{{paymentId}}
+Accept: application/json
+
+###
+
+POST {{PaymentService_HostAddress}}/webhooks/payment
+Content-Type: application/json
+Accept: application/json
+
+{
+  "paymentId": "{{paymentId}}",
+  "providerTransactionId": "txn_demo_001",
+  "status": "SUCCEEDED",
+  "failureReason": null
+}
+
+###

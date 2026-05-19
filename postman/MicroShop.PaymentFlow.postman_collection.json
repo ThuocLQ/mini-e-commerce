@@ -1,0 +1,323 @@
+{
+  "info": {
+    "name": "MicroShop - Payment Flow",
+    "_postman_id": "2e328016-bc63-4dc7-90de-9a6e81b7ec82",
+    "description": "PaymentService flow through ApiGateway: create payment, get by id, process webhook, verify status.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "gatewayBaseUrl",
+      "value": "https://localhost:7001"
+    },
+    {
+      "key": "paymentId",
+      "value": ""
+    },
+    {
+      "key": "failedPaymentId",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "01 - Create payment",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Payment created', function () {",
+              "  pm.response.to.have.status(201);",
+              "});",
+              "",
+              "const payment = pm.response.json();",
+              "pm.collectionVariables.set('paymentId', payment.id);",
+              "pm.test('Payment is pending', function () {",
+              "  pm.expect(payment.status).to.eql('Pending');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"orderId\": \"22222222-2222-2222-2222-222222222222\",\n  \"customerId\": \"00000000-0000-0000-0000-000000000001\",\n  \"amount\": 180,\n  \"currency\": \"USD\"\n}"
+        },
+        "url": {
+          "raw": "{{gatewayBaseUrl}}/payments",
+          "host": [
+            "{{gatewayBaseUrl}}"
+          ],
+          "path": [
+            "payments"
+          ]
+        }
+      }
+    },
+    {
+      "name": "02 - Get payment by id",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Payment found', function () {",
+              "  pm.response.to.have.status(200);",
+              "  const payment = pm.response.json();",
+              "  pm.expect(payment.id).to.eql(pm.collectionVariables.get('paymentId'));",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{gatewayBaseUrl}}/payments/{{paymentId}}",
+          "host": [
+            "{{gatewayBaseUrl}}"
+          ],
+          "path": [
+            "payments",
+            "{{paymentId}}"
+          ]
+        }
+      }
+    },
+    {
+      "name": "03 - Payment succeeded webhook",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Webhook accepted', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "const payment = pm.response.json();",
+              "pm.test('Payment succeeded', function () {",
+              "  pm.expect(payment.status).to.eql('Succeeded');",
+              "  pm.expect(payment.providerTransactionId).to.eql('txn_demo_001');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"paymentId\": \"{{paymentId}}\",\n  \"providerTransactionId\": \"txn_demo_001\",\n  \"status\": \"SUCCEEDED\",\n  \"failureReason\": null\n}"
+        },
+        "url": {
+          "raw": "{{gatewayBaseUrl}}/payments/webhooks/payment",
+          "host": [
+            "{{gatewayBaseUrl}}"
+          ],
+          "path": [
+            "payments",
+            "webhooks",
+            "payment"
+          ]
+        }
+      }
+    },
+    {
+      "name": "04 - Get succeeded payment",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Succeeded payment found', function () {",
+              "  pm.response.to.have.status(200);",
+              "  const payment = pm.response.json();",
+              "  pm.expect(payment.status).to.eql('Succeeded');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{gatewayBaseUrl}}/payments/{{paymentId}}",
+          "host": [
+            "{{gatewayBaseUrl}}"
+          ],
+          "path": [
+            "payments",
+            "{{paymentId}}"
+          ]
+        }
+      }
+    },
+    {
+      "name": "05 - Create payment for failed webhook",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Payment created', function () {",
+              "  pm.response.to.have.status(201);",
+              "});",
+              "const payment = pm.response.json();",
+              "pm.collectionVariables.set('failedPaymentId', payment.id);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"orderId\": \"33333333-3333-3333-3333-333333333333\",\n  \"customerId\": \"00000000-0000-0000-0000-000000000001\",\n  \"amount\": 50,\n  \"currency\": \"USD\"\n}"
+        },
+        "url": {
+          "raw": "{{gatewayBaseUrl}}/payments",
+          "host": [
+            "{{gatewayBaseUrl}}"
+          ],
+          "path": [
+            "payments"
+          ]
+        }
+      }
+    },
+    {
+      "name": "06 - Payment failed webhook",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Failed webhook accepted', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "const payment = pm.response.json();",
+              "pm.test('Payment failed', function () {",
+              "  pm.expect(payment.status).to.eql('Failed');",
+              "  pm.expect(payment.failureReason).to.eql('Card declined');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"paymentId\": \"{{failedPaymentId}}\",\n  \"providerTransactionId\": \"txn_demo_failed_001\",\n  \"status\": \"FAILED\",\n  \"failureReason\": \"Card declined\"\n}"
+        },
+        "url": {
+          "raw": "{{gatewayBaseUrl}}/payments/webhooks/payment",
+          "host": [
+            "{{gatewayBaseUrl}}"
+          ],
+          "path": [
+            "payments",
+            "webhooks",
+            "payment"
+          ]
+        }
+      }
+    },
+    {
+      "name": "07 - Get unknown payment returns 404",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Payment not found', function () {",
+              "  pm.response.to.have.status(404);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{gatewayBaseUrl}}/payments/11111111-1111-1111-1111-111111111111",
+          "host": [
+            "{{gatewayBaseUrl}}"
+          ],
+          "path": [
+            "payments",
+            "11111111-1111-1111-1111-111111111111"
+          ]
+        }
+      }
+    }
+  ]
+}

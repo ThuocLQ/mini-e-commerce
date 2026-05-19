@@ -1,6 +1,6 @@
 using IdentityService.Domain.Users;
 
-namespace IdentityService.Infrastructure.Auth;
+namespace IdentityService.Application.Abstractions;
 
 public interface IJwtTokenGenerator
 {

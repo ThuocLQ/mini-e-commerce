@@ -23,10 +23,14 @@ var ordering = builder.AddProject<Projects.OrderingService>("OrderingService")
 
 var discount = builder.AddProject<Projects.DiscountService>("DiscountService");
 
+var payment = builder.AddProject<Projects.PaymentService>("PaymentService");
+
 var gateway = builder.AddProject<Projects.ApiGateway>("ApiGateway")
     .WithReference(catalog)
     .WithReference(basket)
     .WithReference(ordering)
-    .WithReference(discount);
+    .WithReference(discount)
+    .WithReference(identity)
+    .WithReference(payment);
 
 builder.Build().Run();

@@ -1,5 +1,7 @@
 using System.Text;
+using IdentityService.Application.Abstractions;
 using IdentityService.Infrastructure.Auth;
+using IdentityService.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -36,6 +38,10 @@ public static class DependencyInjection
             }, "Jwt configuration is invalid.")
             .ValidateOnStart();
 
+        services.AddSingleton<IDbConnectionFactory, SqliteConnectionFactory>();
+        services.AddSingleton<IDatabaseInitializer, SqliteDatabaseInitializer>();
+        services.AddScoped<IUserRepository, DapperUserRepository>();
+        services.AddSingleton<IPasswordHasher, Pbkdf2PasswordHasher>();
         services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
 
         services

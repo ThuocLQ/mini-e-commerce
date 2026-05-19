@@ -1,5 +1,4 @@
-using IdentityService.Domain.Users;
-using IdentityService.Infrastructure.Auth;
+using IdentityService.Application.Abstractions;
 using MediatR;
 
 namespace IdentityService.Application.Auth;
@@ -7,32 +6,41 @@ namespace IdentityService.Application.Auth;
 public class LoginHandler : IRequestHandler<LoginCommand, LoginResult?>
 {
     private readonly IJwtTokenGenerator _jwtTokenGenerator;
+    private readonly IUserRepository _userRepository;
+    private readonly IPasswordHasher _passwordHasher;
 
-    public LoginHandler(IJwtTokenGenerator jwtTokenGenerator)
+    public LoginHandler(
+        IJwtTokenGenerator jwtTokenGenerator,
+        IUserRepository userRepository,
+        IPasswordHasher passwordHasher)
     {
         _jwtTokenGenerator = jwtTokenGenerator;
+        _userRepository = userRepository;
+        _passwordHasher = passwordHasher;
     }
 
-    public Task<LoginResult?> Handle(LoginCommand request, CancellationToken cancellationToken)
+    public async Task<LoginResult?> Handle(LoginCommand request, CancellationToken cancellationToken)
     {
-        // Demo only: hardcode user for learning JWT basics.
-        // Production must use database + password hashing.
-        if (request.UserName != "admin" || request.Password != "Admin@123")
+        if (string.IsNullOrWhiteSpace(request.UserName) || string.IsNullOrWhiteSpace(request.Password))
         {
-            return Task.FromResult<LoginResult?>(null);
+            return null;
         }
 
-        var user = new AppUser(
-            Guid.Parse("11111111-1111-1111-1111-111111111111"),
-            "admin",
-            "Admin");
+        var user = await _userRepository.GetByUserNameAsync(request.UserName, cancellationToken);
+        if (user is null || !user.IsActive)
+        {
+            return null;
+        }
+
+        if (!_passwordHasher.Verify(request.Password, user.PasswordHash))
+        {
+            return null;
+        }
 
         var token = _jwtTokenGenerator.GenerateToken(user);
 
-        var result = new LoginResult(
+        return new LoginResult(
             token.Token,
             token.ExpiresAt);
-
-        return Task.FromResult<LoginResult?>(result);
     }
 }
