@@ -1,0 +1,8 @@
+[
+  {
+    "id": "checkpoint-4",
+    "title": "Checkpoint 4 - Ordering + Checkout + Discount + Payment/Webhook",
+    "description": "Review Phase 1.4 trước khi sang RabbitMQ + Reliability.",
+    "file": "./data/quizzes/checkpoint-4.json"
+  }
+]

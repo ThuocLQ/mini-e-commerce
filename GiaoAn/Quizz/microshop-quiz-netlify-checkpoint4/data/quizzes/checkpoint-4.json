@@ -1,0 +1,367 @@
+{
+  "title": "Checkpoint 4 - Ordering + Checkout + Discount + Payment/Webhook",
+  "description": "Trắc nghiệm review Phase 1.4 của MicroShop trước khi sang RabbitMQ + Reliability.",
+  "version": "1.0",
+  "questions": [
+    {
+      "id": "cp4-q001",
+      "question": "Mục tiêu chính của Checkpoint 4 là gì?",
+      "options": [
+        "Học thêm RabbitMQ và viết code event đầu tiên",
+        "Review, test, cleanup nhẹ và khóa Phase 1.4 trước khi sang phase mới",
+        "Thêm InventoryService và ShippingService vào MicroShop",
+        "Rewrite toàn bộ OrderingService sang project-based Clean Architecture"
+      ],
+      "answerIndex": 1,
+      "explanation": "Checkpoint 4 là điểm dừng để review Phase 1.4, chạy regression test, ghi nhận risk và chuẩn bị sang RabbitMQ + Reliability."
+    },
+    {
+      "id": "cp4-q002",
+      "question": "Phase 1.4 gồm những bài nào?",
+      "options": [
+        "Buổi 11–14: Clean Architecture, Validation, Identity, Security",
+        "Buổi 15–18: Ordering, Checkout, Discount, Payment/Webhook",
+        "Buổi 19–23: RabbitMQ, Worker, Retry/DLQ, Idempotency, Outbox",
+        "Buổi 24–27: Kafka, MongoDB, Projection"
+      ],
+      "answerIndex": 1,
+      "explanation": "Phase 1.4 đang khóa lại các bài 15, 16, 17, 18."
+    },
+    {
+      "id": "cp4-q003",
+      "question": "OrderingService nên chịu trách nhiệm chính việc gì?",
+      "options": [
+        "Quản lý basket của user",
+        "Tính coupon và promotion rule",
+        "Tạo và quản lý order/order items",
+        "Nhận webhook từ payment provider"
+      ],
+      "answerIndex": 2,
+      "explanation": "OrderingService sở hữu order và order items. Basket, discount, payment thuộc boundary khác."
+    },
+    {
+      "id": "cp4-q004",
+      "question": "DiscountService không nên làm việc nào?",
+      "options": [
+        "Kiểm tra coupon",
+        "Tính discount amount",
+        "Đóng gói rule giảm giá",
+        "Tạo order trong database của OrderingService"
+      ],
+      "answerIndex": 3,
+      "explanation": "DiscountService chỉ xử lý coupon/discount rule, không tạo order."
+    },
+    {
+      "id": "cp4-q005",
+      "question": "PaymentService trong Phase 1.4 chịu trách nhiệm gì?",
+      "options": [
+        "Tạo payment và nhận webhook payment",
+        "Quản lý sản phẩm",
+        "Clear basket sau checkout",
+        "Tính giá giảm cuối cùng"
+      ],
+      "answerIndex": 0,
+      "explanation": "PaymentService baseline tạo payment Pending và cập nhật Succeeded/Failed qua webhook."
+    },
+    {
+      "id": "cp4-q006",
+      "question": "Webhook là gì?",
+      "options": [
+        "Một message trong Kafka",
+        "Một table log trong database",
+        "HTTP callback từ hệ thống bên ngoài gọi vào hệ thống của mình",
+        "Một kiểu JWT token"
+      ],
+      "answerIndex": 2,
+      "explanation": "Webhook vẫn là HTTP, nhưng chiều gọi là hệ thống bên ngoài chủ động gọi vào endpoint của mình."
+    },
+    {
+      "id": "cp4-q007",
+      "question": "Điểm đúng về REST thường và webhook là gì?",
+      "options": [
+        "REST thường là mình gọi service khác; webhook là service bên ngoài gọi ngược vào mình",
+        "Webhook luôn chạy qua RabbitMQ",
+        "REST thường chỉ dùng trong frontend, webhook chỉ dùng trong database",
+        "REST và webhook hoàn toàn giống Kafka"
+      ],
+      "answerIndex": 0,
+      "explanation": "Webhook là một dạng HTTP callback, khác ở chiều chủ động gọi."
+    },
+    {
+      "id": "cp4-q008",
+      "question": "Vì sao payment webhook production cần idempotency?",
+      "options": [
+        "Vì provider có thể gửi cùng webhook nhiều lần",
+        "Vì JWT không có chữ ký",
+        "Vì endpoint GET không nhận body",
+        "Vì database không thể update"
+      ],
+      "answerIndex": 0,
+      "explanation": "Provider thường retry webhook nếu timeout/lỗi. Idempotency giúp xử lý lặp không tạo side effect sai."
+    },
+    {
+      "id": "cp4-q009",
+      "question": "Risk nào có thể xảy ra trong checkout baseline?",
+      "options": [
+        "Order tạo thành công nhưng clear basket fail",
+        "CatalogService tự động tạo JWT mới",
+        "DiscountService tự xóa order",
+        "Kafka bắt buộc phải chạy trước checkout"
+      ],
+      "answerIndex": 0,
+      "explanation": "Checkout baseline có nhiều bước sync. Một bước thành công, bước sau fail có thể gây lệch trạng thái."
+    },
+    {
+      "id": "cp4-q010",
+      "question": "Nếu BasketService down khi checkout thì vấn đề chính là gì?",
+      "options": [
+        "OrderingService không lấy được basket nên checkout fail",
+        "DiscountService không compile được",
+        "JWT sẽ tự động hết hạn",
+        "PaymentService sẽ tự retry bằng Kafka"
+      ],
+      "answerIndex": 0,
+      "explanation": "OrderingService đang gọi BasketService sync qua IBasketClient/HttpBasketClient."
+    },
+    {
+      "id": "cp4-q011",
+      "question": "Sau này để xử lý BasketService down, topic nào phù hợp?",
+      "options": [
+        "Timeout, Retry, Circuit Breaker, Observability",
+        "CSS Grid và dark mode",
+        "FluentValidation only",
+        "Only SQL index tuning"
+      ],
+      "answerIndex": 0,
+      "explanation": "Downstream failure cần resilience patterns như timeout/retry/circuit breaker và tracing/logging."
+    },
+    {
+      "id": "cp4-q012",
+      "question": "Nếu PaymentService biết payment success nhưng OrderingService chưa update order, đây là vấn đề gì?",
+      "options": [
+        "Distributed consistency",
+        "CSS specificity",
+        "JWT issuer mismatch",
+        "Dapper parameter binding"
+      ],
+      "answerIndex": 0,
+      "explanation": "Hai service/database có trạng thái lệch nhau là distributed consistency problem."
+    },
+    {
+      "id": "cp4-q013",
+      "question": "Cách xử lý tương lai cho payment success nhưng order chưa update là gì?",
+      "options": [
+        "Publish PaymentSucceeded event, consume ở OrderingService, dùng Outbox/Idempotent Consumer/Saga khi cần",
+        "Gộp mọi service vào một Program.cs",
+        "Bỏ PaymentService",
+        "Luôn dùng localStorage"
+      ],
+      "answerIndex": 0,
+      "explanation": "Phase sau sẽ dùng event-driven và reliability patterns để đồng bộ trạng thái an toàn hơn."
+    },
+    {
+      "id": "cp4-q014",
+      "question": "Trong Checkpoint 4, việc nào KHÔNG nên làm?",
+      "options": [
+        "Chạy regression test bằng Postman",
+        "Viết ADR boundary Order/Discount/Payment",
+        "Thêm RabbitMQ code trước bài 19",
+        "Ghi lại production risk"
+      ],
+      "answerIndex": 2,
+      "explanation": "Checkpoint 4 khóa phase, không mở thêm scope RabbitMQ trước bài 19."
+    },
+    {
+      "id": "cp4-q015",
+      "question": "ADR gợi ý trong checkpoint dùng để ghi lại điều gì?",
+      "options": [
+        "Boundary giữa OrderingService, DiscountService, PaymentService và BasketService",
+        "Màu theme của UI",
+        "Danh sách hotkey Windows",
+        "Cấu hình DNS production"
+      ],
+      "answerIndex": 0,
+      "explanation": "ADR 0004 ghi quyết định service boundary của phase Order/Discount/Payment."
+    },
+    {
+      "id": "cp4-q016",
+      "question": "Postman Environment trong checkpoint nên có biến nào?",
+      "options": [
+        "identity_url, catalog_url, basket_url, ordering_url, discount_url, payment_url",
+        "only css_url",
+        "oracle_sid only",
+        "github_token public"
+      ],
+      "answerIndex": 0,
+      "explanation": "Checkpoint 4 test nhiều service nên cần các base URL tương ứng."
+    },
+    {
+      "id": "cp4-q017",
+      "question": "Request nào dùng để apply coupon ở DiscountService?",
+      "options": [
+        "POST /discounts/apply",
+        "GET /payments/{id}",
+        "POST /auth/login",
+        "DELETE /basket"
+      ],
+      "answerIndex": 0,
+      "explanation": "Buổi 17 đã tạo endpoint POST /discounts/apply để tính discount."
+    },
+    {
+      "id": "cp4-q018",
+      "question": "Request nào dùng để tạo payment baseline?",
+      "options": [
+        "POST /payments",
+        "POST /webhooks/payment",
+        "GET /discounts/{code}",
+        "POST /checkout"
+      ],
+      "answerIndex": 0,
+      "explanation": "POST /payments tạo payment mới ở trạng thái Pending."
+    },
+    {
+      "id": "cp4-q019",
+      "question": "Request nào mô phỏng provider gọi ngược kết quả payment?",
+      "options": [
+        "POST /webhooks/payment",
+        "POST /products",
+        "GET /products",
+        "POST /auth/me"
+      ],
+      "answerIndex": 0,
+      "explanation": "POST /webhooks/payment là endpoint webhook để provider giả lập gửi SUCCEEDED/FAILED."
+    },
+    {
+      "id": "cp4-q020",
+      "question": "Payment mới tạo trong bài 18 có status mặc định là gì?",
+      "options": [
+        "Pending",
+        "Succeeded",
+        "Failed",
+        "Cancelled"
+      ],
+      "answerIndex": 0,
+      "explanation": "Payment được tạo Pending, sau đó webhook mới cập nhật Succeeded hoặc Failed."
+    },
+    {
+      "id": "cp4-q021",
+      "question": "Coupon SAVE10 với orderAmount 2197 kỳ vọng discountAmount là bao nhiêu?",
+      "options": [
+        "219.7",
+        "50",
+        "1977.3",
+        "0"
+      ],
+      "answerIndex": 0,
+      "explanation": "SAVE10 giảm 10%, nên 2197 * 10% = 219.7."
+    },
+    {
+      "id": "cp4-q022",
+      "question": "Coupon NOTFOUND nên trả kết quả nào?",
+      "options": [
+        "isValid = false, discountAmount = 0",
+        "isValid = true, discountAmount = 100",
+        "HTTP 500",
+        "Tự tạo coupon mới"
+      ],
+      "answerIndex": 0,
+      "explanation": "Coupon không tồn tại là invalid, không được giảm tiền."
+    },
+    {
+      "id": "cp4-q023",
+      "question": "OrderingService nên gọi BasketService theo cách nào trong baseline?",
+      "options": [
+        "Qua abstraction IBasketClient",
+        "Đọc trực tiếp Redis của BasketService",
+        "Import project BasketService.Domain vào OrderingService",
+        "Copy database basket sang ordering"
+      ],
+      "answerIndex": 0,
+      "explanation": "OrderingService không đọc storage nội bộ của BasketService; gọi qua client abstraction."
+    },
+    {
+      "id": "cp4-q024",
+      "question": "Endpoint không nên chứa gì?",
+      "options": [
+        "Business rule nặng hoặc SQL",
+        "Route definition",
+        "Map request sang command",
+        "Trả HTTP response"
+      ],
+      "answerIndex": 0,
+      "explanation": "Endpoint nên mỏng, không ôm SQL/business rule phức tạp."
+    },
+    {
+      "id": "cp4-q025",
+      "question": "Domain layer không nên phụ thuộc vào gì?",
+      "options": [
+        "Infrastructure, Dapper, Redis, HTTP",
+        "Business rule",
+        "Entity method",
+        "Domain invariant"
+      ],
+      "answerIndex": 0,
+      "explanation": "Domain phải sạch, không phụ thuộc technical details."
+    },
+    {
+      "id": "cp4-q026",
+      "question": "Sau Checkpoint 4, bài tiếp theo đúng lộ trình là gì?",
+      "options": [
+        "Buổi 19: RabbitMQ Intro + First Integration Event",
+        "Buổi 19: ShippingService",
+        "Buổi 19: Rewrite UI",
+        "Buổi 19: Kafka Advanced"
+      ],
+      "answerIndex": 0,
+      "explanation": "Sau Phase 1.4 sẽ sang Phase 1.5 với RabbitMQ + Reliability."
+    },
+    {
+      "id": "cp4-q027",
+      "question": "Known gap nào được chấp nhận sau Checkpoint 4?",
+      "options": [
+        "Chưa có Outbox và chưa có Saga",
+        "Không có OrderingService",
+        "Không có PaymentService",
+        "Không test được gì bằng Postman"
+      ],
+      "answerIndex": 0,
+      "explanation": "Outbox/Saga thuộc phase sau, nên được chấp nhận là known gap ở checkpoint này."
+    },
+    {
+      "id": "cp4-q028",
+      "question": "Demo script 3–5 phút nên chứng minh điều gì?",
+      "options": [
+        "Login, apply discount, checkout/create order, create payment, webhook success và giải thích risk",
+        "Chỉ đổi theme sáng/tối",
+        "Chỉ tạo 1 file README rỗng",
+        "Chỉ show code không chạy API"
+      ],
+      "answerIndex": 0,
+      "explanation": "Demo script phải show được flow và khả năng giải thích boundary/risk."
+    },
+    {
+      "id": "cp4-q029",
+      "question": "Vì sao checkpoint giúp nâng level thật?",
+      "options": [
+        "Vì nó ép review, test, docs, demo và phỏng vấn lại kiến thức",
+        "Vì nó bỏ qua lỗi",
+        "Vì nó thêm nhiều scope nhất có thể",
+        "Vì nó thay thế toàn bộ project"
+      ],
+      "answerIndex": 0,
+      "explanation": "Checkpoint biến bài học thành năng lực demo/debug/defend trong phỏng vấn."
+    },
+    {
+      "id": "cp4-q030",
+      "question": "Tư duy cần mang sang bài 19 là gì?",
+      "options": [
+        "Không phải việc gì cũng gọi REST sync; một số việc nên phát event async",
+        "Mọi thứ phải nằm trong một service duy nhất",
+        "Webhook chính là Kafka",
+        "Không cần test nữa"
+      ],
+      "answerIndex": 0,
+      "explanation": "RabbitMQ phase bắt đầu chuyển một số flow sang event-driven async communication."
+    }
+  ]
+}

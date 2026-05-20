@@ -1,0 +1,54 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "AgentMemory Local Plugin",
+    "version": "1.0.0",
+    "description": "Kết nối app Codex với bộ nhớ agentmemory chạy ở ổ D"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3111"
+    }
+  ],
+  "paths": {
+    "/agentmemory/health": {
+      "get": {
+        "summary": "Kiểm tra trạng thái bộ nhớ",
+        "operationId": "checkHealth",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/v1/memory/search": {
+      "post": {
+        "summary": "Tìm kiếm ký ức, code cũ hoặc bối cảnh dự án đã lưu",
+        "operationId": "searchMemory",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "query": {
+                    "type": "string",
+                    "description": "Từ khóa hoặc câu hỏi cần tìm lại trong quá khứ"
+                  }
+                },
+                "required": ["query"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Trả về danh sách bối cảnh phù hợp"
+          }
+        }
+      }
+    }
+  }
+}

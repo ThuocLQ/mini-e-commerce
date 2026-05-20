@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MicroShop Quiz Player</title>
+  <style>
+    :root {
+      --bg:#f6f8fb; --surface:#ffffff; --surface-2:#f8fafc; --surface-3:#eef2ff;
+      --text:#0f172a; --muted:#64748b; --line:#e2e8f0; --primary:#2563eb; --primary-2:#7c3aed;
+      --success:#16a34a; --warning:#f97316; --danger:#dc2626; --shadow:0 18px 45px rgba(15,23,42,.08);
+      --radius-xl:28px; --radius-lg:18px;
+    }
+    [data-theme="dark"] {
+      --bg:#0b1120; --surface:#111827; --surface-2:#0f172a; --surface-3:rgba(96,165,250,.12);
+      --text:#e5e7eb; --muted:#94a3b8; --line:#243042; --primary:#60a5fa; --primary-2:#a78bfa;
+      --shadow:0 18px 45px rgba(0,0,0,.32);
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;font-family:"Segoe UI",Arial,"Helvetica Neue",sans-serif;
+      background:radial-gradient(circle at top left,rgba(37,99,235,.14),transparent 34%),
+                 radial-gradient(circle at top right,rgba(124,58,237,.12),transparent 34%),var(--bg);
+      color:var(--text);line-height:1.6
+    }
+    .app{max-width:1320px;margin:0 auto;padding:24px}
+    .hero{
+      border-radius:34px;padding:34px;color:white;
+      background:radial-gradient(circle at 80% 20%,rgba(255,255,255,.18),transparent 32%),
+                 linear-gradient(135deg,#2563eb,#7c3aed);
+      box-shadow:var(--shadow);overflow:hidden;position:relative
+    }
+    .pill{display:inline-flex;padding:7px 11px;border-radius:999px;background:rgba(255,255,255,.16);font-size:13px;font-weight:800;margin-bottom:14px}
+    .hero h1{margin:0;font-size:clamp(32px,5vw,56px);line-height:1.04;letter-spacing:-.04em}
+    .hero p{margin:14px 0 0;color:#dbeafe;max-width:900px;font-size:17px}
+    .hero-tools{display:flex;gap:10px;flex-wrap:wrap;margin-top:22px}
+    button,input,select{font-family:inherit}
+    button{border:0;cursor:pointer;padding:11px 14px;border-radius:13px;font-weight:850;font-size:14px;transition:.18s;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+    button:hover{transform:translateY(-1px)}
+    .btn-primary{background:white;color:#1d4ed8}.btn-ghost{background:rgba(255,255,255,.14);color:white;border:1px solid rgba(255,255,255,.22)}
+    .btn-blue{background:var(--primary);color:white}.btn-soft{background:var(--surface-2);color:var(--text);border:1px solid var(--line)}.btn-green{background:var(--success);color:white}.btn-orange{background:var(--warning);color:white}
+    .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:18px;margin-top:22px}
+    .span-8{grid-column:span 8}.span-4{grid-column:span 4}.span-12{grid-column:span 12}
+    .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-xl);padding:22px;box-shadow:var(--shadow)}
+    .section-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin-bottom:16px}
+    .section-head h2{margin:0;font-size:24px;letter-spacing:-.02em}.section-head p{margin:4px 0 0;color:var(--muted);font-size:14px}
+    .badge{display:inline-flex;padding:6px 10px;border-radius:999px;background:var(--surface-3);color:var(--primary);font-weight:900;font-size:12px;white-space:nowrap}
+    .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
+    .stat{background:var(--surface-2);border:1px solid var(--line);border-radius:18px;padding:14px}
+    .stat b{display:block;font-size:24px;line-height:1;margin-bottom:5px}.stat span{color:var(--muted);font-size:13px;font-weight:700}
+    .toolbar{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px;align-items:center}
+    input[type=file],select{width:100%;border:1px solid var(--line);border-radius:14px;padding:12px;background:var(--surface-2);color:var(--text)}
+    .quiz-picker{display:grid;gap:10px;margin-top:10px}
+    .quiz-card{border:1px solid var(--line);background:var(--surface-2);border-radius:24px;padding:22px}
+    .q-top{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:12px}
+    .q-index{color:var(--muted);font-weight:900}
+    .question{font-size:24px;font-weight:900;letter-spacing:-.02em;margin:0 0 16px}
+    .options{display:grid;gap:10px}
+    .option{width:100%;justify-content:flex-start;text-align:left;background:var(--surface);border:1px solid var(--line);color:var(--text);padding:14px;line-height:1.5}
+    .option.selected{border-color:var(--primary);box-shadow:0 0 0 3px rgba(37,99,235,.12)}
+    .option.correct{border-color:#22c55e;background:rgba(34,197,94,.14)}
+    .option.wrong{border-color:#ef4444;background:rgba(239,68,68,.12)}
+    .explain{margin-top:14px;padding:14px;border-radius:16px;border:1px solid var(--line);background:var(--surface);display:none}
+    .explain.show{display:block}.explain b{color:var(--primary)}
+    .progress{height:10px;border-radius:999px;background:rgba(148,163,184,.25);overflow:hidden;margin-top:14px}
+    .progress span{display:block;height:100%;width:0;background:linear-gradient(90deg,#22c55e,#3b82f6);transition:.25s}
+    .navigator{display:grid;gap:8px;max-height:720px;overflow:auto;padding-right:4px}
+    .nav-row{
+      display:grid;grid-template-columns:42px 1fr auto;gap:10px;align-items:center;
+      border:1px solid var(--line);background:var(--surface-2);border-radius:16px;padding:10px;cursor:pointer
+    }
+    .nav-row:hover,.nav-row.active{border-color:var(--primary);background:var(--surface-3)}
+    .nav-no{width:34px;height:34px;border-radius:12px;display:grid;place-items:center;background:var(--surface);border:1px solid var(--line);font-weight:900}
+    .nav-title{font-weight:850;font-size:14px;line-height:1.35}.nav-meta{color:var(--muted);font-size:12px;margin-top:2px}
+    .mark{font-size:20px;font-weight:950;min-width:28px;text-align:center}.mark.ok{color:var(--success)}.mark.bad{color:var(--danger)}.mark.none{color:var(--muted)}
+    .empty{text-align:center;padding:22px;color:var(--muted);border:1px dashed var(--line);border-radius:18px;background:var(--surface-2)}
+    .toast{position:fixed;right:18px;bottom:18px;background:var(--text);color:var(--surface);padding:12px 14px;border-radius:14px;box-shadow:var(--shadow);font-weight:800;z-index:50;opacity:0;transform:translateY(12px);transition:.2s;pointer-events:none}
+    .toast.show{opacity:1;transform:translateY(0)}
+    @media(max-width:980px){.app{padding:16px}.hero{padding:26px}.span-8,.span-4,.span-12{grid-column:span 12}.stats{grid-template-columns:1fr 1fr}}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <section class="hero">
+      <div class="pill">MicroShop Quiz Tool</div>
+      <h1>Quiz Player</h1>
+      <p>Tự động load danh sách quiz từ <code>data/quiz-manifest.json</code>. Khi push JSON mới lên Git, Netlify deploy xong là web tự đọc data mới.</p>
+      <div class="hero-tools">
+        <button class="btn-primary" id="reloadManifestBtn">Reload danh sách quiz</button>
+        <button class="btn-ghost" id="themeBtn">Đổi sáng/tối <span id="themeIcon">🌙</span></button>
+        <button class="btn-ghost" id="shuffleBtn">Shuffle câu hỏi</button>
+        <button class="btn-ghost" id="resetBtn">Reset bài làm</button>
+      </div>
+    </section>
+
+    <section class="grid">
+      <div class="card span-8">
+        <div class="section-head">
+          <div><h2 id="quizTitle">Đang tải quiz...</h2><p id="quizDesc">Nếu chạy local, hãy dùng server như python -m http.server 3000.</p></div>
+          <span class="badge" id="quizCount">0 câu</span>
+        </div>
+
+        <div class="stats">
+          <div class="stat"><b id="total">0</b><span>Tổng câu</span></div>
+          <div class="stat"><b id="answered">0</b><span>Đã trả lời</span></div>
+          <div class="stat"><b id="correct">0</b><span>Đúng</span></div>
+          <div class="stat"><b id="score">0%</b><span>Điểm</span></div>
+        </div>
+
+        <div class="quiz-card">
+          <div class="q-top">
+            <span class="q-index" id="qIndex">0 / 0</span>
+            <span class="badge" id="qStatus">Ready</span>
+          </div>
+          <p class="question" id="questionText">Đang tải...</p>
+          <div class="options" id="options"></div>
+          <div class="explain" id="explain"></div>
+          <div class="progress"><span id="progressBar"></span></div>
+        </div>
+
+        <div class="toolbar">
+          <button class="btn-soft" id="prevBtn">← Câu trước</button>
+          <button class="btn-blue" id="nextBtn">Câu sau →</button>
+          <button class="btn-orange" id="showAnswerBtn">Hiện đáp án</button>
+          <button class="btn-soft" id="clearCurrentBtn">Bỏ chọn câu này</button>
+          <button class="btn-green" id="finishBtn">Chấm điểm</button>
+        </div>
+      </div>
+
+      <div class="card span-4">
+        <div class="section-head">
+          <div><h2>Danh sách quiz</h2><p>Load từ manifest. Chọn quiz để làm bài.</p></div>
+          <span class="badge" id="manifestBadge">0 quiz</span>
+        </div>
+        <select id="quizSelect"></select>
+        <div class="toolbar">
+          <button class="btn-blue" id="loadQuizBtn">Load quiz đã chọn</button>
+        </div>
+
+        <div class="section-head" style="margin-top:22px">
+          <div><h2>Danh sách câu</h2><p>✓ đúng, ✕ sai, ○ chưa làm. Có hiển thị đáp án đã chọn.</p></div>
+          <span class="badge" id="navBadge">0 items</span>
+        </div>
+        <div class="navigator" id="navigator"></div>
+      </div>
+    </section>
+  </div>
+  <div class="toast" id="toast">Done</div>
+
+<script>
+const STORAGE_KEY = "microshop-quiz-player-netlify:v1";
+const THEME_KEY = "microshop-quiz-player:theme";
+const MANIFEST_URL = "./data/quiz-manifest.json";
+
+let manifest = [];
+let selectedQuizId = localStorage.getItem(STORAGE_KEY + ":selectedQuizId") || "";
+let quiz = { title: "Chưa có quiz", description: "Đang tải manifest...", questions: [] };
+let answers = {};
+let revealed = {};
+let current = 0;
+
+const els = {
+  root: document.documentElement,
+  reloadManifestBtn: document.getElementById("reloadManifestBtn"),
+  themeBtn: document.getElementById("themeBtn"),
+  themeIcon: document.getElementById("themeIcon"),
+  shuffleBtn: document.getElementById("shuffleBtn"),
+  resetBtn: document.getElementById("resetBtn"),
+  quizSelect: document.getElementById("quizSelect"),
+  loadQuizBtn: document.getElementById("loadQuizBtn"),
+  manifestBadge: document.getElementById("manifestBadge"),
+  quizTitle: document.getElementById("quizTitle"),
+  quizDesc: document.getElementById("quizDesc"),
+  quizCount: document.getElementById("quizCount"),
+  total: document.getElementById("total"),
+  answered: document.getElementById("answered"),
+  correct: document.getElementById("correct"),
+  score: document.getElementById("score"),
+  qIndex: document.getElementById("qIndex"),
+  qStatus: document.getElementById("qStatus"),
+  questionText: document.getElementById("questionText"),
+  options: document.getElementById("options"),
+  explain: document.getElementById("explain"),
+  progressBar: document.getElementById("progressBar"),
+  prevBtn: document.getElementById("prevBtn"),
+  nextBtn: document.getElementById("nextBtn"),
+  showAnswerBtn: document.getElementById("showAnswerBtn"),
+  clearCurrentBtn: document.getElementById("clearCurrentBtn"),
+  finishBtn: document.getElementById("finishBtn"),
+  navigator: document.getElementById("navigator"),
+  navBadge: document.getElementById("navBadge"),
+  toast: document.getElementById("toast")
+};
+
+initTheme();
+wireEvents();
+boot();
+
+function wireEvents() {
+  els.reloadManifestBtn.onclick = () => loadManifest(true);
+  els.themeBtn.onclick = toggleTheme;
+  els.shuffleBtn.onclick = shuffleQuestions;
+  els.resetBtn.onclick = resetAnswers;
+  els.loadQuizBtn.onclick = () => {
+    const id = els.quizSelect.value;
+    const item = manifest.find(x => x.id === id);
+    if (item) loadQuizItem(item);
+  };
+  els.quizSelect.onchange = () => {
+    selectedQuizId = els.quizSelect.value;
+    localStorage.setItem(STORAGE_KEY + ":selectedQuizId", selectedQuizId);
+  };
+  els.prevBtn.onclick = () => { if (!quiz.questions.length) return; current = (current - 1 + quiz.questions.length) % quiz.questions.length; render(); };
+  els.nextBtn.onclick = () => { if (!quiz.questions.length) return; current = (current + 1) % quiz.questions.length; render(); };
+  els.showAnswerBtn.onclick = () => { if (!quiz.questions.length) return; revealed[current] = true; persistState(); render(); };
+  els.clearCurrentBtn.onclick = () => clearCurrentAnswer();
+  els.finishBtn.onclick = finishQuiz;
+
+  document.addEventListener("keydown", (e) => {
+    if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT") return;
+    if (e.key === "ArrowLeft") els.prevBtn.click();
+    if (e.key === "ArrowRight") els.nextBtn.click();
+    if (["1","2","3","4"].includes(e.key)) choose(parseInt(e.key, 10) - 1);
+    if (e.key === "Backspace" || e.key === "Delete") clearCurrentAnswer();
+  });
+}
+
+async function boot() {
+  await loadManifest(false);
+}
+
+async function fetchJson(url) {
+  const finalUrl = url + (url.includes("?") ? "&" : "?") + "v=" + Date.now();
+  const res = await fetch(finalUrl, { cache: "no-store" });
+  if (!res.ok) throw new Error("Cannot load " + url + ": " + res.status);
+  return await res.json();
+}
+
+async function loadManifest(showMessage) {
+  try {
+    manifest = await fetchJson(MANIFEST_URL);
+    if (!Array.isArray(manifest)) throw new Error("Manifest must be an array.");
+    renderManifest();
+
+    const selected = manifest.find(x => x.id === selectedQuizId) || manifest[0];
+    if (selected) {
+      selectedQuizId = selected.id;
+      localStorage.setItem(STORAGE_KEY + ":selectedQuizId", selectedQuizId);
+      els.quizSelect.value = selectedQuizId;
+      await loadQuizItem(selected);
+    } else {
+      quiz = { title: "Chưa có quiz", description: "Manifest rỗng.", questions: [] };
+      render();
+    }
+
+    if (showMessage) showToast("Đã reload manifest.");
+  } catch (err) {
+    console.error(err);
+    quiz = {
+      title: "Không tải được quiz-manifest.json",
+      description: "Hãy kiểm tra file data/quiz-manifest.json và chạy qua server/Netlify, không mở file://.",
+      questions: []
+    };
+    renderManifest();
+    render();
+    showToast("Không tải được manifest.");
+  }
+}
+
+function renderManifest() {
+  els.manifestBadge.textContent = `${manifest.length} quiz`;
+  if (!manifest.length) {
+    els.quizSelect.innerHTML = '<option value="">Không có quiz</option>';
+    return;
+  }
+  els.quizSelect.innerHTML = manifest.map(item =>
+    `<option value="${escapeHtml(item.id)}">${escapeHtml(item.title || item.id)}</option>`
+  ).join("");
+  if (selectedQuizId && manifest.some(x => x.id === selectedQuizId)) {
+    els.quizSelect.value = selectedQuizId;
+  }
+}
+
+async function loadQuizItem(item) {
+  try {
+    const data = await fetchJson(item.file);
+    quiz = normalizeQuiz(data);
+    answers = loadAnswers(quizKey());
+    revealed = loadRevealed(quizKey());
+    current = 0;
+    selectedQuizId = item.id;
+    localStorage.setItem(STORAGE_KEY + ":selectedQuizId", selectedQuizId);
+    render();
+    showToast("Đã load quiz: " + (item.title || item.id));
+  } catch (err) {
+    console.error(err);
+    showToast("Không tải được quiz JSON.");
+  }
+}
+
+function quizKey() {
+  return STORAGE_KEY + ":quiz:" + (selectedQuizId || "default");
+}
+
+function normalizeQuiz(input) {
+  const source = Array.isArray(input) ? { title: "Imported Quiz", description: "", questions: input } : input;
+  const questions = (source.questions || []).map((q, idx) => ({
+    id: q.id || "q" + String(idx + 1).padStart(3, "0"),
+    question: String(q.question || "").trim(),
+    options: (q.options || []).map(x => String(x)),
+    answerIndex: Number(q.answerIndex),
+    explanation: String(q.explanation || "")
+  })).filter(q => q.question && q.options.length >= 2 && q.answerIndex >= 0 && q.answerIndex < q.options.length);
+  return { title: source.title || "Imported Quiz", description: source.description || "", version: source.version || "1.0", questions };
+}
+
+function loadAnswers(key) {
+  try { return JSON.parse(localStorage.getItem(key + ":answers") || "{}"); } catch { return {}; }
+}
+function loadRevealed(key) {
+  try { return JSON.parse(localStorage.getItem(key + ":revealed") || "{}"); } catch { return {}; }
+}
+function persistState() {
+  const key = quizKey();
+  localStorage.setItem(key + ":answers", JSON.stringify(answers));
+  localStorage.setItem(key + ":revealed", JSON.stringify(revealed));
+}
+
+function render() {
+  if (current >= quiz.questions.length) current = Math.max(0, quiz.questions.length - 1);
+  els.quizTitle.textContent = quiz.title || "Quiz";
+  els.quizDesc.textContent = quiz.description || "";
+  els.quizCount.textContent = `${quiz.questions.length} câu`;
+  renderStats();
+  renderQuestion();
+  renderNavigator();
+}
+
+function renderStats() {
+  const total = quiz.questions.length;
+  const answered = Object.keys(answers).length;
+  let correct = 0;
+  quiz.questions.forEach((q, i) => { if (Number(answers[i]) === q.answerIndex) correct++; });
+  els.total.textContent = total;
+  els.answered.textContent = answered;
+  els.correct.textContent = correct;
+  els.score.textContent = total ? Math.round(correct / total * 100) + "%" : "0%";
+  els.progressBar.style.width = total ? Math.round(answered / total * 100) + "%" : "0%";
+}
+
+function renderQuestion() {
+  if (!quiz.questions.length) {
+    els.qIndex.textContent = "0 / 0";
+    els.qStatus.textContent = "Ready";
+    els.questionText.textContent = "Chưa có câu hỏi.";
+    els.options.innerHTML = '<div class="empty">Chưa có quiz. Kiểm tra manifest hoặc file JSON.</div>';
+    els.explain.classList.remove("show");
+    els.explain.innerHTML = "";
+    return;
+  }
+
+  const q = quiz.questions[current];
+  const selected = answers[current] === undefined ? undefined : Number(answers[current]);
+  const isRevealed = !!revealed[current];
+
+  els.qIndex.textContent = `${current + 1} / ${quiz.questions.length}`;
+  els.qStatus.textContent = selected === undefined ? "Chưa làm" : (selected === q.answerIndex ? "Đúng" : "Sai");
+  els.questionText.textContent = q.question;
+  els.options.innerHTML = q.options.map((opt, idx) => {
+    let cls = "option";
+    if (selected === idx) cls += " selected";
+    if (isRevealed || selected !== undefined) {
+      if (idx === q.answerIndex) cls += " correct";
+      if (idx === selected && selected !== q.answerIndex) cls += " wrong";
+    }
+    return `<button class="${cls}" onclick="choose(${idx})"><b>${String.fromCharCode(65 + idx)}.</b> ${escapeHtml(opt)}</button>`;
+  }).join("");
+
+  if (isRevealed || selected !== undefined) {
+    showExplanation(q);
+  } else {
+    els.explain.classList.remove("show");
+    els.explain.innerHTML = "";
+  }
+}
+
+window.choose = function(index) {
+  if (!quiz.questions.length) return;
+  if (Number(answers[current]) === index) {
+    delete answers[current];
+    delete revealed[current];
+    showToast("Đã bỏ chọn đáp án.");
+  } else {
+    answers[current] = index;
+    showToast("Đã chọn " + String.fromCharCode(65 + index) + ".");
+  }
+  persistState();
+  render();
+};
+
+function clearCurrentAnswer() {
+  if (!quiz.questions.length) return;
+  delete answers[current];
+  delete revealed[current];
+  persistState();
+  render();
+  showToast("Đã bỏ chọn câu hiện tại.");
+}
+
+function showExplanation(q) {
+  els.explain.innerHTML = `<b>Giải thích:</b> ${escapeHtml(q.explanation || "Không có giải thích.")}`;
+  els.explain.classList.add("show");
+}
+
+function renderNavigator() {
+  els.navBadge.textContent = `${quiz.questions.length} items`;
+  if (!quiz.questions.length) {
+    els.navigator.innerHTML = '<div class="empty">Chưa có câu hỏi.</div>';
+    return;
+  }
+  els.navigator.innerHTML = quiz.questions.map((q, idx) => {
+    const selected = answers[idx] === undefined ? undefined : Number(answers[idx]);
+    const hasAnswer = selected !== undefined;
+    const ok = hasAnswer && selected === q.answerIndex;
+    const mark = !hasAnswer ? "○" : (ok ? "✓" : "✕");
+    const markClass = !hasAnswer ? "none" : (ok ? "ok" : "bad");
+    const selectedText = hasAnswer ? `Đã chọn: ${String.fromCharCode(65 + selected)}` : "Chưa làm";
+    return `<div class="nav-row ${idx === current ? "active" : ""}" onclick="current=${idx};render();">
+      <div class="nav-no">${idx + 1}</div>
+      <div>
+        <div class="nav-title">${escapeHtml(q.question)}</div>
+        <div class="nav-meta">${selectedText}</div>
+      </div>
+      <div class="mark ${markClass}">${mark}</div>
+    </div>`;
+  }).join("");
+}
+
+function shuffleQuestions() {
+  for (let i = quiz.questions.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [quiz.questions[i], quiz.questions[j]] = [quiz.questions[j], quiz.questions[i]];
+  }
+  answers = {};
+  revealed = {};
+  current = 0;
+  persistState();
+  render();
+  showToast("Đã shuffle và reset bài làm.");
+}
+
+function resetAnswers() {
+  if (!confirm("Reset toàn bộ câu trả lời?")) return;
+  answers = {};
+  revealed = {};
+  current = 0;
+  persistState();
+  render();
+  showToast("Đã reset bài làm.");
+}
+
+function finishQuiz() {
+  renderStats();
+  const total = quiz.questions.length;
+  let correct = 0;
+  quiz.questions.forEach((q, i) => { if (Number(answers[i]) === q.answerIndex) correct++; });
+  alert(`Kết quả: ${correct}/${total} câu đúng (${total ? Math.round(correct / total * 100) : 0}%).`);
+}
+
+function initTheme() {
+  const theme = localStorage.getItem(THEME_KEY) || "light";
+  els.root.dataset.theme = theme;
+  els.themeIcon.textContent = theme === "dark" ? "☀️" : "🌙";
+}
+function toggleTheme() {
+  const next = els.root.dataset.theme === "dark" ? "light" : "dark";
+  els.root.dataset.theme = next;
+  localStorage.setItem(THEME_KEY, next);
+  els.themeIcon.textContent = next === "dark" ? "☀️" : "🌙";
+}
+function showToast(msg) {
+  els.toast.textContent = msg;
+  els.toast.classList.add("show");
+  clearTimeout(showToast.timer);
+  showToast.timer = setTimeout(() => els.toast.classList.remove("show"), 1800);
+}
+function escapeHtml(value) {
+  return String(value).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");
+}
+</script>
+</body>
+</html>
