@@ -9,9 +9,10 @@
     <ItemGroup>
       <PackageReference Include="Dapper" Version="2.1.72" />
       <PackageReference Include="dbup-postgresql" Version="6.1.2" />
+      <PackageReference Include="MassTransit" Version="8.5.5" />
+      <PackageReference Include="MassTransit.RabbitMQ" Version="8.5.5" />
       <PackageReference Include="MediatR" Version="14.1.0" />
       <PackageReference Include="Npgsql" Version="10.0.0-rc.1" />
-      <PackageReference Include="RabbitMQ.Client" Version="7.2.1" />
     </ItemGroup>
     <ItemGroup>
       <EmbeddedResource Include="Infrastructure\Persistence\Migrations\*.sql" />

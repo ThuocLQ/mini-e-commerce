@@ -1,5 +1,8 @@
 using MediatR;
+using MassTransit;
+using Microsoft.Extensions.Options;
 using OrderingService.Application.Abstractions;
+using OrderingService.Application.IntegrationEvents;
 using OrderingService.Domain.Orders;
 
 namespace OrderingService.Application.Orders.Checkout;
@@ -8,13 +11,19 @@ public class CheckoutHandler : IRequestHandler<CheckoutCommand, OrderDto>
 {
     private readonly IBasketClient _basketClient;
     private readonly IOrderRepository _orderRepository;
+    private readonly IPublishEndpoint _publishEndpoint;
+    private readonly OrderEventOptions _eventOptions;
 
     public CheckoutHandler(
         IBasketClient basketClient,
-        IOrderRepository orderRepository)
+        IOrderRepository orderRepository,
+        IPublishEndpoint publishEndpoint,
+        IOptions<OrderEventOptions> eventOptions)
     {
         _basketClient = basketClient;
         _orderRepository = orderRepository;
+        _publishEndpoint = publishEndpoint;
+        _eventOptions = eventOptions.Value;
     }
     
     public async Task<OrderDto> Handle(CheckoutCommand request, CancellationToken cancellationToken)
@@ -72,6 +81,10 @@ public class CheckoutHandler : IRequestHandler<CheckoutCommand, OrderDto>
 
         var createdOrder = await _orderRepository.CreateAsync(order, cancellationToken);
         await _basketClient.ClearBasketAsync(request.CustomerId, cancellationToken);
+
+        var orderCreatedEvent = OrderCreatedEvent.FromOrder(createdOrder, _eventOptions.Currency);
+        await _publishEndpoint.Publish(orderCreatedEvent, cancellationToken);
+
         return OrderMapper.ToDto(createdOrder);
     }
 

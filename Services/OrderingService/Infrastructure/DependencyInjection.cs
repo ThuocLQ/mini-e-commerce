@@ -1,6 +1,8 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using MassTransit;
 using OrderingService.Application.Abstractions;
+using OrderingService.Application.IntegrationEvents;
 using OrderingService.Infrastructure.Clients;
 using OrderingService.Infrastructure.Messaging;
 using OrderingService.Infrastructure.Persistence;
@@ -26,9 +28,45 @@ public static class DependencyInjection
             client.Timeout = TimeSpan.FromSeconds(5);
         });
         
-        services.Configure<RabbitMqOptions>(configuration.GetSection("RabbitMq"));
-        
-        services.AddSingleton<IEventBus, RabbitMqEventBus>();
+        services
+            .AddOptions<OrderEventOptions>()
+            .Bind(configuration.GetSection(OrderEventOptions.SectionName))
+            .Validate(options => !string.IsNullOrWhiteSpace(options.Currency), "OrderEvents:Currency is required.")
+            .ValidateOnStart();
+
+        services
+            .AddOptions<RabbitMqOptions>()
+            .Bind(configuration.GetSection(RabbitMqOptions.SectionName))
+            .Validate(options => !string.IsNullOrWhiteSpace(options.Host), "RabbitMq:Host is required.")
+            .Validate(options => !string.IsNullOrWhiteSpace(options.VirtualHost), "RabbitMq:VirtualHost is required.")
+            .Validate(options => !string.IsNullOrWhiteSpace(options.UserName), "RabbitMq:UserName is required.")
+            .Validate(options => !string.IsNullOrWhiteSpace(options.Password), "RabbitMq:Password is required.")
+            .ValidateOnStart();
+
+        services.AddMassTransit(busRegistrationConfigurator =>
+        {
+            busRegistrationConfigurator.UsingRabbitMq((context, busFactoryConfigurator) =>
+            {
+                var rabbitMqOptions = configuration
+                    .GetSection(RabbitMqOptions.SectionName)
+                    .Get<RabbitMqOptions>()
+                    ?? new RabbitMqOptions();
+
+                busFactoryConfigurator.Message<OrderCreatedEvent>(messageConfigurator =>
+                {
+                    messageConfigurator.SetEntityName("order.created");
+                });
+
+                busFactoryConfigurator.Host(
+                    rabbitMqOptions.Host,
+                    rabbitMqOptions.VirtualHost,
+                    hostConfigurator =>
+                    {
+                        hostConfigurator.Username(rabbitMqOptions.UserName);
+                        hostConfigurator.Password(rabbitMqOptions.Password);
+                    });
+            });
+        });
 
         return services;
     }

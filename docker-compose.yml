@@ -114,8 +114,15 @@ services:
       ASPNETCORE_HTTP_PORTS: 8080
       ConnectionStrings__OrderingDb: Host=postgres;Port=5432;Database=orderingdb;Username=microshop;Password=microshop
       ServiceUrls__BasketHttp: http://basketservice:8080
+      OrderEvents__Currency: USD
+      RabbitMq__Host: rabbitmq
+      RabbitMq__VirtualHost: /
+      RabbitMq__UserName: microshop
+      RabbitMq__Password: microshop
     depends_on:
       postgres:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
       basketservice:
         condition: service_started
