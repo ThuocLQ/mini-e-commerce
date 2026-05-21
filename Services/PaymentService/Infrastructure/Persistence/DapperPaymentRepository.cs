@@ -55,7 +55,7 @@ public sealed class DapperPaymentRepository : IPaymentRepository
             WHERE Id = @Id;
             """, new
         {
-            Id = id.ToString()
+            Id = id
         }, cancellationToken: cancellationToken));
 
         return row is null ? null : MapPayment(row);
@@ -81,45 +81,43 @@ public sealed class DapperPaymentRepository : IPaymentRepository
     {
         return new
         {
-            Id = payment.Id.ToString(),
-            OrderId = payment.OrderId.ToString(),
-            CustomerId = payment.CustomerId.ToString(),
+            payment.Id,
+            payment.OrderId,
+            payment.CustomerId,
             payment.Amount,
             payment.Currency,
             Status = payment.Status.ToString(),
             payment.ProviderTransactionId,
             payment.FailureReason,
-            CreatedAtUtc = payment.CreatedAtUtc.ToString("O"),
-            CompletedAtUtc = payment.CompletedAtUtc?.ToString("O")
+            payment.CreatedAtUtc,
+            payment.CompletedAtUtc
         };
     }
 
     private static Payment MapPayment(PaymentRow row)
     {
         return new Payment(
-            Guid.Parse(row.Id),
-            Guid.Parse(row.OrderId),
-            Guid.Parse(row.CustomerId),
-            Convert.ToDecimal(row.Amount),
+            row.Id,
+            row.OrderId,
+            row.CustomerId,
+            row.Amount,
             row.Currency,
             Enum.Parse<PaymentStatus>(row.Status),
-            DateTime.Parse(row.CreatedAtUtc, null, System.Globalization.DateTimeStyles.RoundtripKind),
+            row.CreatedAtUtc,
             row.ProviderTransactionId,
             row.FailureReason,
-            row.CompletedAtUtc is null
-                ? null
-                : DateTime.Parse(row.CompletedAtUtc, null, System.Globalization.DateTimeStyles.RoundtripKind));
+            row.CompletedAtUtc);
     }
 
     private sealed record PaymentRow(
-        string Id,
-        string OrderId,
-        string CustomerId,
-        double Amount,
+        Guid Id,
+        Guid OrderId,
+        Guid CustomerId,
+        decimal Amount,
         string Currency,
         string Status,
         string? ProviderTransactionId,
         string? FailureReason,
-        string CreatedAtUtc,
-        string? CompletedAtUtc);
+        DateTime CreatedAtUtc,
+        DateTime? CompletedAtUtc);
 }

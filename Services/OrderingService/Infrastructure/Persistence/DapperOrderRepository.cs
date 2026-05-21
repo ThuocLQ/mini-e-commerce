@@ -1,5 +1,5 @@
 using Dapper;
-using Microsoft.Data.Sqlite;
+using Npgsql;
 using OrderingService.Application.Abstractions;
 using OrderingService.Domain.Orders;
 
@@ -40,7 +40,7 @@ public sealed class DapperOrderRepository : IOrderRepository
             SELECT Id, CustomerId, CreatedAtUtc, Status, IdempotencyKey
             FROM Orders
             WHERE Id = @Id;
-            """, new { Id = id.ToString() }, cancellationToken: cancellationToken));
+            """, new { Id = id }, cancellationToken: cancellationToken));
 
         if (orderRow is null)
         {
@@ -51,7 +51,7 @@ public sealed class DapperOrderRepository : IOrderRepository
             SELECT Id, OrderId, ProductId, ProductName, UnitPrice, Quantity
             FROM OrderItems
             WHERE OrderId = @OrderId;
-            """, new { OrderId = id.ToString() }, cancellationToken: cancellationToken));
+            """, new { OrderId = id }, cancellationToken: cancellationToken));
 
         return MapOrder(orderRow, itemRows);
     }
@@ -70,7 +70,7 @@ public sealed class DapperOrderRepository : IOrderRepository
               AND IdempotencyKey = @IdempotencyKey;
             """, new
         {
-            CustomerId = customerId.ToString(),
+            CustomerId = customerId,
             IdempotencyKey = idempotencyKey
         }, cancellationToken: cancellationToken));
 
@@ -102,9 +102,9 @@ public sealed class DapperOrderRepository : IOrderRepository
                 VALUES (@Id, @CustomerId, @CreatedAtUtc, @Status, @TotalAmount, @IdempotencyKey);
                 """, new
             {
-                Id = order.Id.ToString(),
-                CustomerId = order.CustomerId.ToString(),
-                CreatedAtUtc = order.CreatedAtUtc.ToString("O"),
+                order.Id,
+                order.CustomerId,
+                order.CreatedAtUtc,
                 Status = order.Status.ToString(),
                 order.TotalAmount,
                 order.IdempotencyKey
@@ -117,9 +117,9 @@ public sealed class DapperOrderRepository : IOrderRepository
                     VALUES (@Id, @OrderId, @ProductId, @ProductName, @UnitPrice, @Quantity, @TotalPrice);
                     """, new
                 {
-                    Id = item.Id.ToString(),
-                    OrderId = order.Id.ToString(),
-                    ProductId = item.ProductId.ToString(),
+                    item.Id,
+                    OrderId = order.Id,
+                    item.ProductId,
                     item.ProductName,
                     item.UnitPrice,
                     item.Quantity,
@@ -131,8 +131,8 @@ public sealed class DapperOrderRepository : IOrderRepository
 
             return order;
         }
-        catch (SqliteException ex) when (
-            ex.SqliteErrorCode == 19 &&
+        catch (PostgresException ex) when (
+            ex.SqlState == PostgresErrorCodes.UniqueViolation &&
             order.IdempotencyKey is not null)
         {
             var existingOrder = await GetByCustomerAndIdempotencyKeyAsync(
@@ -163,37 +163,37 @@ public sealed class DapperOrderRepository : IOrderRepository
     private static Order MapOrder(OrderRow row, IEnumerable<OrderItemRow> itemRows)
     {
         var order = new Order(
-            Guid.Parse(row.Id),
-            Guid.Parse(row.CustomerId),
-            DateTime.Parse(row.CreatedAtUtc, null, System.Globalization.DateTimeStyles.RoundtripKind),
+            row.Id,
+            row.CustomerId,
+            row.CreatedAtUtc,
             Enum.Parse<OrderStatus>(row.Status),
             row.IdempotencyKey);
 
         foreach (var itemRow in itemRows)
         {
             order.AddItem(new OrderItem(
-                Guid.Parse(itemRow.Id),
-                Guid.Parse(itemRow.ProductId),
+                itemRow.Id,
+                itemRow.ProductId,
                 itemRow.ProductName,
-                Convert.ToDecimal(itemRow.UnitPrice),
-                checked((int)itemRow.Quantity)));
+                itemRow.UnitPrice,
+                itemRow.Quantity));
         }
 
         return order;
     }
 
     private sealed record OrderRow(
-        string Id,
-        string CustomerId,
-        string CreatedAtUtc,
+        Guid Id,
+        Guid CustomerId,
+        DateTime CreatedAtUtc,
         string Status,
         string? IdempotencyKey);
 
     private sealed record OrderItemRow(
-        string Id,
-        string OrderId,
-        string ProductId,
+        Guid Id,
+        Guid OrderId,
+        Guid ProductId,
         string ProductName,
-        double UnitPrice,
-        long Quantity);
+        decimal UnitPrice,
+        int Quantity);
 }

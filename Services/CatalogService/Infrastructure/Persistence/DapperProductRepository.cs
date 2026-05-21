@@ -142,5 +142,5 @@ public sealed class DapperProductRepository : IProductRepository
         return new Product(row.Id, row.Name, row.Description, Convert.ToDecimal(row.Price));
     }
 
-    private sealed record ProductRow(string Id, string Name, string Description, double Price);
+    private sealed record ProductRow(string Id, string Name, string Description, decimal Price);
 }

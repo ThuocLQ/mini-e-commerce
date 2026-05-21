@@ -25,8 +25,8 @@ TestResults/
 # OS files
 Thumbs.db
 ehthumbs.db
-Services/DiscountService/discount.db
-Services/IdentityService/identity.db
-Services/PaymentService/payment.db
+Services/*/*.db
+Services/*/*.db-shm
+Services/*/*.db-wal
 Desktop.ini
 .DS_Store

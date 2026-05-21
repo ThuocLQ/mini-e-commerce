@@ -1,0 +1,13 @@
+**/.git
+**/.idea
+**/.vs
+**/bin
+**/obj
+**/TestResults
+**/*.user
+**/*.rsuser
+**/*.suo
+**/*.db
+**/*.db-shm
+**/*.db-wal
+.verify-build

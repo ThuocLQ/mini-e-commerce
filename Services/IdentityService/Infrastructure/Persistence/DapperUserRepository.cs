@@ -34,17 +34,17 @@ public sealed class DapperUserRepository : IUserRepository
         return row is null
             ? null
             : new AppUser(
-                Guid.Parse(row.Id),
+                row.Id,
                 row.UserName,
                 row.PasswordHash,
                 row.Role,
-                row.IsActive == 1);
+                row.IsActive);
     }
 
     private sealed record UserRow(
-        string Id,
+        Guid Id,
         string UserName,
         string PasswordHash,
         string Role,
-        long IsActive);
+        bool IsActive);
 }

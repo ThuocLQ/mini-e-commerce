@@ -39,17 +39,17 @@ public sealed class DapperDiscountRepository : IDiscountRepository
         return new Coupon(
             row.Code,
             Enum.Parse<DiscountType>(row.Type),
-            Convert.ToDecimal(row.Value),
-            DateTime.Parse(row.ValidFromUtc, null, System.Globalization.DateTimeStyles.RoundtripKind),
-            DateTime.Parse(row.ValidToUtc, null, System.Globalization.DateTimeStyles.RoundtripKind),
-            row.IsActive == 1);
+            row.Value,
+            row.ValidFromUtc,
+            row.ValidToUtc,
+            row.IsActive);
     }
 
     private sealed record CouponRow(
         string Code,
         string Type,
-        double Value,
-        string ValidFromUtc,
-        string ValidToUtc,
-        long IsActive);
+        decimal Value,
+        DateTime ValidFromUtc,
+        DateTime ValidToUtc,
+        bool IsActive);
 }

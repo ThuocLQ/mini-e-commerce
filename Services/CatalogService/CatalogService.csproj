@@ -9,11 +9,15 @@
 
     <ItemGroup>
       <PackageReference Include="Dapper" Version="2.1.72" />
+      <PackageReference Include="dbup-postgresql" Version="6.1.2" />
       <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
       <PackageReference Include="Grpc.AspNetCore" Version="2.76.0" />
       <PackageReference Include="MediatR" Version="14.1.0" />
       <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.8" />
-      <PackageReference Include="Microsoft.Data.Sqlite" Version="11.0.0-preview.3.26207.106" />
+      <PackageReference Include="Npgsql" Version="10.0.0-rc.1" />
+    </ItemGroup>
+    <ItemGroup>
+      <EmbeddedResource Include="Infrastructure\Persistence\Migrations\*.sql" />
     </ItemGroup>
     <ItemGroup>
         <Protobuf Include="API\Protos\catalog.proto" GrpcServices="Server" />

@@ -8,8 +8,13 @@
 
     <ItemGroup>
       <PackageReference Include="Dapper" Version="2.1.72" />
+      <PackageReference Include="dbup-postgresql" Version="6.1.2" />
       <PackageReference Include="MediatR" Version="14.1.0" />
-      <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.8" />
+      <PackageReference Include="Npgsql" Version="10.0.0-rc.1" />
+      <PackageReference Include="RabbitMQ.Client" Version="7.2.1" />
+    </ItemGroup>
+    <ItemGroup>
+      <EmbeddedResource Include="Infrastructure\Persistence\Migrations\*.sql" />
     </ItemGroup>
 
     <ItemGroup>

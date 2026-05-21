@@ -38,8 +38,8 @@ public static class DependencyInjection
             }, "Jwt configuration is invalid.")
             .ValidateOnStart();
 
-        services.AddSingleton<IDbConnectionFactory, SqliteConnectionFactory>();
-        services.AddSingleton<IDatabaseInitializer, SqliteDatabaseInitializer>();
+        services.AddSingleton<IDbConnectionFactory, NpgsqlConnectionFactory>();
+        services.AddSingleton<IDatabaseInitializer, PostgresDatabaseInitializer>();
         services.AddScoped<IUserRepository, DapperUserRepository>();
         services.AddSingleton<IPasswordHasher, Pbkdf2PasswordHasher>();
         services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
