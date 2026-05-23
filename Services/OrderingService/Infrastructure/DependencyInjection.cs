@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using MassTransit;
+using BuildingBlocks.Contracts.Events.Orders;
 using OrderingService.Application.Abstractions;
 using OrderingService.Application.IntegrationEvents;
 using OrderingService.Infrastructure.Clients;
@@ -52,7 +53,7 @@ public static class DependencyInjection
                     .Get<RabbitMqOptions>()
                     ?? new RabbitMqOptions();
 
-                busFactoryConfigurator.Message<OrderCreatedEvent>(messageConfigurator =>
+                busFactoryConfigurator.Message<OrderCreatedIntegrationEvent>(messageConfigurator =>
                 {
                     messageConfigurator.SetEntityName("order.created");
                 });

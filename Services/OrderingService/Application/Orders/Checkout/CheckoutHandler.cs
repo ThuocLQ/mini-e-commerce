@@ -80,10 +80,10 @@ public class CheckoutHandler : IRequestHandler<CheckoutCommand, OrderDto>
         }
 
         var createdOrder = await _orderRepository.CreateAsync(order, cancellationToken);
-        await _basketClient.ClearBasketAsync(request.CustomerId, cancellationToken);
+        var orderCreatedEvent = OrderIntegrationEventFactory.CreateOrderCreated(createdOrder, _eventOptions.Currency);
 
-        var orderCreatedEvent = OrderCreatedEvent.FromOrder(createdOrder, _eventOptions.Currency);
         await _publishEndpoint.Publish(orderCreatedEvent, cancellationToken);
+        await _basketClient.ClearBasketAsync(request.CustomerId, cancellationToken);
 
         return OrderMapper.ToDto(createdOrder);
     }

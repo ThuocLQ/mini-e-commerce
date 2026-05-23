@@ -18,6 +18,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DiscountService", "Services
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PaymentService", "Services\PaymentService\PaymentService.csproj", "{2E2E8D93-06F4-43AA-A081-3B754925FAF4}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BuildingBlocks.Contracts", "BuildingBlocks.Contracts\BuildingBlocks.Contracts.csproj", "{52526601-1B41-4161-A114-316E2AFBA349}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -136,6 +138,18 @@ Global
 		{2E2E8D93-06F4-43AA-A081-3B754925FAF4}.Release|x64.Build.0 = Release|Any CPU
 		{2E2E8D93-06F4-43AA-A081-3B754925FAF4}.Release|x86.ActiveCfg = Release|Any CPU
 		{2E2E8D93-06F4-43AA-A081-3B754925FAF4}.Release|x86.Build.0 = Release|Any CPU
+		{52526601-1B41-4161-A114-316E2AFBA349}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{52526601-1B41-4161-A114-316E2AFBA349}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{52526601-1B41-4161-A114-316E2AFBA349}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{52526601-1B41-4161-A114-316E2AFBA349}.Debug|x64.Build.0 = Debug|Any CPU
+		{52526601-1B41-4161-A114-316E2AFBA349}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{52526601-1B41-4161-A114-316E2AFBA349}.Debug|x86.Build.0 = Debug|Any CPU
+		{52526601-1B41-4161-A114-316E2AFBA349}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{52526601-1B41-4161-A114-316E2AFBA349}.Release|Any CPU.Build.0 = Release|Any CPU
+		{52526601-1B41-4161-A114-316E2AFBA349}.Release|x64.ActiveCfg = Release|Any CPU
+		{52526601-1B41-4161-A114-316E2AFBA349}.Release|x64.Build.0 = Release|Any CPU
+		{52526601-1B41-4161-A114-316E2AFBA349}.Release|x86.ActiveCfg = Release|Any CPU
+		{52526601-1B41-4161-A114-316E2AFBA349}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

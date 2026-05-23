@@ -20,6 +20,7 @@
 
     <ItemGroup>
       <ProjectReference Include="..\..\MicroShop.ServiceDefaults\MicroShop.ServiceDefaults.csproj" />
+      <ProjectReference Include="..\..\BuildingBlocks.Contracts\BuildingBlocks.Contracts.csproj" />
     </ItemGroup>
 
 </Project>

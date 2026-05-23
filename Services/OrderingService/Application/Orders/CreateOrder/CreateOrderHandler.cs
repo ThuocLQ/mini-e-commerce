@@ -47,7 +47,7 @@ public sealed class CreateOrderHandler : IRequestHandler<CreateOrderCommand, Ord
         }
 
         var createdOrder = await _repository.CreateAsync(order, cancellationToken);
-        var orderCreatedEvent = OrderCreatedEvent.FromOrder(createdOrder, _eventOptions.Currency);
+        var orderCreatedEvent = OrderIntegrationEventFactory.CreateOrderCreated(createdOrder, _eventOptions.Currency);
 
         await _publishEndpoint.Publish(orderCreatedEvent, cancellationToken);
 
