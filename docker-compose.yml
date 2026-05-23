@@ -195,6 +195,26 @@ services:
     networks:
       - microshop-network
 
+  notificationworker:
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        PROJECT_PATH: Services/NotificationWorker/NotificationWorker.csproj
+        PROJECT_DLL: NotificationWorker.dll
+    container_name: microshop-notificationworker
+    environment:
+      DOTNET_ENVIRONMENT: Development
+      RabbitMq__Host: rabbitmq
+      RabbitMq__VirtualHost: /
+      RabbitMq__UserName: microshop
+      RabbitMq__Password: microshop
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - microshop-network
+
   api-gateway:
     build:
       context: .
@@ -218,6 +238,8 @@ services:
       identityservice:
         condition: service_started
       paymentservice:
+        condition: service_started
+      notificationworker:
         condition: service_started
     ports:
       - "5027:8080"

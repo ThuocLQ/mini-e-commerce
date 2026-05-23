@@ -25,6 +25,10 @@ var discount = builder.AddProject<Projects.DiscountService>("DiscountService");
 
 var payment = builder.AddProject<Projects.PaymentService>("PaymentService");
 
+builder.AddProject<Projects.NotificationWorker>("NotificationWorker")
+    .WithReference(rabbit)
+    .WaitFor(rabbit);
+
 var gateway = builder.AddProject<Projects.ApiGateway>("ApiGateway")
     .WithReference(catalog)
     .WithReference(basket)
