@@ -37,8 +37,17 @@ public static class DependencyInjection
 
         services
             .AddOptions<RabbitMqOptions>()
-            .Bind(configuration.GetSection(RabbitMqOptions.SectionName))
+            .Configure(options =>
+            {
+                var resolvedOptions = RabbitMqOptionsResolver.Resolve(configuration);
+                options.Host = resolvedOptions.Host;
+                options.Port = resolvedOptions.Port;
+                options.VirtualHost = resolvedOptions.VirtualHost;
+                options.UserName = resolvedOptions.UserName;
+                options.Password = resolvedOptions.Password;
+            })
             .Validate(options => !string.IsNullOrWhiteSpace(options.Host), "RabbitMq:Host is required.")
+            .Validate(options => options.Port > 0, "RabbitMq:Port is required.")
             .Validate(options => !string.IsNullOrWhiteSpace(options.VirtualHost), "RabbitMq:VirtualHost is required.")
             .Validate(options => !string.IsNullOrWhiteSpace(options.UserName), "RabbitMq:UserName is required.")
             .Validate(options => !string.IsNullOrWhiteSpace(options.Password), "RabbitMq:Password is required.")
@@ -48,10 +57,7 @@ public static class DependencyInjection
         {
             busRegistrationConfigurator.UsingRabbitMq((context, busFactoryConfigurator) =>
             {
-                var rabbitMqOptions = configuration
-                    .GetSection(RabbitMqOptions.SectionName)
-                    .Get<RabbitMqOptions>()
-                    ?? new RabbitMqOptions();
+                var rabbitMqOptions = RabbitMqOptionsResolver.Resolve(configuration);
 
                 busFactoryConfigurator.Message<OrderCreatedIntegrationEvent>(messageConfigurator =>
                 {
@@ -60,6 +66,7 @@ public static class DependencyInjection
 
                 busFactoryConfigurator.Host(
                     rabbitMqOptions.Host,
+                    rabbitMqOptions.Port,
                     rabbitMqOptions.VirtualHost,
                     hostConfigurator =>
                     {

@@ -9,6 +9,7 @@
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
         "DOTNET_ENVIRONMENT": "Development",
+        "MicroShop__RunMode": "Full",
         "ASPIRE_DASHBOARD_OTLP_ENDPOINT_URL": "https://localhost:21275",
         "ASPIRE_DASHBOARD_MCP_ENDPOINT_URL": "https://localhost:23052",
         "ASPIRE_RESOURCE_SERVICE_ENDPOINT_URL": "https://localhost:22250"
@@ -22,9 +23,24 @@
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
         "DOTNET_ENVIRONMENT": "Development",
+        "MicroShop__RunMode": "Full",
         "ASPIRE_DASHBOARD_OTLP_ENDPOINT_URL": "http://localhost:19142",
         "ASPIRE_DASHBOARD_MCP_ENDPOINT_URL": "http://localhost:18138",
         "ASPIRE_RESOURCE_SERVICE_ENDPOINT_URL": "http://localhost:20254"
+      }
+    },
+    "order-flow-lite": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": true,
+      "applicationUrl": "https://localhost:17152;http://localhost:15225",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "DOTNET_ENVIRONMENT": "Development",
+        "MicroShop__RunMode": "OrderFlow",
+        "ASPIRE_DASHBOARD_OTLP_ENDPOINT_URL": "https://localhost:21275",
+        "ASPIRE_DASHBOARD_MCP_ENDPOINT_URL": "https://localhost:23052",
+        "ASPIRE_RESOURCE_SERVICE_ENDPOINT_URL": "https://localhost:22250"
       }
     }
   }

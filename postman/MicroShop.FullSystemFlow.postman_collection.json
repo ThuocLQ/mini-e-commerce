@@ -1,0 +1,757 @@
+{
+  "info": {
+    "name": "MicroShop - Full System Flow",
+    "_postman_id": "8aa1f5da-7a21-4b19-8f14-9d243657a001",
+    "description": "Gateway-first test flow for current MicroShop services. Use order-flow-lite for Identity/Catalog/Basket/Ordering/Notification. Use Full mode for Discount and Payment folders.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "gatewayBaseUrl", "value": "https://localhost:7001" },
+    { "key": "adminUserName", "value": "admin" },
+    { "key": "adminPassword", "value": "Admin@123" },
+    { "key": "accessToken", "value": "" },
+    { "key": "customerId", "value": "11111111-1111-1111-1111-111111111111" },
+    { "key": "productId", "value": "" },
+    { "key": "orderId", "value": "" },
+    { "key": "orderTotalAmount", "value": "0" },
+    { "key": "paymentId", "value": "" },
+    { "key": "idempotencyKey", "value": "" },
+    { "key": "couponCode", "value": "SAVE10" },
+    { "key": "providerTransactionId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "00 - Gateway Health",
+      "item": [
+        {
+          "name": "GET /alive",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/alive",
+              "host": ["{{gatewayBaseUrl}}"],
+              "path": ["alive"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Gateway alive', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "01 - Identity",
+      "item": [
+        {
+          "name": "01 - Login admin and set token",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userName\": \"{{adminUserName}}\",\n  \"password\": \"{{adminPassword}}\"\n}"
+            },
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/auth/login",
+              "host": ["{{gatewayBaseUrl}}"],
+              "path": ["auth", "login"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Login OK', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.expect(body.accessToken, 'accessToken').to.be.a('string').and.not.empty;",
+                  "pm.collectionVariables.set('accessToken', body.accessToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 - Get current user",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/auth/me",
+              "host": ["{{gatewayBaseUrl}}"],
+              "path": ["auth", "me"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Me OK', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02 - Catalog",
+      "item": [
+        {
+          "name": "01 - Create product and set productId",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Flow Product {{$timestamp}}\",\n  \"price\": 19.99,\n  \"description\": \"Created by MicroShop full system Postman flow\"\n}"
+            },
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/catalog/products",
+              "host": ["{{gatewayBaseUrl}}"],
+              "path": ["catalog", "products"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Product created', function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "const product = pm.response.json();",
+                  "pm.expect(product.id, 'product id').to.be.a('string').and.not.empty;",
+                  "pm.collectionVariables.set('productId', product.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 - Get product by id",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/catalog/products/{{productId}}",
+              "host": ["{{gatewayBaseUrl}}"],
+              "path": ["catalog", "products", "{{productId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Product found', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "03 - List products",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/catalog/products",
+              "host": ["{{gatewayBaseUrl}}"],
+              "path": ["catalog", "products"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Products listed', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json()).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "04 - Search products",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/catalog/products/search?keyword=Postman",
+              "host": ["{{gatewayBaseUrl}}"],
+              "path": ["catalog", "products", "search"],
+              "query": [{ "key": "keyword", "value": "Postman" }]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Search OK', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "05 - Product count",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/catalog/products/count",
+              "host": ["{{gatewayBaseUrl}}"],
+              "path": ["catalog", "products", "count"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Count OK', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "03 - Basket",
+      "item": [
+        {
+          "name": "01 - Validate product through basket",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/cart/products/{{productId}}/validate",
+              "host": ["{{gatewayBaseUrl}}"],
+              "path": ["cart", "products", "{{productId}}", "validate"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Product valid', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json().valid).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 - Preview basket item",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productId\": \"{{productId}}\",\n  \"quantity\": 2\n}"
+            },
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/cart/preview-item",
+              "host": ["{{gatewayBaseUrl}}"],
+              "path": ["cart", "preview-item"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Preview OK', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "03 - Add item to basket",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productId\": \"{{productId}}\",\n  \"quantity\": 2\n}"
+            },
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/cart/{{customerId}}/items",
+              "host": ["{{gatewayBaseUrl}}"],
+              "path": ["cart", "{{customerId}}", "items"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Basket updated', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "04 - Get basket",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/cart/{{customerId}}",
+              "host": ["{{gatewayBaseUrl}}"],
+              "path": ["cart", "{{customerId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Basket has items', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const basket = pm.response.json();",
+                  "  pm.expect(basket.items.length).to.be.greaterThan(0);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "05 - Update basket quantity",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quantity\": 3\n}"
+            },
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/cart/{{customerId}}/items/{{productId}}",
+              "host": ["{{gatewayBaseUrl}}"],
+              "path": ["cart", "{{customerId}}", "items", "{{productId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Quantity updated', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "04 - Ordering + RabbitMQ Event",
+      "item": [
+        {
+          "name": "01 - Checkout order and publish event",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('idempotencyKey', 'checkout-' + Date.now());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Order created', function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "const order = pm.response.json();",
+                  "pm.collectionVariables.set('orderId', order.id);",
+                  "pm.collectionVariables.set('orderTotalAmount', String(order.totalAmount || 0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "{{idempotencyKey}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": \"{{customerId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/orders/checkout",
+              "host": ["{{gatewayBaseUrl}}"],
+              "path": ["orders", "checkout"]
+            },
+            "description": "This also publishes OrderCreatedIntegrationEvent. In RabbitMQ UI, NotificationWorker consumes it from queue notification.order-created."
+          }
+        },
+        {
+          "name": "02 - Retry checkout with same idempotency key",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "{{idempotencyKey}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": \"{{customerId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/orders/checkout",
+              "host": ["{{gatewayBaseUrl}}"],
+              "path": ["orders", "checkout"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Same order returned', function () {",
+                  "  pm.response.to.have.status(201);",
+                  "  pm.expect(pm.response.json().id).to.eql(pm.collectionVariables.get('orderId'));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "03 - Get order by id",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/orders/{{orderId}}",
+              "host": ["{{gatewayBaseUrl}}"],
+              "path": ["orders", "{{orderId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Order found', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "04 - Get orders",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/orders",
+              "host": ["{{gatewayBaseUrl}}"],
+              "path": ["orders"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Orders OK', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "05 - Discount (Full mode only)",
+      "item": [
+        {
+          "name": "01 - Get coupon SAVE10",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/discounts/{{couponCode}}",
+              "host": ["{{gatewayBaseUrl}}"],
+              "path": ["discounts", "{{couponCode}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Coupon found', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 - Apply coupon",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"couponCode\": \"{{couponCode}}\",\n  \"orderAmount\": {{orderTotalAmount}}\n}"
+            },
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/discounts/apply",
+              "host": ["{{gatewayBaseUrl}}"],
+              "path": ["discounts", "apply"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Discount applied', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "06 - Payment (Full mode only)",
+      "item": [
+        {
+          "name": "01 - Create payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": \"{{orderId}}\",\n  \"customerId\": \"{{customerId}}\",\n  \"amount\": {{orderTotalAmount}},\n  \"currency\": \"USD\"\n}"
+            },
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/payments",
+              "host": ["{{gatewayBaseUrl}}"],
+              "path": ["payments"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Payment created', function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "const payment = pm.response.json();",
+                  "pm.collectionVariables.set('paymentId', payment.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 - Get payment by id",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/payments/{{paymentId}}",
+              "host": ["{{gatewayBaseUrl}}"],
+              "path": ["payments", "{{paymentId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Payment found', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "03 - Payment webhook succeeded",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('providerTransactionId', 'txn-' + Date.now());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Webhook accepted', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Payment succeeded', function () {",
+                  "  pm.expect(pm.response.json().status).to.eql('Succeeded');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"paymentId\": \"{{paymentId}}\",\n  \"providerTransactionId\": \"{{providerTransactionId}}\",\n  \"status\": \"SUCCEEDED\",\n  \"failureReason\": null\n}"
+            },
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/webhooks/payment",
+              "host": ["{{gatewayBaseUrl}}"],
+              "path": ["webhooks", "payment"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "07 - Cleanup",
+      "item": [
+        {
+          "name": "01 - Delete product",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/catalog/products/{{productId}}",
+              "host": ["{{gatewayBaseUrl}}"],
+              "path": ["catalog", "products", "{{productId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Product deleted or already missing', function () {",
+                  "  pm.expect([204, 404]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
