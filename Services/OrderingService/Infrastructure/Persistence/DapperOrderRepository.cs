@@ -1,6 +1,7 @@
 using Dapper;
 using Npgsql;
 using OrderingService.Application.Abstractions;
+using OrderingService.Application.Orders;
 using OrderingService.Domain.Orders;
 
 namespace OrderingService.Infrastructure.Persistence;
@@ -88,46 +89,33 @@ public sealed class DapperOrderRepository : IOrderRepository
         return MapOrder(orderRow, itemRows);
     }
 
-    public async Task<Order> CreateAsync(Order order, CancellationToken cancellationToken = default)
+    public async Task<Order> CreateAsync(
+        Order order,
+        System.Data.IDbTransaction? transaction = null,
+        CancellationToken cancellationToken = default)
     {
+        if (transaction is not null)
+        {
+            try
+            {
+                await InsertAsync(transaction.Connection!, order, transaction, cancellationToken);
+                return order;
+            }
+            catch (PostgresException ex) when (
+                ex.SqlState == PostgresErrorCodes.UniqueViolation &&
+                order.IdempotencyKey is not null)
+            {
+                throw new OrderAlreadyExistsException(order.CustomerId, order.IdempotencyKey);
+            }
+        }
+
         using var connection = _connectionFactory.CreateConnection();
         connection.Open();
-
         try
         {
-            using var transaction = connection.BeginTransaction();
-
-            await connection.ExecuteAsync(new CommandDefinition("""
-                INSERT INTO Orders (Id, CustomerId, CreatedAtUtc, Status, TotalAmount, IdempotencyKey)
-                VALUES (@Id, @CustomerId, @CreatedAtUtc, @Status, @TotalAmount, @IdempotencyKey);
-                """, new
-            {
-                order.Id,
-                order.CustomerId,
-                order.CreatedAtUtc,
-                Status = order.Status.ToString(),
-                order.TotalAmount,
-                order.IdempotencyKey
-            }, transaction, cancellationToken: cancellationToken));
-
-            foreach (var item in order.Items)
-            {
-                await connection.ExecuteAsync(new CommandDefinition("""
-                    INSERT INTO OrderItems (Id, OrderId, ProductId, ProductName, UnitPrice, Quantity, TotalPrice)
-                    VALUES (@Id, @OrderId, @ProductId, @ProductName, @UnitPrice, @Quantity, @TotalPrice);
-                    """, new
-                {
-                    item.Id,
-                    OrderId = order.Id,
-                    item.ProductId,
-                    item.ProductName,
-                    item.UnitPrice,
-                    item.Quantity,
-                    item.TotalPrice
-                }, transaction, cancellationToken: cancellationToken));
-            }
-
-            transaction.Commit();
+            using var ownedTransaction = connection.BeginTransaction();
+            await InsertAsync(connection, order, ownedTransaction, cancellationToken);
+            ownedTransaction.Commit();
 
             return order;
         }
@@ -146,6 +134,43 @@ public sealed class DapperOrderRepository : IOrderRepository
             }
 
             throw;
+        }
+    }
+
+    private static async Task InsertAsync(
+        System.Data.IDbConnection connection,
+        Order order,
+        System.Data.IDbTransaction transaction,
+        CancellationToken cancellationToken)
+    {
+        await connection.ExecuteAsync(new CommandDefinition("""
+            INSERT INTO Orders (Id, CustomerId, CreatedAtUtc, Status, TotalAmount, IdempotencyKey)
+            VALUES (@Id, @CustomerId, @CreatedAtUtc, @Status, @TotalAmount, @IdempotencyKey);
+            """, new
+        {
+            order.Id,
+            order.CustomerId,
+            order.CreatedAtUtc,
+            Status = order.Status.ToString(),
+            order.TotalAmount,
+            order.IdempotencyKey
+        }, transaction, cancellationToken: cancellationToken));
+
+        foreach (var item in order.Items)
+        {
+            await connection.ExecuteAsync(new CommandDefinition("""
+                INSERT INTO OrderItems (Id, OrderId, ProductId, ProductName, UnitPrice, Quantity, TotalPrice)
+                VALUES (@Id, @OrderId, @ProductId, @ProductName, @UnitPrice, @Quantity, @TotalPrice);
+                """, new
+            {
+                item.Id,
+                OrderId = order.Id,
+                item.ProductId,
+                item.ProductName,
+                item.UnitPrice,
+                item.Quantity,
+                item.TotalPrice
+            }, transaction, cancellationToken: cancellationToken));
         }
     }
 

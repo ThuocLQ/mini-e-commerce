@@ -19,6 +19,11 @@ public static class DependencyInjection
         app.MapOrderEndpoints();
         app.MapCheckoutEndpoints();
 
+        if (app is WebApplication webApplication && webApplication.Environment.IsDevelopment())
+        {
+            app.MapOutboxEndpoints();
+        }
+
         return app;
     }
 

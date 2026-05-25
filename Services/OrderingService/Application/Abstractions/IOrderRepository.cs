@@ -1,3 +1,4 @@
+using System.Data;
 using OrderingService.Domain.Orders;
 
 namespace OrderingService.Application.Abstractions;
@@ -10,5 +11,8 @@ public interface IOrderRepository
         Guid customerId,
         string idempotencyKey,
         CancellationToken cancellationToken = default);
-    Task<Order> CreateAsync(Order order, CancellationToken cancellationToken = default);
+    Task<Order> CreateAsync(
+        Order order,
+        IDbTransaction? transaction = null,
+        CancellationToken cancellationToken = default);
 }

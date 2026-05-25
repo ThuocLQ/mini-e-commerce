@@ -1,8 +1,8 @@
 using MediatR;
-using MassTransit;
 using Microsoft.Extensions.Options;
 using OrderingService.Application.Abstractions;
 using OrderingService.Application.IntegrationEvents;
+using OrderingService.Application.Outbox;
 using OrderingService.Domain.Orders;
 
 namespace OrderingService.Application.Orders.CreateOrder;
@@ -10,16 +10,19 @@ namespace OrderingService.Application.Orders.CreateOrder;
 public sealed class CreateOrderHandler : IRequestHandler<CreateOrderCommand, OrderDto>
 {
     private readonly IOrderRepository _repository;
-    private readonly IPublishEndpoint _publishEndpoint;
+    private readonly IOutboxRepository _outboxRepository;
+    private readonly IOrderingUnitOfWork _unitOfWork;
     private readonly OrderEventOptions _eventOptions;
 
     public CreateOrderHandler(
         IOrderRepository repository,
-        IPublishEndpoint publishEndpoint,
+        IOutboxRepository outboxRepository,
+        IOrderingUnitOfWork unitOfWork,
         IOptions<OrderEventOptions> eventOptions)
     {
         _repository = repository;
-        _publishEndpoint = publishEndpoint;
+        _outboxRepository = outboxRepository;
+        _unitOfWork = unitOfWork;
         _eventOptions = eventOptions.Value;
     }
 
@@ -46,10 +49,16 @@ public sealed class CreateOrderHandler : IRequestHandler<CreateOrderCommand, Ord
                 item.Quantity));
         }
 
-        var createdOrder = await _repository.CreateAsync(order, cancellationToken);
-        var orderCreatedEvent = OrderIntegrationEventFactory.CreateOrderCreated(createdOrder, _eventOptions.Currency);
+        var createdOrder = await _unitOfWork.ExecuteAsync(async transaction =>
+        {
+            var persistedOrder = await _repository.CreateAsync(order, transaction, cancellationToken);
+            var orderCreatedEvent = OrderIntegrationEventFactory.CreateOrderCreated(persistedOrder, _eventOptions.Currency);
+            var outboxMessage = OutboxMessageFactory.Create(orderCreatedEvent);
 
-        await _publishEndpoint.Publish(orderCreatedEvent, cancellationToken);
+            await _outboxRepository.AddAsync(outboxMessage, transaction, cancellationToken);
+
+            return persistedOrder;
+        }, cancellationToken);
 
         return OrderMapper.ToDto(createdOrder);
     }

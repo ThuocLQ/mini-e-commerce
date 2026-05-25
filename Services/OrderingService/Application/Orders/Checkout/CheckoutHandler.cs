@@ -1,8 +1,9 @@
 using MediatR;
-using MassTransit;
 using Microsoft.Extensions.Options;
 using OrderingService.Application.Abstractions;
 using OrderingService.Application.IntegrationEvents;
+using OrderingService.Application.Orders;
+using OrderingService.Application.Outbox;
 using OrderingService.Domain.Orders;
 
 namespace OrderingService.Application.Orders.Checkout;
@@ -11,18 +12,21 @@ public class CheckoutHandler : IRequestHandler<CheckoutCommand, OrderDto>
 {
     private readonly IBasketClient _basketClient;
     private readonly IOrderRepository _orderRepository;
-    private readonly IPublishEndpoint _publishEndpoint;
+    private readonly IOutboxRepository _outboxRepository;
+    private readonly IOrderingUnitOfWork _unitOfWork;
     private readonly OrderEventOptions _eventOptions;
 
     public CheckoutHandler(
         IBasketClient basketClient,
         IOrderRepository orderRepository,
-        IPublishEndpoint publishEndpoint,
+        IOutboxRepository outboxRepository,
+        IOrderingUnitOfWork unitOfWork,
         IOptions<OrderEventOptions> eventOptions)
     {
         _basketClient = basketClient;
         _orderRepository = orderRepository;
-        _publishEndpoint = publishEndpoint;
+        _outboxRepository = outboxRepository;
+        _unitOfWork = unitOfWork;
         _eventOptions = eventOptions.Value;
     }
     
@@ -79,10 +83,36 @@ public class CheckoutHandler : IRequestHandler<CheckoutCommand, OrderDto>
                 item.Quantity));
         }
 
-        var createdOrder = await _orderRepository.CreateAsync(order, cancellationToken);
-        var orderCreatedEvent = OrderIntegrationEventFactory.CreateOrderCreated(createdOrder, _eventOptions.Currency);
+        Order createdOrder;
+        try
+        {
+            createdOrder = await _unitOfWork.ExecuteAsync(async transaction =>
+            {
+                var persistedOrder = await _orderRepository.CreateAsync(order, transaction, cancellationToken);
+                var orderCreatedEvent = OrderIntegrationEventFactory.CreateOrderCreated(persistedOrder, _eventOptions.Currency);
+                var outboxMessage = OutboxMessageFactory.Create(orderCreatedEvent);
 
-        await _publishEndpoint.Publish(orderCreatedEvent, cancellationToken);
+                await _outboxRepository.AddAsync(outboxMessage, transaction, cancellationToken);
+
+                return persistedOrder;
+            }, cancellationToken);
+        }
+        catch (OrderAlreadyExistsException)
+        {
+            var duplicatedOrder = await _orderRepository.GetByCustomerAndIdempotencyKeyAsync(
+                request.CustomerId,
+                idempotencyKey,
+                cancellationToken);
+
+            if (duplicatedOrder is null)
+            {
+                throw;
+            }
+
+            await _basketClient.ClearBasketAsync(request.CustomerId, cancellationToken);
+            return OrderMapper.ToDto(duplicatedOrder);
+        }
+
         await _basketClient.ClearBasketAsync(request.CustomerId, cancellationToken);
 
         return OrderMapper.ToDto(createdOrder);
