@@ -8,6 +8,7 @@
     <ProjectReference Include="..\Services\IdentityService\IdentityService.csproj" />
     <ProjectReference Include="..\Services\NotificationWorker\NotificationWorker.csproj" />
     <ProjectReference Include="..\Services\OrderingService\OrderingService.csproj" />
+    <ProjectReference Include="..\Services\OrderQueryService\OrderQueryService.csproj" />
     <ProjectReference Include="..\Services\PaymentService\PaymentService.csproj" />
     <ProjectReference Include="..\MicroShop.ServiceDefaults\MicroShop.ServiceDefaults.csproj" IsAspireProjectResource="false" />
   </ItemGroup>

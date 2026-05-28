@@ -26,10 +26,17 @@ var rabbit = builder.AddRabbitMQ("RabbitMQ", rabbitUserName, rabbitPassword, por
     .WithManagementPlugin(port: 15672)
     .WithDataVolume("microshop-aspire-rabbitmq-data");
 
+var mongodb = builder.AddContainer("MongoDB", "mongo", "7")
+    .WithEnvironment("MONGO_INITDB_ROOT_USERNAME", "microshop")
+    .WithEnvironment("MONGO_INITDB_ROOT_PASSWORD", "microshop")
+    .WithEndpoint(port: 27017, targetPort: 27017, name: "mongodb")
+    .WithVolume("microshop-mongodb-data", "/data/db");
+
 IResourceBuilder<ProjectResource>? catalog = null;
 IResourceBuilder<ProjectResource>? basket = null;
 IResourceBuilder<ProjectResource>? identity = null;
 IResourceBuilder<ProjectResource>? ordering = null;
+IResourceBuilder<ProjectResource>? orderQuery = null;
 IResourceBuilder<ProjectResource>? discount = null;
 IResourceBuilder<ProjectResource>? payment = null;
 
@@ -59,6 +66,14 @@ if (runFull || runOrderFlow)
     builder.AddProject<Projects.NotificationWorker>("NotificationWorker")
         .WithReference(rabbit)
         .WaitFor(rabbit);
+
+    orderQuery = builder.AddProject<Projects.OrderQueryService>("OrderQueryService", launchProfileName: "https")
+        .WithEnvironment("MongoDb__ConnectionString", "mongodb://microshop:microshop@localhost:27017/?authSource=admin")
+        .WithEnvironment("MongoDb__DatabaseName", "MicroShop_OrderReadDb")
+        .WithEnvironment("MongoDb__OrderSummariesCollectionName", "order_summaries")
+        .WithEnvironment("MongoDb__InitializeMaxRetryCount", "10")
+        .WithEnvironment("MongoDb__InitializeRetryDelaySeconds", "3")
+        .WaitFor(mongodb);
 }
 
 if (runFull)
@@ -87,6 +102,11 @@ if (basket is not null)
 if (ordering is not null)
 {
     gateway.WithReference(ordering);
+}
+
+if (orderQuery is not null)
+{
+    gateway.WithReference(orderQuery);
 }
 
 if (discount is not null)

@@ -91,6 +91,24 @@ services:
     networks:
       - microshop-network
 
+  mongodb:
+    image: mongo:7
+    container_name: microshop-mongodb
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: microshop
+      MONGO_INITDB_ROOT_PASSWORD: microshop
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --quiet --eval 'db.adminCommand({ ping: 1 }).ok' -u microshop -p microshop --authenticationDatabase admin | grep 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    networks:
+      - microshop-network
+
   catalogservice:
     build:
       context: .
@@ -233,6 +251,30 @@ services:
     networks:
       - microshop-network
 
+  orderqueryservice:
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        PROJECT_PATH: Services/OrderQueryService/OrderQueryService.csproj
+        PROJECT_DLL: OrderQueryService.dll
+    container_name: microshop-orderqueryservice
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_HTTP_PORTS: 8080
+      MongoDb__ConnectionString: mongodb://microshop:microshop@mongodb:27017/?authSource=admin
+      MongoDb__DatabaseName: MicroShop_OrderReadDb
+      MongoDb__OrderSummariesCollectionName: order_summaries
+      MongoDb__InitializeMaxRetryCount: 10
+      MongoDb__InitializeRetryDelaySeconds: 3
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    ports:
+      - "5088:8080"
+    networks:
+      - microshop-network
+
   notificationworker:
     build:
       context: .
@@ -277,6 +319,8 @@ services:
         condition: service_started
       paymentservice:
         condition: service_started
+      orderqueryservice:
+        condition: service_started
       notificationworker:
         condition: service_started
     ports:
@@ -289,6 +333,7 @@ volumes:
   redis_data:
   rabbitmq_data:
   kafka_data:
+  mongodb_data:
 
 networks:
   microshop-network:
