@@ -74,6 +74,19 @@ if (runFull || runOrderFlow)
         .WithEnvironment("MongoDb__InitializeMaxRetryCount", "10")
         .WithEnvironment("MongoDb__InitializeRetryDelaySeconds", "3")
         .WaitFor(mongodb);
+
+    builder.AddProject<Projects.ProjectionWorker>("ProjectionWorker")
+        .WithEnvironment("Kafka__BootstrapServers", "localhost:9092")
+        .WithEnvironment("Kafka__Topic", "microshop.order-events")
+        .WithEnvironment("Kafka__GroupId", "projection-worker")
+        .WithEnvironment("Kafka__AutoOffsetReset", "Earliest")
+        .WithEnvironment("MongoDb__ConnectionString", "mongodb://microshop:microshop@localhost:27017/?authSource=admin")
+        .WithEnvironment("MongoDb__DatabaseName", "MicroShop_OrderReadDb")
+        .WithEnvironment("MongoDb__OrderSummariesCollectionName", "order_summaries")
+        .WithEnvironment("MongoDb__ProjectionFailuresCollectionName", "projection_failures")
+        .WithEnvironment("MongoDb__InitializeMaxRetryCount", "10")
+        .WithEnvironment("MongoDb__InitializeRetryDelaySeconds", "3")
+        .WaitFor(mongodb);
 }
 
 if (runFull)

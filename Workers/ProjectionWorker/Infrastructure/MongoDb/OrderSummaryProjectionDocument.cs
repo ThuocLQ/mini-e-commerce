@@ -1,10 +1,10 @@
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 
-namespace OrderQueryService.Infrastructure.ReadModels.MongoDb;
+namespace ProjectionWorker.Infrastructure.MongoDb;
 
 [BsonIgnoreExtraElements]
-internal sealed class OrderSummaryDocument
+public sealed class OrderSummaryProjectionDocument
 {
     [BsonId]
     [BsonElement("_id")]
@@ -33,7 +33,7 @@ internal sealed class OrderSummaryDocument
     public int ItemCount { get; init; }
 
     [BsonElement("items")]
-    public IReadOnlyList<OrderSummaryItemDocument> Items { get; init; } = [];
+    public IReadOnlyList<OrderSummaryProjectionItemDocument> Items { get; init; } = [];
 
     [BsonElement("createdAtUtc")]
     public DateTime CreatedAtUtc { get; init; }
@@ -60,8 +60,7 @@ internal sealed class OrderSummaryDocument
     public DateTime? LastProjectedAtUtc { get; init; }
 }
 
-[BsonIgnoreExtraElements]
-internal sealed class OrderSummaryItemDocument
+public sealed class OrderSummaryProjectionItemDocument
 {
     [BsonElement("productId")]
     public string ProductId { get; init; } = default!;

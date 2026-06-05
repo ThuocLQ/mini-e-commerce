@@ -1,0 +1,80 @@
+{
+  "info": {
+    "name": "MicroShop Kafka Projection Flow",
+    "description": "Lesson 27 Kafka -> ProjectionWorker -> MongoDB read model checks. Produce Kafka events with the CLI from lesson 27, then run these requests to verify OrderQueryService and ApiGateway.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "orderQueryBaseUrl",
+      "value": "https://localhost:7008"
+    },
+    {
+      "key": "gatewayBaseUrl",
+      "value": "https://localhost:7001"
+    },
+    {
+      "key": "createdPaidOrderId",
+      "value": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+    },
+    {
+      "key": "cancelledOrderId",
+      "value": "dddddddd-dddd-dddd-dddd-dddddddddddd"
+    },
+    {
+      "key": "missingOrderId",
+      "value": "99999999-9999-9999-9999-999999999999"
+    }
+  ],
+  "item": [
+    {
+      "name": "01 - OrderQuery health",
+      "request": {
+        "method": "GET",
+        "url": "{{orderQueryBaseUrl}}/alive"
+      }
+    },
+    {
+      "name": "02 - Get latest projected summaries",
+      "request": {
+        "method": "GET",
+        "url": "{{orderQueryBaseUrl}}/order-summaries?limit=20"
+      }
+    },
+    {
+      "name": "03 - Get projected created/paid order",
+      "request": {
+        "method": "GET",
+        "url": "{{orderQueryBaseUrl}}/order-summaries/{{createdPaidOrderId}}"
+      }
+    },
+    {
+      "name": "04 - Gateway get projected created/paid order",
+      "request": {
+        "method": "GET",
+        "url": "{{gatewayBaseUrl}}/order-summaries/{{createdPaidOrderId}}"
+      }
+    },
+    {
+      "name": "05 - Get projected cancelled order",
+      "request": {
+        "method": "GET",
+        "url": "{{orderQueryBaseUrl}}/order-summaries/{{cancelledOrderId}}"
+      }
+    },
+    {
+      "name": "06 - Gateway get latest projected summaries",
+      "request": {
+        "method": "GET",
+        "url": "{{gatewayBaseUrl}}/order-summaries?limit=20"
+      }
+    },
+    {
+      "name": "07 - Get missing projected order",
+      "request": {
+        "method": "GET",
+        "url": "{{orderQueryBaseUrl}}/order-summaries/{{missingOrderId}}"
+      }
+    }
+  ]
+}

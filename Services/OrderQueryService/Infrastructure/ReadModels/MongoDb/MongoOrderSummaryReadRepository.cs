@@ -40,7 +40,13 @@ public sealed class MongoOrderSummaryReadRepository : IOrderSummaryReadRepositor
                     .Include(x => x.ItemCount)
                     .Include(x => x.Items)
                     .Include(x => x.CreatedAtUtc)
-                    .Include(x => x.LastUpdatedAtUtc))
+                    .Include(x => x.LastUpdatedAtUtc)
+                    .Include(x => x.PaidAtUtc)
+                    .Include(x => x.CancelledAtUtc)
+                    .Include(x => x.LastProjectedEventId)
+                    .Include(x => x.LastProjectedEventType)
+                    .Include(x => x.LastProjectedEventOccurredAtUtc)
+                    .Include(x => x.LastProjectedAtUtc))
             .FirstOrDefaultAsync(cancellationToken);
 
         var document = OrderSummaryDocumentMapper.ToDocument(

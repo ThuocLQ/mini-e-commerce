@@ -34,6 +34,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NotificationWorker", "Servi
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OrderQueryService", "Services\OrderQueryService\OrderQueryService.csproj", "{3D522E92-C312-44B5-8369-E45C4025689A}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ProjectionWorker", "Workers\ProjectionWorker\ProjectionWorker.csproj", "{EB2BB785-D188-4D16-9D50-8D41EC5720CB}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -188,6 +190,18 @@ Global
 		{3D522E92-C312-44B5-8369-E45C4025689A}.Release|x64.Build.0 = Release|Any CPU
 		{3D522E92-C312-44B5-8369-E45C4025689A}.Release|x86.ActiveCfg = Release|Any CPU
 		{3D522E92-C312-44B5-8369-E45C4025689A}.Release|x86.Build.0 = Release|Any CPU
+		{EB2BB785-D188-4D16-9D50-8D41EC5720CB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EB2BB785-D188-4D16-9D50-8D41EC5720CB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EB2BB785-D188-4D16-9D50-8D41EC5720CB}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{EB2BB785-D188-4D16-9D50-8D41EC5720CB}.Debug|x64.Build.0 = Debug|Any CPU
+		{EB2BB785-D188-4D16-9D50-8D41EC5720CB}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{EB2BB785-D188-4D16-9D50-8D41EC5720CB}.Debug|x86.Build.0 = Debug|Any CPU
+		{EB2BB785-D188-4D16-9D50-8D41EC5720CB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EB2BB785-D188-4D16-9D50-8D41EC5720CB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EB2BB785-D188-4D16-9D50-8D41EC5720CB}.Release|x64.ActiveCfg = Release|Any CPU
+		{EB2BB785-D188-4D16-9D50-8D41EC5720CB}.Release|x64.Build.0 = Release|Any CPU
+		{EB2BB785-D188-4D16-9D50-8D41EC5720CB}.Release|x86.ActiveCfg = Release|Any CPU
+		{EB2BB785-D188-4D16-9D50-8D41EC5720CB}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -205,5 +219,6 @@ Global
 		{52526601-1B41-4161-A114-316E2AFBA349} = {8C557F9A-1B98-4C21-A376-DA89C7C68871}
 		{B0D15B4D-C9CA-4E38-8E51-2C4E1EA79A84} = {77159B50-117D-4A7A-9E1D-41D17D4D2E20}
 		{3D522E92-C312-44B5-8369-E45C4025689A} = {5854FF58-B8C5-05C6-5BF2-ACE42193F22B}
+		{EB2BB785-D188-4D16-9D50-8D41EC5720CB} = {77159B50-117D-4A7A-9E1D-41D17D4D2E20}
 	EndGlobalSection
 EndGlobal

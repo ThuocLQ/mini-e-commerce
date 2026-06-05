@@ -26,7 +26,13 @@ internal static class OrderSummaryDocumentMapper
                 UnitPrice = item.UnitPrice
             }).ToList(),
             CreatedAtUtc = createdAtUtc ?? model.CreatedAtUtc,
-            LastUpdatedAtUtc = model.LastUpdatedAtUtc
+            LastUpdatedAtUtc = model.LastUpdatedAtUtc,
+            PaidAtUtc = model.PaidAtUtc,
+            CancelledAtUtc = model.CancelledAtUtc,
+            LastProjectedEventId = model.LastProjectedEventId?.ToString("D"),
+            LastProjectedEventType = model.LastProjectedEventType,
+            LastProjectedEventOccurredAtUtc = model.LastProjectedEventOccurredAtUtc,
+            LastProjectedAtUtc = model.LastProjectedAtUtc
         };
     }
 
@@ -50,7 +56,20 @@ internal static class OrderSummaryDocumentMapper
                 UnitPrice = item.UnitPrice
             }).ToList(),
             CreatedAtUtc = document.CreatedAtUtc,
-            LastUpdatedAtUtc = document.LastUpdatedAtUtc
+            LastUpdatedAtUtc = document.LastUpdatedAtUtc,
+            PaidAtUtc = document.PaidAtUtc,
+            CancelledAtUtc = document.CancelledAtUtc,
+            LastProjectedEventId = TryParseGuid(document.LastProjectedEventId),
+            LastProjectedEventType = document.LastProjectedEventType,
+            LastProjectedEventOccurredAtUtc = document.LastProjectedEventOccurredAtUtc,
+            LastProjectedAtUtc = document.LastProjectedAtUtc
         };
+    }
+
+    private static Guid? TryParseGuid(string? value)
+    {
+        return Guid.TryParse(value, out var parsedValue)
+            ? parsedValue
+            : null;
     }
 }

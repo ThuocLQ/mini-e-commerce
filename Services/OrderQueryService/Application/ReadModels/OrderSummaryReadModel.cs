@@ -13,6 +13,12 @@ public sealed class OrderSummaryReadModel
     public IReadOnlyList<OrderSummaryItemReadModel> Items { get; init; } = [];
     public DateTime CreatedAtUtc { get; init; }
     public DateTime LastUpdatedAtUtc { get; init; }
+    public DateTime? PaidAtUtc { get; init; }
+    public DateTime? CancelledAtUtc { get; init; }
+    public Guid? LastProjectedEventId { get; init; }
+    public string? LastProjectedEventType { get; init; }
+    public DateTime? LastProjectedEventOccurredAtUtc { get; init; }
+    public DateTime? LastProjectedAtUtc { get; init; }
 }
 
 public sealed class OrderSummaryItemReadModel

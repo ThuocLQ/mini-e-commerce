@@ -10,6 +10,7 @@
     <ProjectReference Include="..\Services\OrderingService\OrderingService.csproj" />
     <ProjectReference Include="..\Services\OrderQueryService\OrderQueryService.csproj" />
     <ProjectReference Include="..\Services\PaymentService\PaymentService.csproj" />
+    <ProjectReference Include="..\Workers\ProjectionWorker\ProjectionWorker.csproj" />
     <ProjectReference Include="..\MicroShop.ServiceDefaults\MicroShop.ServiceDefaults.csproj" IsAspireProjectResource="false" />
   </ItemGroup>
 
