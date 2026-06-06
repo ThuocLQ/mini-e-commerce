@@ -14,10 +14,23 @@ public static class OrderSummaryEndpoints
         group.MapGet("", async (
             IOrderSummaryReadRepository repository,
             int? limit,
+            ILoggerFactory loggerFactory,
             CancellationToken cancellationToken) =>
         {
+            var logger = loggerFactory.CreateLogger("OrderQueryService.API.Endpoints.OrderSummaries");
             var take = limit is > 0 and <= 100 ? limit.Value : 20;
+
+            logger.LogInformation(
+                "Order summaries requested. Service={Service}, Limit={Limit}.",
+                "OrderQueryService",
+                take);
+
             var summaries = await repository.GetLatestAsync(take, cancellationToken);
+
+            logger.LogInformation(
+                "Order summaries returned. Service={Service}, ResultCount={ResultCount}.",
+                "OrderQueryService",
+                summaries.Count);
 
             return Results.Ok(summaries);
         })
@@ -26,9 +39,25 @@ public static class OrderSummaryEndpoints
         group.MapGet("/{orderId:guid}", async (
             Guid orderId,
             IOrderSummaryReadRepository repository,
+            ILoggerFactory loggerFactory,
             CancellationToken cancellationToken) =>
         {
+            var logger = loggerFactory.CreateLogger("OrderQueryService.API.Endpoints.OrderSummaries");
+
+            logger.LogInformation(
+                "Order summary requested. Service={Service}, OrderId={OrderId}.",
+                "OrderQueryService",
+                orderId);
+
             var summary = await repository.GetByOrderIdAsync(orderId, cancellationToken);
+
+            if (summary is null)
+            {
+                logger.LogWarning(
+                    "Order summary not found. Service={Service}, OrderId={OrderId}.",
+                    "OrderQueryService",
+                    orderId);
+            }
 
             return summary is null
                 ? Results.NotFound(new { message = "Order summary not found." })

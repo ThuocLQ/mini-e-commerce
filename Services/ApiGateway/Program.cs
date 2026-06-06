@@ -11,6 +11,10 @@ builder.Services
 
 var app = builder.Build();
 app.MapDefaultEndpoints();//aspire service default endpoints
+if (!app.Environment.IsDevelopment())
+{
+    app.MapHealthChecks("/health");
+}
 
 app.MapGet("/", () => Results.Ok(new
 {

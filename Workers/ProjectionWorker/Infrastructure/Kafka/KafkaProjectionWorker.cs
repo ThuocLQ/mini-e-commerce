@@ -83,10 +83,12 @@ public sealed class KafkaProjectionWorker : BackgroundService
 
                 _logger.LogError(
                     exception,
-                    "Projection failed for topic {Topic}, partition {Partition}, offset {Offset}. Offset was not committed.",
+                    "Projection MongoDB apply failed. Service={Service}, Topic={Topic}, Partition={Partition}, Offset={Offset}, Key={Key}. Offset was not committed.",
+                    "ProjectionWorker",
                     consumeResult.Topic,
                     consumeResult.Partition.Value,
-                    consumeResult.Offset.Value);
+                    consumeResult.Offset.Value,
+                    consumeResult.Message.Key);
             }
         }
 
@@ -129,10 +131,16 @@ public sealed class KafkaProjectionWorker : BackgroundService
             await _projectionHandler.ApplyAsync(orderEvent, cancellationToken);
 
             _logger.LogInformation(
-                "Projected {EventType} for order {OrderId} from Kafka offset {TopicPartitionOffset}.",
+                "Projection event applied. Service={Service}, Topic={Topic}, Partition={Partition}, Offset={Offset}, Key={Key}, EventId={EventId}, EventType={EventType}, OrderId={OrderId}, CustomerId={CustomerId}.",
+                "ProjectionWorker",
+                consumeResult.Topic,
+                consumeResult.Partition.Value,
+                consumeResult.Offset.Value,
+                consumeResult.Message.Key,
+                orderEvent.EventId,
                 orderEvent.EventType,
                 orderEvent.OrderId,
-                consumeResult.TopicPartitionOffset);
+                orderEvent.CustomerId);
         }
         catch (JsonException exception)
         {
@@ -154,7 +162,8 @@ public sealed class KafkaProjectionWorker : BackgroundService
     {
         var expectedKey = orderEvent.OrderId.ToString("D");
 
-        if (!string.Equals(consumeResult.Message.Key, expectedKey, StringComparison.OrdinalIgnoreCase))
+        if (orderEvent.OrderId != Guid.Empty
+            && !string.Equals(consumeResult.Message.Key, expectedKey, StringComparison.OrdinalIgnoreCase))
         {
             throw new ArgumentException($"Kafka message key must match orderId '{expectedKey}'.");
         }
@@ -175,15 +184,36 @@ public sealed class KafkaProjectionWorker : BackgroundService
             Key = consumeResult.Message.Key,
             RawValue = consumeResult.Message.Value,
             Error = error,
-            OccurredAtUtc = orderEvent?.OccurredAtUtc == default ? null : orderEvent?.OccurredAtUtc
+            OccurredAtUtc = ToNullableUtc(orderEvent?.OccurredAtUtc)
         };
 
         await _failureStore.SaveAsync(failure, cancellationToken);
 
         _logger.LogWarning(
-            "Stored projection failure at {TopicPartitionOffset}: {Error}",
-            consumeResult.TopicPartitionOffset,
+            "Projection message stored as failure. Service={Service}, Topic={Topic}, Partition={Partition}, Offset={Offset}, Key={Key}, EventId={EventId}, EventType={EventType}, OrderId={OrderId}, Reason={Reason}.",
+            "ProjectionWorker",
+            consumeResult.Topic,
+            consumeResult.Partition.Value,
+            consumeResult.Offset.Value,
+            consumeResult.Message.Key,
+            ToNullableGuid(orderEvent?.EventId),
+            orderEvent?.EventType,
+            ToNullableGuid(orderEvent?.OrderId),
             error);
+    }
+
+    private static Guid? ToNullableGuid(Guid? value)
+    {
+        return value is null || value.Value == Guid.Empty
+            ? null
+            : value.Value;
+    }
+
+    private static DateTime? ToNullableUtc(DateTime? value)
+    {
+        return value is null || value.Value == default
+            ? null
+            : value.Value;
     }
 
     private static AutoOffsetReset ResolveAutoOffsetReset(string value)
