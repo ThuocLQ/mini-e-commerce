@@ -1,0 +1,72 @@
+# MicroShop Docs Map
+
+This page is the entrypoint for MicroShop documentation.
+
+Use it when you are new to the codebase and do not know which document to read first.
+
+## Start Here
+
+Read these in order:
+
+| Step | Document | Why read it |
+| --- | --- | --- |
+| 1 | [../README.md](../README.md) | Quick project overview, services, workers, infrastructure, and main routes |
+| 2 | [architecture-diagram.md](architecture-diagram.md) | Visual map of services, databases, brokers, and workers |
+| 3 | [communication-decisions.md](communication-decisions.md) | Explains why REST, gRPC, RabbitMQ, and Kafka are all used |
+| 4 | [api-surface-review.md](api-surface-review.md) | Lists current API routes and Swagger/OpenAPI status |
+| 5 | [demo-script-foundation.md](demo-script-foundation.md) | Script for running the foundation demo |
+
+## Read By Goal
+
+| Goal | Read |
+| --- | --- |
+| Understand the whole system | [../README.md](../README.md), [architecture-diagram.md](architecture-diagram.md) |
+| Understand service communication | [communication-decisions.md](communication-decisions.md), [adr/ADR-001-service-communication.md](adr/ADR-001-service-communication.md) |
+| Understand RabbitMQ vs Kafka | [communication-decisions.md](communication-decisions.md), [adr/ADR-002-rabbitmq-vs-kafka.md](adr/ADR-002-rabbitmq-vs-kafka.md) |
+| Understand order read model projection | [adr/ADR-003-order-read-model-projection.md](adr/ADR-003-order-read-model-projection.md), [mongodb-read-model-notes.md](mongodb-read-model-notes.md) |
+| Run a local demo | [demo-script-foundation.md](demo-script-foundation.md) |
+| Debug local services | [runbooks/microshop-local-debug-runbook.md](runbooks/microshop-local-debug-runbook.md), [operational-visibility.md](operational-visibility.md) |
+| Review API routes | [api-surface-review.md](api-surface-review.md) |
+| Review architecture decisions | [adr/README.md](adr/README.md) |
+| Continue the roadmap with ChatGPT/Codex | [chatgpt-handoff-microshop-learning-roadmap.md](chatgpt-handoff-microshop-learning-roadmap.md) |
+
+## Documentation Types
+
+| Type | Purpose | Files |
+| --- | --- | --- |
+| Overview | Fast onboarding | [../README.md](../README.md), [architecture-diagram.md](architecture-diagram.md) |
+| Decisions | Why the project is designed this way | [adr/README.md](adr/README.md), [communication-decisions.md](communication-decisions.md) |
+| Operations | How to run and debug locally | [demo-script-foundation.md](demo-script-foundation.md), [operational-visibility.md](operational-visibility.md), [runbooks/microshop-local-debug-runbook.md](runbooks/microshop-local-debug-runbook.md) |
+| API | What routes exist | [api-surface-review.md](api-surface-review.md) |
+| Notes | Topic-specific learning notes | [mongodb-read-model-notes.md](mongodb-read-model-notes.md), [aspire-decision.md](aspire-decision.md), [docker-compose-decision.md](docker-compose-decision.md), [config-secrets-decision.md](config-secrets-decision.md) |
+
+## File Guide
+
+| Document | Meaning |
+| --- | --- |
+| [architecture-diagram.md](architecture-diagram.md) | Current service and infrastructure diagram |
+| [communication-decisions.md](communication-decisions.md) | REST, gRPC, RabbitMQ, Kafka, and outbox usage |
+| [api-surface-review.md](api-surface-review.md) | Current API surface and OpenAPI/Swagger status |
+| [demo-script-foundation.md](demo-script-foundation.md) | Step-by-step demo for the foundation stage |
+| [operational-visibility.md](operational-visibility.md) | Health checks, logs, and local visibility notes |
+| [runbooks/microshop-local-debug-runbook.md](runbooks/microshop-local-debug-runbook.md) | Practical debug checklist |
+| [adr/README.md](adr/README.md) | ADR index |
+| [0001-clean-architecture-baseline.md](0001-clean-architecture-baseline.md) | Clean Architecture baseline decision |
+| [aspire-decision.md](aspire-decision.md) | Why Aspire is used locally |
+| [docker-compose-decision.md](docker-compose-decision.md) | Why Docker Compose is used locally |
+| [config-secrets-decision.md](config-secrets-decision.md) | Configuration and local secrets decision |
+| [mongodb-read-model-notes.md](mongodb-read-model-notes.md) | MongoDB read model notes |
+| [chatgpt-handoff-microshop-learning-roadmap.md](chatgpt-handoff-microshop-learning-roadmap.md) | Handoff and roadmap context for future AI-assisted work |
+
+## Suggested Reading Path For A New Developer
+
+```text
+README.md
+-> docs/README.md
+-> docs/architecture-diagram.md
+-> docs/communication-decisions.md
+-> docs/api-surface-review.md
+-> docs/demo-script-foundation.md
+```
+
+After that, read ADRs only when you need to understand why a decision was made.

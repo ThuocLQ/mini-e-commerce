@@ -1,0 +1,58 @@
+{
+  "info": {
+    "name": "MicroShop Foundation Review",
+    "description": "Lesson 29 documentation and foundation sanity checks.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "gateway_url",
+      "value": "http://localhost:5027"
+    },
+    {
+      "key": "order_query_url",
+      "value": "http://localhost:5088"
+    },
+    {
+      "key": "orderId",
+      "value": "11111111-1111-1111-1111-111111111111"
+    }
+  ],
+  "item": [
+    {
+      "name": "01 - Gateway health",
+      "request": {
+        "method": "GET",
+        "url": "{{gateway_url}}/health"
+      }
+    },
+    {
+      "name": "02 - OrderQuery health",
+      "request": {
+        "method": "GET",
+        "url": "{{order_query_url}}/health"
+      }
+    },
+    {
+      "name": "03 - Gateway order summaries",
+      "request": {
+        "method": "GET",
+        "url": "{{gateway_url}}/order-summaries?limit=20"
+      }
+    },
+    {
+      "name": "04 - Gateway order summary by id",
+      "request": {
+        "method": "GET",
+        "url": "{{gateway_url}}/order-summaries/{{orderId}}"
+      }
+    },
+    {
+      "name": "05 - OrderQuery order summary by id",
+      "request": {
+        "method": "GET",
+        "url": "{{order_query_url}}/order-summaries/{{orderId}}"
+      }
+    }
+  ]
+}
