@@ -58,18 +58,20 @@ Main principles:
 Latest completed lesson:
 
 ```text
-Buoi 27: Kafka MongoDB ProjectionWorker
-Tag: v27/kafka-mongodb-projection-worker
-Commit: a21f300
+Day 30: Foundation Demo Checkpoint
+Tag rule: day-NN-short-kebab-title
 ```
 
 Recent lesson mapping:
 
-- Lesson 23: OrderingService outbox basic + background publisher intro.
-- Lesson 24: RabbitMQ vs Kafka decision.
-- Lesson 25: Kafka core concepts demo.
-- Lesson 26: OrderQueryService + MongoDB read model foundation.
-- Lesson 27: Kafka -> ProjectionWorker -> MongoDB projection demo.
+- Day 23: OrderingService outbox basic + background publisher intro.
+- Day 24: RabbitMQ vs Kafka decision.
+- Day 25: Kafka core concepts demo.
+- Day 26: OrderQueryService + MongoDB read model foundation.
+- Day 27: Kafka -> ProjectionWorker -> MongoDB projection demo.
+- Day 28: Operational visibility, health, logs, runbook.
+- Day 29: README, architecture diagram, ADR, API surface review.
+- Day 30: Foundation demo checkpoint and Stage 2 backlog.
 
 ## Lesson 27 Final Shape
 
@@ -164,34 +166,34 @@ During implementation:
 
 For commits and tags:
 
-- Commit format currently follows:
+- Commit format follows:
 
 ```text
-Buoi NN: Short Lesson Title
-```
-
-Some older commits use Vietnamese accents:
-
-```text
-Buoi 27: Kafka MongoDB ProjectionWorker
-```
-
-Use whichever style is already dominant in the immediately previous lesson commits. The latest commit used:
-
-```text
-Buoi 27: Kafka MongoDB ProjectionWorker
-```
-
-- Tag format currently follows:
-
-```text
-vNN/short-kebab-title
+Day NN: Short Lesson Title
 ```
 
 Example:
 
 ```text
-v27/kafka-mongodb-projection-worker
+Day 30: Foundation Demo Checkpoint
+```
+
+- Day/checkpoint tag format follows kebab-case without slashes:
+
+```text
+day-NN-short-kebab-title
+```
+
+Example:
+
+```text
+day-30-foundation-demo-checkpoint
+```
+
+Use semantic version tags only for real product releases:
+
+```text
+v1.0.0
 ```
 
 ## Runtime Notes
@@ -207,11 +209,13 @@ Docker compose currently includes:
 - app services
 - `projectionworker`
 
-Lesson 27 runtime test:
+Current lite projection runtime test:
 
 ```powershell
-docker compose up -d --build zookeeper kafka mongodb orderqueryservice projectionworker api-gateway
+docker compose up -d --build zookeeper kafka mongodb orderqueryservice projectionworker
 ```
+
+Do not include `api-gateway` in true lite mode because it depends on many services in `docker-compose.yml`.
 
 Create topic:
 
@@ -237,12 +241,12 @@ Postman collection:
 postman/MicroShop.KafkaProjectionFlow.postman_collection.json
 ```
 
-## Suggested Next Lessons
+## Suggested Next Stage
 
-Possible lesson 28 direction:
+Stage 2 direction:
 
 ```text
-Logging, health checks, operational visibility, and runbook/debug checklist.
+Production Hardening
 ```
 
 Recommended production-hardening lessons after that:

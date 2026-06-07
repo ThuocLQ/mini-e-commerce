@@ -2,10 +2,10 @@
 
 MicroShop is a learning microservices backend built with .NET 10. The project is used to practice production-minded backend architecture while keeping the local setup understandable.
 
-Current focus/completed:
+Current completed:
 
 ```text
-Ngay 29: README + Architecture Diagram + ADR + API Surface Review
+Day 30: Foundation Demo + Checkpoint
 ```
 
 ## Architecture Goals
@@ -178,7 +178,7 @@ Kafka is currently used for event stream/projection learning. `OrderingService` 
 Lite projection demo:
 
 ```powershell
-docker compose up -d --build zookeeper kafka mongodb orderqueryservice projectionworker api-gateway
+docker compose up -d --build zookeeper kafka mongodb orderqueryservice projectionworker
 ```
 
 Full local system:
@@ -223,6 +223,8 @@ Payload:
 | `docs/adr/README.md` | ADR index and links |
 | `docs/api-surface-review.md` | API surface and OpenAPI/Swagger status |
 | `docs/demo-script-foundation.md` | Foundation demo script |
+| `docs/checkpoints/stage-1-foundation-checkpoint.md` | Stage 1 foundation checkpoint |
+| `docs/backlog/stage-2-production-hardening-backlog.md` | Stage 2 hardening backlog |
 
 ## Current Limits
 
@@ -243,5 +245,5 @@ No full CI/CD/deployment strategy yet.
 ## Next
 
 ```text
-Ngay 30: Foundation Demo + Checkpoint
+Stage 2: Production Hardening
 ```

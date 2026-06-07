@@ -15,16 +15,20 @@ Read these in order:
 | 3 | [communication-decisions.md](communication-decisions.md) | Explains why REST, gRPC, RabbitMQ, and Kafka are all used |
 | 4 | [api-surface-review.md](api-surface-review.md) | Lists current API routes and Swagger/OpenAPI status |
 | 5 | [demo-script-foundation.md](demo-script-foundation.md) | Script for running the foundation demo |
+| 6 | [checkpoints/stage-1-foundation-checkpoint.md](checkpoints/stage-1-foundation-checkpoint.md) | Stage 1 checkpoint status |
 
 ## Read By Goal
 
 | Goal | Read |
 | --- | --- |
 | Understand the whole system | [../README.md](../README.md), [architecture-diagram.md](architecture-diagram.md) |
+| Write or review future lessons | [lesson-authoring-standard.md](lesson-authoring-standard.md) |
 | Understand service communication | [communication-decisions.md](communication-decisions.md), [adr/ADR-001-service-communication.md](adr/ADR-001-service-communication.md) |
 | Understand RabbitMQ vs Kafka | [communication-decisions.md](communication-decisions.md), [adr/ADR-002-rabbitmq-vs-kafka.md](adr/ADR-002-rabbitmq-vs-kafka.md) |
 | Understand order read model projection | [adr/ADR-003-order-read-model-projection.md](adr/ADR-003-order-read-model-projection.md), [mongodb-read-model-notes.md](mongodb-read-model-notes.md) |
 | Run a local demo | [demo-script-foundation.md](demo-script-foundation.md) |
+| Review Stage 1 checkpoint | [checkpoints/stage-1-foundation-checkpoint.md](checkpoints/stage-1-foundation-checkpoint.md) |
+| Plan production hardening | [backlog/stage-2-production-hardening-backlog.md](backlog/stage-2-production-hardening-backlog.md) |
 | Debug local services | [runbooks/microshop-local-debug-runbook.md](runbooks/microshop-local-debug-runbook.md), [operational-visibility.md](operational-visibility.md) |
 | Review API routes | [api-surface-review.md](api-surface-review.md) |
 | Review architecture decisions | [adr/README.md](adr/README.md) |
@@ -38,7 +42,10 @@ Read these in order:
 | Decisions | Why the project is designed this way | [adr/README.md](adr/README.md), [communication-decisions.md](communication-decisions.md) |
 | Operations | How to run and debug locally | [demo-script-foundation.md](demo-script-foundation.md), [operational-visibility.md](operational-visibility.md), [runbooks/microshop-local-debug-runbook.md](runbooks/microshop-local-debug-runbook.md) |
 | API | What routes exist | [api-surface-review.md](api-surface-review.md) |
+| Checkpoints | Stage checkpoint reports | [checkpoints/stage-1-foundation-checkpoint.md](checkpoints/stage-1-foundation-checkpoint.md) |
+| Backlog | Production hardening roadmap | [backlog/stage-2-production-hardening-backlog.md](backlog/stage-2-production-hardening-backlog.md) |
 | Notes | Topic-specific learning notes | [mongodb-read-model-notes.md](mongodb-read-model-notes.md), [aspire-decision.md](aspire-decision.md), [docker-compose-decision.md](docker-compose-decision.md), [config-secrets-decision.md](config-secrets-decision.md) |
+| Authoring | Rules for future lessons and plans | [lesson-authoring-standard.md](lesson-authoring-standard.md) |
 
 ## File Guide
 
@@ -48,6 +55,9 @@ Read these in order:
 | [communication-decisions.md](communication-decisions.md) | REST, gRPC, RabbitMQ, Kafka, and outbox usage |
 | [api-surface-review.md](api-surface-review.md) | Current API surface and OpenAPI/Swagger status |
 | [demo-script-foundation.md](demo-script-foundation.md) | Step-by-step demo for the foundation stage |
+| [checkpoints/stage-1-foundation-checkpoint.md](checkpoints/stage-1-foundation-checkpoint.md) | Stage 1 checkpoint report |
+| [backlog/stage-2-production-hardening-backlog.md](backlog/stage-2-production-hardening-backlog.md) | Stage 2 production hardening backlog |
+| [lesson-authoring-standard.md](lesson-authoring-standard.md) | Mandatory context/rules for future ChatGPT/Codex lessons |
 | [operational-visibility.md](operational-visibility.md) | Health checks, logs, and local visibility notes |
 | [runbooks/microshop-local-debug-runbook.md](runbooks/microshop-local-debug-runbook.md) | Practical debug checklist |
 | [adr/README.md](adr/README.md) | ADR index |
