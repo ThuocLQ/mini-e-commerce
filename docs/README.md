@@ -16,6 +16,7 @@ Read these in order:
 | 4 | [api-surface-review.md](api-surface-review.md) | Lists current API routes and Swagger/OpenAPI status |
 | 5 | [demo-script-foundation.md](demo-script-foundation.md) | Script for running the foundation demo |
 | 6 | [checkpoints/stage-1-foundation-checkpoint.md](checkpoints/stage-1-foundation-checkpoint.md) | Stage 1 checkpoint status |
+| 7 | [architecture/clean-architecture-review-day-31.md](architecture/clean-architecture-review-day-31.md) | Stage 2 architecture baseline review |
 
 ## Read By Goal
 
@@ -29,6 +30,7 @@ Read these in order:
 | Run a local demo | [demo-script-foundation.md](demo-script-foundation.md) |
 | Review Stage 1 checkpoint | [checkpoints/stage-1-foundation-checkpoint.md](checkpoints/stage-1-foundation-checkpoint.md) |
 | Plan production hardening | [backlog/stage-2-production-hardening-backlog.md](backlog/stage-2-production-hardening-backlog.md) |
+| Review Clean Architecture boundaries | [architecture/clean-architecture-review-day-31.md](architecture/clean-architecture-review-day-31.md), [architecture/service-boundary-review.md](architecture/service-boundary-review.md) |
 | Debug local services | [runbooks/microshop-local-debug-runbook.md](runbooks/microshop-local-debug-runbook.md), [operational-visibility.md](operational-visibility.md) |
 | Review API routes | [api-surface-review.md](api-surface-review.md) |
 | Review architecture decisions | [adr/README.md](adr/README.md) |
@@ -40,6 +42,7 @@ Read these in order:
 | --- | --- | --- |
 | Overview | Fast onboarding | [../README.md](../README.md), [architecture-diagram.md](architecture-diagram.md) |
 | Decisions | Why the project is designed this way | [adr/README.md](adr/README.md), [communication-decisions.md](communication-decisions.md) |
+| Architecture | Service boundaries and layer reviews | [architecture/clean-architecture-review-day-31.md](architecture/clean-architecture-review-day-31.md), [architecture/service-boundary-review.md](architecture/service-boundary-review.md) |
 | Operations | How to run and debug locally | [demo-script-foundation.md](demo-script-foundation.md), [operational-visibility.md](operational-visibility.md), [runbooks/microshop-local-debug-runbook.md](runbooks/microshop-local-debug-runbook.md) |
 | API | What routes exist | [api-surface-review.md](api-surface-review.md) |
 | Checkpoints | Stage checkpoint reports | [checkpoints/stage-1-foundation-checkpoint.md](checkpoints/stage-1-foundation-checkpoint.md) |
@@ -52,11 +55,14 @@ Read these in order:
 | Document | Meaning |
 | --- | --- |
 | [architecture-diagram.md](architecture-diagram.md) | Current service and infrastructure diagram |
+| [architecture/clean-architecture-review-day-31.md](architecture/clean-architecture-review-day-31.md) | Day 31 Clean Architecture and Hexagonal review |
+| [architecture/service-boundary-review.md](architecture/service-boundary-review.md) | Service ownership and boundary map |
 | [communication-decisions.md](communication-decisions.md) | REST, gRPC, RabbitMQ, Kafka, and outbox usage |
 | [api-surface-review.md](api-surface-review.md) | Current API surface and OpenAPI/Swagger status |
 | [demo-script-foundation.md](demo-script-foundation.md) | Step-by-step demo for the foundation stage |
 | [checkpoints/stage-1-foundation-checkpoint.md](checkpoints/stage-1-foundation-checkpoint.md) | Stage 1 checkpoint report |
 | [backlog/stage-2-production-hardening-backlog.md](backlog/stage-2-production-hardening-backlog.md) | Stage 2 production hardening backlog |
+| [backlog/day-31-architecture-hardening-backlog.md](backlog/day-31-architecture-hardening-backlog.md) | Day 31 architecture hardening backlog |
 | [lesson-authoring-standard.md](lesson-authoring-standard.md) | Mandatory context/rules for future ChatGPT/Codex lessons |
 | [operational-visibility.md](operational-visibility.md) | Health checks, logs, and local visibility notes |
 | [runbooks/microshop-local-debug-runbook.md](runbooks/microshop-local-debug-runbook.md) | Practical debug checklist |
