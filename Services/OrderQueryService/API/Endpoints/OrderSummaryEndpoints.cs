@@ -1,4 +1,6 @@
+using FluentValidation;
 using OrderQueryService.API.Contracts;
+using OrderQueryService.API;
 using OrderQueryService.Application.Abstractions;
 using OrderQueryService.Application.ReadModels;
 
@@ -40,6 +42,7 @@ public static class OrderSummaryEndpoints
             Guid orderId,
             IOrderSummaryReadRepository repository,
             ILoggerFactory loggerFactory,
+            HttpContext httpContext,
             CancellationToken cancellationToken) =>
         {
             var logger = loggerFactory.CreateLogger("OrderQueryService.API.Endpoints.OrderSummaries");
@@ -60,7 +63,7 @@ public static class OrderSummaryEndpoints
             }
 
             return summary is null
-                ? Results.NotFound(new { message = "Order summary not found." })
+                ? ApiProblemResults.NotFound(httpContext, "Order summary was not found.")
                 : Results.Ok(summary);
         })
         .WithName("GetOrderSummaryByOrderId");
@@ -72,10 +75,23 @@ public static class OrderSummaryEndpoints
     {
         app.MapPost("/debug/order-summaries", async (
             DebugUpsertOrderSummaryRequest request,
+            IValidator<DebugUpsertOrderSummaryRequest> validator,
             IOrderSummaryReadRepository repository,
+            HttpContext httpContext,
             CancellationToken cancellationToken) =>
         {
-            Validate(request);
+            var validationResult = await validator.ValidateAsync(request, cancellationToken);
+
+            if (!validationResult.IsValid)
+            {
+                var errors = validationResult.Errors
+                    .GroupBy(error => error.PropertyName)
+                    .ToDictionary(
+                        group => group.Key,
+                        group => group.Select(error => error.ErrorMessage).ToArray());
+
+                return ApiProblemResults.ValidationProblem(httpContext, errors);
+            }
 
             var now = DateTime.UtcNow;
             var items = request.Items ?? [];
@@ -110,61 +126,5 @@ public static class OrderSummaryEndpoints
         .WithName("DebugUpsertOrderSummary");
 
         return app;
-    }
-
-    private static void Validate(DebugUpsertOrderSummaryRequest request)
-    {
-        if (request.OrderId == Guid.Empty)
-        {
-            throw new ArgumentException("OrderId is required.");
-        }
-
-        if (request.CustomerId == Guid.Empty)
-        {
-            throw new ArgumentException("CustomerId is required.");
-        }
-
-        if (string.IsNullOrWhiteSpace(request.CustomerName))
-        {
-            throw new ArgumentException("CustomerName is required.");
-        }
-
-        if (string.IsNullOrWhiteSpace(request.Status))
-        {
-            throw new ArgumentException("Status is required.");
-        }
-
-        if (request.TotalAmount < 0)
-        {
-            throw new ArgumentException("TotalAmount cannot be negative.");
-        }
-
-        if (string.IsNullOrWhiteSpace(request.Currency))
-        {
-            throw new ArgumentException("Currency is required.");
-        }
-
-        foreach (var item in request.Items ?? [])
-        {
-            if (item.ProductId == Guid.Empty)
-            {
-                throw new ArgumentException("ProductId is required.");
-            }
-
-            if (string.IsNullOrWhiteSpace(item.ProductName))
-            {
-                throw new ArgumentException("ProductName is required.");
-            }
-
-            if (item.Quantity <= 0)
-            {
-                throw new ArgumentException("Quantity must be greater than 0.");
-            }
-
-            if (item.UnitPrice < 0)
-            {
-                throw new ArgumentException("UnitPrice cannot be negative.");
-            }
-        }
     }
 }

@@ -1,6 +1,8 @@
+using FluentValidation;
 using Microsoft.AspNetCore.Diagnostics;
 using MongoDB.Driver;
 using OrderQueryService.API.Endpoints;
+using OrderQueryService.API.Validation;
 
 namespace OrderQueryService.API;
 
@@ -10,6 +12,7 @@ public static class DependencyInjection
     {
         services.AddProblemDetails();
         services.AddEndpointsApiExplorer();
+        services.AddValidatorsFromAssemblyContaining<DebugUpsertOrderSummaryRequestValidator>();
 
         return services;
     }
@@ -36,19 +39,21 @@ public static class DependencyInjection
 
                 if (exception is ArgumentException or InvalidOperationException)
                 {
-                    await Results.BadRequest(new { error = exception.Message }).ExecuteAsync(context);
+                    await ApiProblemResults.BadRequest(context, exception.Message).ExecuteAsync(context);
                     return;
                 }
 
                 if (exception is MongoException)
                 {
-                    await Results.Json(
-                        new { error = "MongoDB read model is unavailable." },
-                        statusCode: StatusCodes.Status503ServiceUnavailable).ExecuteAsync(context);
+                    await ApiProblemResults.ServiceUnavailable(
+                        context,
+                        "MongoDB read model is unavailable.").ExecuteAsync(context);
                     return;
                 }
 
-                await Results.Problem().ExecuteAsync(context);
+                await ApiProblemResults.InternalServerError(
+                    context,
+                    "An unexpected error occurred while processing the request.").ExecuteAsync(context);
             });
         });
 
