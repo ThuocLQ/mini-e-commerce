@@ -15,7 +15,11 @@ public sealed class GetProductsByPriceHandler : IRequestHandler<GetProductsByPri
     
     public async Task<List<ProductDto>> Handle(GetProductsByPriceQuery request, CancellationToken cancellationToken)
     {
-        var products = await _productRepository.GetByPriceRangeAsync(request.Min, request.Max, cancellationToken);
+        var criteria = new ProductQueryCriteria(
+            MinPrice: request.Min,
+            MaxPrice: request.Max);
+
+        var products = await _productRepository.SearchAsync(criteria, cancellationToken);
 
         return products.Select(ProductMapper.ToDto).ToList();
     }

@@ -17,6 +17,9 @@ Read these in order:
 | 5 | [demo-script-foundation.md](demo-script-foundation.md) | Script for running the foundation demo |
 | 6 | [checkpoints/stage-1-foundation-checkpoint.md](checkpoints/stage-1-foundation-checkpoint.md) | Stage 1 checkpoint status |
 | 7 | [architecture/clean-architecture-review-day-31.md](architecture/clean-architecture-review-day-31.md) | Stage 2 architecture baseline review |
+| 8 | [api/api-versioning-policy.md](api/api-versioning-policy.md) | API compatibility and versioning policy |
+| 9 | [api/api-error-handling-standard.md](api/api-error-handling-standard.md) | Standard API error response direction |
+| 10 | [database/migration-policy.md](database/migration-policy.md) | Database migration and schema evolution policy |
 
 ## Read By Goal
 
@@ -32,7 +35,9 @@ Read these in order:
 | Plan production hardening | [backlog/stage-2-production-hardening-backlog.md](backlog/stage-2-production-hardening-backlog.md) |
 | Review Clean Architecture boundaries | [architecture/clean-architecture-review-day-31.md](architecture/clean-architecture-review-day-31.md), [architecture/service-boundary-review.md](architecture/service-boundary-review.md) |
 | Debug local services | [runbooks/microshop-local-debug-runbook.md](runbooks/microshop-local-debug-runbook.md), [operational-visibility.md](operational-visibility.md) |
-| Review API routes | [api-surface-review.md](api-surface-review.md) |
+| Review API routes | [api-surface-review.md](api-surface-review.md), [api/api-versioning-policy.md](api/api-versioning-policy.md), [api/api-error-handling-standard.md](api/api-error-handling-standard.md), [api/validation-and-mapping-standard.md](api/validation-and-mapping-standard.md) |
+| Review database migration policy | [database/migration-policy.md](database/migration-policy.md), [database/postgresql-schema-evolution-review-day-33.md](database/postgresql-schema-evolution-review-day-33.md) |
+| Review query patterns | [patterns/specification-pattern.md](patterns/specification-pattern.md), [patterns/day-35-specification-review.md](patterns/day-35-specification-review.md) |
 | Review architecture decisions | [adr/README.md](adr/README.md) |
 | Continue the roadmap with ChatGPT/Codex | [chatgpt-handoff-microshop-learning-roadmap.md](chatgpt-handoff-microshop-learning-roadmap.md) |
 
@@ -45,6 +50,9 @@ Read these in order:
 | Architecture | Service boundaries and layer reviews | [architecture/clean-architecture-review-day-31.md](architecture/clean-architecture-review-day-31.md), [architecture/service-boundary-review.md](architecture/service-boundary-review.md) |
 | Operations | How to run and debug locally | [demo-script-foundation.md](demo-script-foundation.md), [operational-visibility.md](operational-visibility.md), [runbooks/microshop-local-debug-runbook.md](runbooks/microshop-local-debug-runbook.md) |
 | API | What routes exist | [api-surface-review.md](api-surface-review.md) |
+| API Standards | API compatibility, errors, validation, and mapping | [api/api-versioning-policy.md](api/api-versioning-policy.md), [api/api-error-handling-standard.md](api/api-error-handling-standard.md), [api/validation-and-mapping-standard.md](api/validation-and-mapping-standard.md) |
+| Database | Database ownership and migration policy | [database/migration-policy.md](database/migration-policy.md), [database/postgresql-schema-evolution-review-day-33.md](database/postgresql-schema-evolution-review-day-33.md) |
+| Patterns | Query and design pattern notes | [patterns/specification-pattern.md](patterns/specification-pattern.md), [patterns/day-35-specification-review.md](patterns/day-35-specification-review.md) |
 | Checkpoints | Stage checkpoint reports | [checkpoints/stage-1-foundation-checkpoint.md](checkpoints/stage-1-foundation-checkpoint.md) |
 | Backlog | Production hardening roadmap | [backlog/stage-2-production-hardening-backlog.md](backlog/stage-2-production-hardening-backlog.md) |
 | Notes | Topic-specific learning notes | [mongodb-read-model-notes.md](mongodb-read-model-notes.md), [aspire-decision.md](aspire-decision.md), [docker-compose-decision.md](docker-compose-decision.md), [config-secrets-decision.md](config-secrets-decision.md) |
@@ -59,10 +67,21 @@ Read these in order:
 | [architecture/service-boundary-review.md](architecture/service-boundary-review.md) | Service ownership and boundary map |
 | [communication-decisions.md](communication-decisions.md) | REST, gRPC, RabbitMQ, Kafka, and outbox usage |
 | [api-surface-review.md](api-surface-review.md) | Current API surface and OpenAPI/Swagger status |
+| [api/api-versioning-policy.md](api/api-versioning-policy.md) | Day 32 API versioning and compatibility policy |
+| [api/api-error-handling-standard.md](api/api-error-handling-standard.md) | Day 32 ProblemDetails-style error standard |
+| [api/day-32-api-hardening-notes.md](api/day-32-api-hardening-notes.md) | Day 32 OrderQueryService API hardening notes |
+| [api/validation-and-mapping-standard.md](api/validation-and-mapping-standard.md) | Day 34 validation and mapping direction |
+| [api/day-34-validation-mapping-notes.md](api/day-34-validation-mapping-notes.md) | Day 34 OrderQueryService validation slice notes |
+| [database/migration-policy.md](database/migration-policy.md) | Day 33 schema migration policy |
+| [database/postgresql-schema-evolution-review-day-33.md](database/postgresql-schema-evolution-review-day-33.md) | Day 33 PostgreSQL schema evolution review |
+| [patterns/specification-pattern.md](patterns/specification-pattern.md) | Day 35 Specification Lite / query criteria pattern |
+| [patterns/day-35-specification-review.md](patterns/day-35-specification-review.md) | Day 35 CatalogService query criteria review |
 | [demo-script-foundation.md](demo-script-foundation.md) | Step-by-step demo for the foundation stage |
 | [checkpoints/stage-1-foundation-checkpoint.md](checkpoints/stage-1-foundation-checkpoint.md) | Stage 1 checkpoint report |
 | [backlog/stage-2-production-hardening-backlog.md](backlog/stage-2-production-hardening-backlog.md) | Stage 2 production hardening backlog |
 | [backlog/day-31-architecture-hardening-backlog.md](backlog/day-31-architecture-hardening-backlog.md) | Day 31 architecture hardening backlog |
+| [backlog/day-33-database-hardening-backlog.md](backlog/day-33-database-hardening-backlog.md) | Day 33 database hardening backlog |
+| [backlog/day-35-query-hardening-backlog.md](backlog/day-35-query-hardening-backlog.md) | Day 35 query hardening backlog |
 | [lesson-authoring-standard.md](lesson-authoring-standard.md) | Mandatory context/rules for future ChatGPT/Codex lessons |
 | [operational-visibility.md](operational-visibility.md) | Health checks, logs, and local visibility notes |
 | [runbooks/microshop-local-debug-runbook.md](runbooks/microshop-local-debug-runbook.md) | Practical debug checklist |

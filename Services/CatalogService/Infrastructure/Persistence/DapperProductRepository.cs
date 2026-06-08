@@ -1,4 +1,5 @@
 using CatalogService.Application.Abstractions;
+using CatalogService.Application.Products;
 using Dapper;
 using System.Data;
 using CatalogService.Domain.Products;
@@ -94,17 +95,52 @@ public sealed class DapperProductRepository : IProductRepository
 
     public async Task<List<Product>> SearchAsync(string? keyword, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(keyword))
-            return (await GetAllAsync(cancellationToken)).ToList();
+        return await SearchAsync(
+            new ProductQueryCriteria(SearchTerm: keyword),
+            cancellationToken);
+    }
 
+    public async Task<List<Product>> SearchAsync(ProductQueryCriteria criteria, CancellationToken cancellationToken = default)
+    {
         using var connection = CreateConnection();
+        var parameters = new DynamicParameters();
+        var whereClauses = new List<string>();
 
-        var rows = await connection.QueryAsync<ProductRow>(new CommandDefinition("""
+        if (!string.IsNullOrWhiteSpace(criteria.SearchTerm))
+        {
+            whereClauses.Add("LOWER(Name) LIKE LOWER(@Keyword)");
+            parameters.Add("Keyword", $"%{criteria.SearchTerm}%");
+        }
+
+        if (criteria.MinPrice.HasValue)
+        {
+            whereClauses.Add("Price >= @MinPrice");
+            parameters.Add("MinPrice", criteria.MinPrice.Value);
+        }
+
+        if (criteria.MaxPrice.HasValue)
+        {
+            whereClauses.Add("Price <= @MaxPrice");
+            parameters.Add("MaxPrice", criteria.MaxPrice.Value);
+        }
+
+        var whereSql = whereClauses.Count == 0
+            ? string.Empty
+            : $"WHERE {string.Join(" AND ", whereClauses)}";
+
+        var orderBySql = criteria.MinPrice.HasValue || criteria.MaxPrice.HasValue
+            ? "ORDER BY Price"
+            : "ORDER BY Name";
+
+        var sql = $"""
             SELECT Id, Name, Description, Price
             FROM Products
-            WHERE LOWER(Name) LIKE LOWER(@Keyword)
-            ORDER BY Name;
-            """, new { Keyword = $"%{keyword}%" }, cancellationToken: cancellationToken));
+            {whereSql}
+            {orderBySql};
+            """;
+
+        var rows = await connection.QueryAsync<ProductRow>(
+            new CommandDefinition(sql, parameters, cancellationToken: cancellationToken));
 
         return rows.Select(ToDomain).ToList();
     }
@@ -120,16 +156,9 @@ public sealed class DapperProductRepository : IProductRepository
 
     public async Task<List<Product>> GetByPriceRangeAsync(decimal min, decimal max, CancellationToken cancellationToken = default)
     {
-        using var connection = CreateConnection();
-
-        var rows = await connection.QueryAsync<ProductRow>(new CommandDefinition("""
-            SELECT Id, Name, Description, Price
-            FROM Products
-            WHERE Price BETWEEN @Min AND @Max
-            ORDER BY Price;
-            """, new { Min = min, Max = max }, cancellationToken: cancellationToken));
-
-        return rows.Select(ToDomain).ToList();
+        return await SearchAsync(
+            new ProductQueryCriteria(MinPrice: min, MaxPrice: max),
+            cancellationToken);
     }
 
     private IDbConnection CreateConnection()

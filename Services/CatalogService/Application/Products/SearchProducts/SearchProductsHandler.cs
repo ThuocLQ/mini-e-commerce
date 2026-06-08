@@ -15,7 +15,8 @@ public sealed class SearchProductsHandler : IRequestHandler<SearchProductsQuery,
 
     public async Task<List<ProductDto>> Handle(SearchProductsQuery request, CancellationToken cancellationToken)
     {
-        var products = await _productRepository.SearchAsync(request.Keyword, cancellationToken);
+        var criteria = new ProductQueryCriteria(SearchTerm: request.Keyword);
+        var products = await _productRepository.SearchAsync(criteria, cancellationToken);
 
         return products.Select(ProductMapper.ToDto).ToList();
     }

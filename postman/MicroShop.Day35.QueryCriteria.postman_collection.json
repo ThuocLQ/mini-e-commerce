@@ -1,0 +1,60 @@
+{
+  "info": {
+    "name": "MicroShop Day 35 Query Criteria",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Catalog products - direct",
+      "request": {
+        "method": "GET",
+        "url": "{{catalog_url}}/products"
+      }
+    },
+    {
+      "name": "Catalog search - direct",
+      "request": {
+        "method": "GET",
+        "url": "{{catalog_url}}/products/search?keyword=phone"
+      }
+    },
+    {
+      "name": "Catalog price range - direct",
+      "request": {
+        "method": "GET",
+        "url": "{{catalog_url}}/products/price-range?minPrice=0&maxPrice=1000"
+      }
+    },
+    {
+      "name": "Catalog products - gateway",
+      "request": {
+        "method": "GET",
+        "url": "{{gateway_url}}/catalog/products"
+      }
+    },
+    {
+      "name": "Catalog search - gateway",
+      "request": {
+        "method": "GET",
+        "url": "{{gateway_url}}/catalog/products/search?keyword=phone"
+      }
+    },
+    {
+      "name": "Catalog price range - gateway",
+      "request": {
+        "method": "GET",
+        "url": "{{gateway_url}}/catalog/products/price-range?minPrice=0&maxPrice=1000"
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "catalog_url",
+      "value": "https://localhost:7002"
+    },
+    {
+      "key": "gateway_url",
+      "value": "https://localhost:7000"
+    }
+  ]
+}
