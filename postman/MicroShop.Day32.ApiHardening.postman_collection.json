@@ -1,0 +1,50 @@
+{
+  "info": {
+    "name": "MicroShop Day 32 API Hardening",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Order summaries - list",
+      "request": {
+        "method": "GET",
+        "url": "{{order_query_url}}/order-summaries"
+      }
+    },
+    {
+      "name": "Order summary - missing id returns ProblemDetails-style 404",
+      "request": {
+        "method": "GET",
+        "url": "{{order_query_url}}/order-summaries/{{missing_order_id}}"
+      }
+    },
+    {
+      "name": "Order summary - invalid guid route constraint",
+      "request": {
+        "method": "GET",
+        "url": "{{order_query_url}}/order-summaries/not-a-guid"
+      }
+    },
+    {
+      "name": "Gateway - missing order summary preserves downstream error",
+      "request": {
+        "method": "GET",
+        "url": "{{gateway_url}}/order-summaries/{{missing_order_id}}"
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "order_query_url",
+      "value": "https://localhost:7008"
+    },
+    {
+      "key": "gateway_url",
+      "value": "https://localhost:7000"
+    },
+    {
+      "key": "missing_order_id",
+      "value": "99999999-9999-9999-9999-999999999999"
+    }
+  ]
+}
