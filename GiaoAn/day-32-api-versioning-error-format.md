@@ -1,21 +1,8 @@
----
-day: 32
-title: "API Versioning + Backward Compatibility + Standard Error Format"
-duration: "90-120 minutes"
-phase: "Stage 2 - Production Hardening"
-project: "MicroShop"
-testing: "Postman-first + API behavior review"
-type: "lesson"
-repo_aware: true
-source_of_truth: true
-encoding_note: "ASCII-safe Markdown to avoid mojibake in Notion/Rider/GitHub"
----
-
 # Day 32: API Versioning + Backward Compatibility + Standard Error Format
 
-## 0. Current position
+## 0. Vị trí hiện tại
 
-You completed:
+Bạn đã hoàn thành:
 
 ```text
 Day 31: Clean Architecture + Hexagonal Review
@@ -33,13 +20,13 @@ ProblemDetails-style responses
 Postman negative tests
 ```
 
-This lesson should use findings from Day 31, but should not refactor all services.
+Bài này nen dung cac finding tu Day 31, nhung khong refactor toan bo service.
 
 ---
 
-## 1. Current repo context
+## 1. Bối cảnh repo hiện tại
 
-Current repo truth:
+Sự thật hiện tại của repo:
 
 ```text
 Services:
@@ -62,7 +49,7 @@ Shared:
 - MicroShop.ServiceDefaults
 ```
 
-Important routes:
+Các route quan trọng:
 
 ```text
 GET /order-summaries
@@ -111,7 +98,7 @@ GET /health
 GET /alive
 ```
 
-Never use:
+Không dùng:
 
 ```text
 /orders/read-model
@@ -137,9 +124,9 @@ If only AddEndpointsApiExplorer exists, say API surface is documented manually.
 
 ---
 
-## 2. Goal
+## 2. Mục tiêu
 
-By the end:
+Sau khi hoàn thành:
 
 ```text
 [ ] API versioning strategy is documented.
@@ -152,7 +139,7 @@ By the end:
 [ ] Postman negative tests exist.
 ```
 
-Main outputs:
+Output chính:
 
 ```text
 docs/api/api-versioning-policy.md
@@ -161,7 +148,7 @@ docs/api/day-32-api-hardening-notes.md
 postman/MicroShop.Day32.ApiHardening.postman_collection.json
 ```
 
-Optional code outputs:
+Output code tùy chọn:
 
 ```text
 ProblemDetails-style responses in OrderQueryService
@@ -170,9 +157,9 @@ Local helper inside OrderQueryService if useful
 
 ---
 
-## 3. Scope guard
+## 3. Giới hạn phạm vi
 
-Do:
+Nên làm:
 
 ```text
 [ ] Document API versioning policy.
@@ -182,7 +169,7 @@ Do:
 [ ] Test gateway only if gateway is running.
 ```
 
-Do not:
+Không làm:
 
 ```text
 [ ] Do not version every endpoint today.
@@ -193,14 +180,14 @@ Do not:
 [ ] Do not claim all APIs are standardized.
 ```
 
-What this proves:
+Điều phần này chứng minh:
 
 ```text
 MicroShop has a direction for stable API evolution.
 ProblemDetails-style errors can be introduced safely in one slice.
 ```
 
-What this does not prove:
+Điều phần này chưa chứng minh:
 
 ```text
 All APIs are versioned.
@@ -210,7 +197,7 @@ OpenAPI is production-ready.
 
 ---
 
-## 4. Pre-check
+## 4. Kiểm tra trước khi làm
 
 Run:
 
@@ -245,13 +232,13 @@ Get-ChildItem . -Recurse -Filter *.cs |
 
 ## 5. API versioning policy
 
-Create:
+Tạo:
 
 ```text
 docs/api/api-versioning-policy.md
 ```
 
-Suggested content:
+Nội dung gợi ý:
 
 ````md
 # MicroShop API Versioning Policy
@@ -314,7 +301,7 @@ Day 32 does not require adding an API versioning package yet.
 
 Day 32 documents policy and focuses on standard errors first.
 
-## Future Work
+## Việc làm sau
 
 ```text
 Add API versioning package or route groups.
@@ -326,9 +313,9 @@ Add OpenAPI version docs if Swagger/OpenAPI is enabled later.
 
 ---
 
-## 6. Standard error format
+## 6. Chuẩn định dạng lỗi
 
-Create:
+Tạo:
 
 ```text
 docs/api/api-error-handling-standard.md
@@ -400,7 +387,7 @@ Gateway-level normalization is future work.
 
 ---
 
-## 7. Implementation target
+## 7. Mục tiêu trien khai
 
 Target only OrderQueryService first:
 
@@ -429,7 +416,7 @@ Do not implement gateway-level error normalization today.
 
 ---
 
-## 8. Minimal local helper option
+## 8. Tùy chọn helper local tối thiểu
 
 If useful, add a local helper inside OrderQueryService.
 
@@ -470,7 +457,7 @@ internal static class ApiProblemResults
 }
 ```
 
-Rules:
+Quy tắc:
 
 ```text
 Keep it local to OrderQueryService on Day 32.
@@ -481,9 +468,9 @@ If traceId is required in a specific shape, document whether custom ProblemDetai
 
 ---
 
-## 9. Runtime tests
+## 9. Test runtime
 
-Lite mode:
+Chế độ lite:
 
 ```powershell
 docker compose up -d --build zookeeper kafka mongodb orderqueryservice projectionworker
@@ -497,7 +484,7 @@ GET {{order_query_url}}/order-summaries/99999999-9999-9999-9999-999999999999
 GET {{order_query_url}}/order-summaries/not-a-guid
 ```
 
-Expected:
+Kỳ vọng:
 
 ```text
 Missing GUID order -> 404 ProblemDetails-style if implemented.
@@ -505,7 +492,7 @@ not-a-guid -> likely 404 due to route constraint.
 Verify actual response body. Results.Problem may not include traceId in the exact shape unless customized.
 ```
 
-Optional gateway test:
+Test gateway tuy chon:
 
 ```powershell
 docker compose up -d --build --no-deps api-gateway
@@ -517,7 +504,7 @@ Then:
 GET {{gateway_url}}/order-summaries/99999999-9999-9999-9999-999999999999
 ```
 
-Expected:
+Kỳ vọng:
 
 ```text
 Gateway preserves downstream error shape or behavior is documented.
@@ -525,7 +512,7 @@ Gateway preserves downstream error shape or behavior is documented.
 
 ---
 
-## 10. Postman updates
+## 10. Cập nhật Postman
 
 Create or update:
 
@@ -541,13 +528,13 @@ GET {{order_query_url}}/order-summaries/{{missingOrderId}}
 GET {{order_query_url}}/order-summaries/not-a-guid
 ```
 
-Optional gateway:
+Gateway tùy chọn:
 
 ```text
 GET {{gateway_url}}/order-summaries/{{missingOrderId}}
 ```
 
-Environment:
+Biến môi trường:
 
 ```text
 order_query_url
@@ -557,9 +544,9 @@ missingOrderId = 99999999-9999-9999-9999-999999999999
 
 ---
 
-## 11. Build/test plan
+## 11. Kế hoạch build/test
 
-Build touched projects:
+Build các project bị chạm:
 
 ```powershell
 dotnet build Services/OrderQueryService/OrderQueryService.csproj
@@ -579,15 +566,15 @@ dotnet build
 
 ---
 
-## 12. Docs update
+## 12. Cập nhật docs
 
-Create:
+Tạo:
 
 ```text
 docs/api/day-32-api-hardening-notes.md
 ```
 
-Suggested content:
+Nội dung gợi ý:
 
 ````md
 # Day 32 API Hardening Notes
@@ -613,8 +600,8 @@ POST /debug/order-summaries
 ## Gateway
 
 ```text
-Gateway is tested only for preserving downstream error shape.
-No gateway-level normalization is implemented on Day 32.
+Gateway chi duoc test de dam bao giu nguyen error shape tu downstream.
+Day 32 khong implement normalization o gateway.
 ```
 
 ## Future work
@@ -637,9 +624,9 @@ docs/api/day-32-api-hardening-notes.md
 
 ---
 
-## 13. Production fit review
+## 13. Review độ phù hợp production-minded
 
-What this improves:
+Điều phần này cải thiện:
 
 ```text
 API contracts become more predictable.
@@ -647,7 +634,7 @@ Error responses become easier for clients to handle.
 Versioning policy reduces random future breaking changes.
 ```
 
-What remains future work:
+Những phần còn là future work:
 
 ```text
 Actual route versioning implementation.
@@ -659,7 +646,7 @@ OpenAPI/Swagger enablement if desired.
 
 ---
 
-## 14. Pass checklist
+## 14. Checklist đạt yêu cầu
 
 ```text
 [ ] API versioning policy doc exists.
@@ -670,7 +657,7 @@ OpenAPI/Swagger enablement if desired.
 [ ] Debug invalid payload behavior is standardized or documented.
 [ ] Mongo unavailable behavior is documented or mapped to 503 if safe.
 [ ] Gateway only verifies downstream behavior if running.
-[ ] No shared/global error middleware is introduced.
+[ ] Không thêm shared/global error middleware.
 [ ] Actual ProblemDetails response body is verified, including whether traceId appears.
 [ ] Postman negative tests exist.
 [ ] Build passes for touched projects.
@@ -679,7 +666,7 @@ OpenAPI/Swagger enablement if desired.
 
 ---
 
-## 15. Optional commit/tag after review
+## 15. Commit/tag tùy chọn sau review
 
 Recommended commit:
 
@@ -703,10 +690,11 @@ git tag day-32-api-versioning-error-format
 
 ---
 
-## 16. Next day
+## 16. Ngày tiếp theo
 
 Day 33:
 
 ```text
 PostgreSQL + Migration + Schema Evolution Hardening
 ```
+

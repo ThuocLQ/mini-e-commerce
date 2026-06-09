@@ -1,16 +1,3 @@
----
-day: 29
-title: "README + Architecture Diagram + ADR + API Surface Review"
-duration: "90-120 minutes"
-phase: "Phase 1.7 - Foundation Review"
-project: "MicroShop"
-testing: "Docs-first + Postman sanity check"
-type: "lesson"
-repo_aware: true
-source_of_truth: true
-encoding_note: "ASCII-safe Markdown to avoid mojibake in Notion/Rider/GitHub"
----
-
 # Ngay 29: README + Architecture Diagram + ADR + API Surface Review
 
 ## 0. Why this version exists

@@ -1,25 +1,12 @@
----
-day: 35
-title: "Specification Pattern"
-duration: "90-120 minutes"
-phase: "Stage 2 - Production Hardening"
-project: "MicroShop"
-testing: "Query behavior review + Postman search/filter tests"
-type: "lesson"
-repo_aware: true
-source_of_truth: true
-encoding_note: "ASCII-safe Markdown to avoid mojibake in Notion/Rider/GitHub"
----
-
 # Day 35: Specification Pattern Lite / Query Criteria
 
-## 0. Current position
+## 0. Vị trí hiện tại
 
-You completed Day 34 validation/mapping slice.
+Bạn đã hoàn thành Day 34 validation/mapping slice.
 
 Day 35 focuses on query logic organization.
 
-Goal:
+Mục tiêu:
 
 ```text
 Avoid scattering query/filter rules across endpoints and repositories.
@@ -27,9 +14,9 @@ Introduce a lightweight query criteria / specification-lite approach in one targ
 Do not force a full generic Specification Pattern framework.
 ```
 
-## 1. Current repo context
+## 1. Bối cảnh repo hiện tại
 
-Current repo truth:
+Sự thật hiện tại của repo:
 
 ```text
 Services:
@@ -52,7 +39,7 @@ Shared:
 - MicroShop.ServiceDefaults
 ```
 
-Important routes:
+Các route quan trọng:
 
 ```text
 GET /order-summaries
@@ -101,7 +88,7 @@ GET /health
 GET /alive
 ```
 
-Never use:
+Không dùng:
 
 ```text
 /orders/read-model
@@ -110,7 +97,7 @@ CUST-900
 ```
 
 
-## 2. Goal
+## 2. Mục tiêu
 
 ```text
 [ ] Specification Pattern is understood.
@@ -121,7 +108,7 @@ CUST-900
 [ ] Postman verifies query behavior did not regress.
 ```
 
-Main outputs:
+Output chính:
 
 ```text
 docs/patterns/specification-pattern.md
@@ -129,7 +116,7 @@ docs/patterns/day-35-specification-review.md
 docs/backlog/day-35-query-hardening-backlog.md
 ```
 
-Optional code outputs:
+Output code tùy chọn:
 
 ```text
 Query criteria object in one service
@@ -137,9 +124,9 @@ ProductQueryCriteria or ProductSearchCriteria
 Repository method accepting query criteria
 ```
 
-## 3. Scope guard
+## 3. Giới hạn phạm vi
 
-Do:
+Nên làm:
 
 ```text
 [ ] Review query/filter logic.
@@ -149,7 +136,7 @@ Do:
 [ ] Add tests/Postman checks around search/filter.
 ```
 
-Do not:
+Không làm:
 
 ```text
 [ ] Do not rewrite all repositories.
@@ -160,21 +147,21 @@ Do not:
 [ ] Do not claim all queries use specifications.
 ```
 
-What this proves:
+Điều phần này chứng minh:
 
 ```text
 MicroShop has a direction for reusable query rules.
 One query slice can be made cleaner without broad refactor.
 ```
 
-What this does not prove:
+Điều phần này chưa chứng minh:
 
 ```text
 All repositories are standardized.
 All query performance issues are solved.
 ```
 
-## 4. Pre-check
+## 4. Kiểm tra trước khi làm
 
 ```powershell
 Get-ChildItem Services -Recurse -Filter *.cs |
@@ -240,17 +227,17 @@ Alternative:
 OrderingService GET /orders query filters if they exist.
 ```
 
-Do not target ProjectionWorker today.
+Hôm nay không target ProjectionWorker.
 
 ## 7. Documentation first
 
-Create:
+Tạo:
 
 ```text
 docs/patterns/specification-pattern.md
 ```
 
-Include:
+Bao gồm:
 
 ```text
 Goal
@@ -263,13 +250,13 @@ Current stage
 
 ## 8. Minimal implementation option
 
-Only implement if CatalogService query code is ready.
+Chỉ implement nếu query code của CatalogService đã sẵn sàng.
 
-Avoid fake over-generic abstraction.
+Tránh abstraction qua generic gia tao.
 
-For Dapper, prefer a small filter/sort/paging object.
+Với Dapper, ưu tiên object filter/sort/paging nhỏ gọn.
 
-Better local approach:
+Cách local tốt hơn:
 
 ```csharp
 public sealed record ProductQueryCriteria(
@@ -291,7 +278,7 @@ Task<IReadOnlyList<ProductDto>> SearchAsync(
     CancellationToken cancellationToken);
 ```
 
-Rules:
+Quy tắc:
 
 ```text
 Criteria expresses query intent.
@@ -301,7 +288,7 @@ Validation of Page/PageSize/MinPrice/MaxPrice follows Day 34 direction.
 
 ## 9. Postman query tests
 
-Full system if needed:
+Full system nếu cần:
 
 ```powershell
 docker compose up -d --build
@@ -316,7 +303,7 @@ GET {{gateway_url}}/catalog/products/count
 GET {{gateway_url}}/catalog/products/price-range?minPrice=0&maxPrice=1000
 ```
 
-Direct service if gateway not running:
+Gọi trực tiếp service nếu gateway không chạy:
 
 ```text
 GET {{catalog_url}}/products
@@ -325,26 +312,26 @@ GET {{catalog_url}}/products/count
 GET {{catalog_url}}/products/price-range?minPrice=0&maxPrice=1000
 ```
 
-Use actual route/query parameter names from code.
+Dùng đúng tên route/query parameter từ code.
 
-Important:
+Lưu ý quan trọng:
 
 ```text
 The price-range endpoint requires minPrice and maxPrice query params.
 Do not document /products/price-range without minPrice/maxPrice unless current code changes.
 ```
 
-Do not invent parameters beyond what code supports.
+Không tự bịa parameter ngoai phan code ho tro.
 
 ## 10. Day 35 review doc
 
-Create:
+Tạo:
 
 ```text
 docs/patterns/day-35-specification-review.md
 ```
 
-Include:
+Bao gồm:
 
 ```text
 Target service
@@ -356,13 +343,13 @@ Future work
 
 ## 11. Query hardening backlog
 
-Create:
+Tạo:
 
 ```text
 docs/backlog/day-35-query-hardening-backlog.md
 ```
 
-Include:
+Bao gồm:
 
 ```text
 [ ] Keep search/filter logic out of endpoint bodies.
@@ -373,7 +360,7 @@ Include:
 [ ] Avoid complex generic specification framework too early.
 ```
 
-## 12. Build/test plan
+## 12. Kế hoạch build/test
 
 ```powershell
 dotnet build Services/CatalogService/CatalogService.csproj
@@ -387,7 +374,7 @@ dotnet build Services/ApiGateway/ApiGateway.csproj
 
 Run product query/search/filter requests before and after.
 
-## 13. Production fit review
+## 13. Review độ phù hợp production-minded
 
 Improves:
 
@@ -397,7 +384,7 @@ Filter logic becomes easier to test.
 Endpoints stay thinner.
 ```
 
-Future work:
+Việc làm sau:
 
 ```text
 Repository performance tuning.
@@ -406,7 +393,7 @@ Query tests.
 Consistent paging/filtering standard.
 ```
 
-## 14. Pass checklist
+## 14. Checklist đạt yêu cầu
 
 ```text
 [ ] Query/filter logic is inspected.
@@ -418,18 +405,19 @@ Consistent paging/filtering standard.
 [ ] Query behavior is verified by Postman or manual requests.
 [ ] Build passes for touched projects.
 [ ] Price-range route includes minPrice and maxPrice in docs/tests.
-[ ] No generic framework is introduced prematurely.
+[ ] Không đưa generic framework vào quá sớm.
 ```
 
-## 15. Optional commit/tag after review
+## 15. Commit/tag tùy chọn sau review
 
 ```text
 Commit: Day 35: Specification Lite Query Criteria
 Tag: day-35-specification-lite-query-criteria
 ```
 
-## 16. Next day
+## 16. Ngày tiếp theo
 
 ```text
 Day 36: Strategy Pattern + Audit Log + Advanced Identity Review
 ```
+

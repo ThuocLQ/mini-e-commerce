@@ -1,29 +1,16 @@
----
-day: 38
-title: "Standard Transactional Outbox"
-duration: "90-120 minutes"
-phase: "Stage 2 - Reliable Event-Driven Advanced"
-project: "MicroShop"
-testing: "Outbox code inspection + transaction boundary review + smoke checks"
-type: "lesson"
-repo_aware: true
-source_of_truth: true
-encoding_note: "ASCII-safe Markdown"
----
-
 # Day 38: Standard Transactional Outbox
 
-## 0. Current position
+## 0. Vị trí hiện tại
 
-You completed:
+Bạn đã hoàn thành:
 
 ```text
 Day 37: CloudEvents + Event Envelope
 ```
 
-Day 38 continues Phase 2.2.
+Day 38 tiep tuc Phase 2.2.
 
-Correct roadmap:
+Roadmap đúng:
 
 ```text
 Day 37: CloudEvents / Event Envelope
@@ -31,19 +18,19 @@ Day 38: Standard Transactional Outbox
 Day 39: Outbox Publisher + Advanced Idempotency + Inbox/WebhookLog
 ```
 
-Day 38 focuses on the transactional write side:
+Day 38 tập trung vào write side co transaction:
 
 ```text
 Business data and outbox message are saved in the same database transaction.
 ```
 
-Day 39 will focus on robust publisher, idempotency, Inbox, and WebhookLog.
+Day 39 se tập trung vào publisher vung hon, idempotency, Inbox, va WebhookLog.
 
 ---
 
-## 1. Current repo context
+## 1. Bối cảnh repo hiện tại
 
-Current repo truth:
+Sự thật hiện tại của repo:
 
 ```text
 Services:
@@ -66,7 +53,7 @@ Shared:
 - MicroShop.ServiceDefaults
 ```
 
-Never use:
+Không dùng:
 
 ```text
 /orders/read-model
@@ -75,7 +62,7 @@ CUST-900
 ```
 
 
-Current RabbitMQ workflow:
+Current Workflow RabbitMQ:
 
 ```text
 OrderingService
@@ -84,7 +71,7 @@ OrderingService
 -> NotificationWorker
 ```
 
-Important:
+Lưu ý quan trọng:
 
 ```text
 RabbitMQ remains workflow/task messaging.
@@ -94,9 +81,9 @@ Do not add OrderingService Kafka publisher today.
 
 ---
 
-## 2. Goal
+## 2. Mục tiêu
 
-By the end:
+Sau khi hoàn thành:
 
 ```text
 [ ] Existing OrderingService outbox implementation is inspected.
@@ -108,7 +95,7 @@ By the end:
 [ ] A Day 39 publisher/idempotency backlog is created.
 ```
 
-Main outputs:
+Output chính:
 
 ```text
 docs/messaging/transactional-outbox-standard.md
@@ -116,7 +103,7 @@ docs/messaging/outbox-transaction-review-day-38.md
 docs/backlog/day-38-transactional-outbox-backlog.md
 ```
 
-Optional code outputs:
+Output code tùy chọn:
 
 ```text
 Small OrderingService cleanup only if safe.
@@ -125,9 +112,9 @@ Do not assume transaction boundary is missing.
 
 ---
 
-## 3. Scope guard
+## 3. Giới hạn phạm vi
 
-Do:
+Nên làm:
 
 ```text
 [ ] Inspect OrderingService order write and outbox insert.
@@ -137,7 +124,7 @@ Do:
 [ ] Create backlog for Day 39 publisher hardening.
 ```
 
-Do not:
+Không làm:
 
 ```text
 [ ] Do not implement Kafka publisher.
@@ -148,13 +135,13 @@ Do not:
 [ ] Do not introduce distributed transactions.
 ```
 
-What this proves:
+Điều phần này chứng minh:
 
 ```text
 MicroShop understands the transaction boundary required by Outbox Pattern.
 ```
 
-What this does not prove:
+Điều phần này chưa chứng minh:
 
 ```text
 Outbox publisher is fully robust.
@@ -164,7 +151,7 @@ Inbox/WebhookLog is implemented.
 
 ---
 
-## 4. Pre-check
+## 4. Kiểm tra trước khi làm
 
 Inspect OrderingService:
 
@@ -197,9 +184,9 @@ Get-ChildItem BuildingBlocks.Contracts -Recurse -Filter *.cs |
 
 ---
 
-## 5. Current repo-aware expectation
+## 5. Kỳ vọng theo repo hien tai
 
-Expected finding from current repo:
+Kỳ vọng khi doi chieu repo hien tai:
 
 ```text
 OrderingService checkout currently saves order and outbox message in the same DB transaction.
@@ -207,7 +194,7 @@ CheckoutHandler uses _unitOfWork.ExecuteAsync(transaction => ...).
 DapperOrderingUnitOfWork provides BeginTransaction, Commit, and Rollback.
 ```
 
-Day 38 should verify and document this behavior instead of assuming it is missing.
+Day 38 nên verify và document behavior này thay vì giả định nó đang thiếu.
 
 Current publisher is also not blank/basic.
 
@@ -225,24 +212,24 @@ MarkAsFailedAsync
 FOR UPDATE SKIP LOCKED
 ```
 
-Day 38 should document these current strengths and then identify remaining gaps.
+Day 38 nên document các điểm mạnh hiện tại rồi xác định gap còn lại.
 
-Day 39 should review and harden the existing publisher, then add advanced idempotency, Inbox, and WebhookLog direction.
+Day 39 nên review và harden publisher hiện có, rồi thêm hướng advanced idempotency, Inbox, và WebhookLog.
 
 ---
 
-## 6. Standard Transactional Outbox rules
+## 6. Quy tắc Standard Transactional Outbox
 
-Create:
+Tạo:
 
 ```text
 docs/messaging/transactional-outbox-standard.md
 ```
 
-Include:
+Bao gồm:
 
 ```text
-Goal:
+Mục tiêu:
 Avoid losing integration events when business data is saved but broker publish fails.
 
 Core rule:
@@ -272,9 +259,9 @@ Kafka publisher.
 
 ---
 
-## 7. Outbox schema review
+## 7. Review schema Outbox
 
-Document actual schema.
+Document schema thật.
 
 Actual fields to verify in current OrderingService outbox schema:
 
@@ -291,9 +278,9 @@ LockId
 LockedUntilUtc
 ```
 
-Do not invent fields.
+Không tự bịa field.
 
-Current notes:
+Ghi chú hiện tại:
 
 ```text
 No separate Status column yet.
@@ -302,19 +289,19 @@ No separate CreatedAtUtc column yet.
 OccurredAtUtc is currently the event/outbox occurrence timestamp.
 ```
 
-If additional fields are needed, document as backlog.
+Nếu cần thêm field, ghi vào backlog.
 
 ---
 
-## 8. Transaction boundary review
+## 8. Review ranh giới transaction
 
-Create:
+Tạo:
 
 ```text
 docs/messaging/outbox-transaction-review-day-38.md
 ```
 
-Include:
+Bao gồm:
 
 ```text
 Reviewed flow:
@@ -331,10 +318,10 @@ Insert outbox | TBD | Same transaction as order | TBD
 Commit | TBD | After both succeed | TBD
 Publish broker | TBD | After commit by background publisher | TBD
 
-What this proves:
+Điều phần này chứng minh:
 We know whether OrderingService uses standard transactional outbox boundaries.
 
-What this does not prove:
+Điều phần này chưa chứng minh:
 Publisher retry/idempotency is complete.
 Inbox/WebhookLog exists.
 ```
@@ -343,7 +330,7 @@ Fill TBD after code inspection.
 
 ---
 
-## 9. Minimal code change policy
+## 9. Chính sách thay đổi code tối thiểu
 
 Only apply code change if:
 
@@ -354,7 +341,7 @@ Only apply code change if:
 [ ] It does not require publisher rewrite.
 ```
 
-Allowed:
+Được phép:
 
 ```text
 Improve documentation/logging around outbox transaction if needed.
@@ -362,7 +349,7 @@ Add comments/tests around existing _unitOfWork.ExecuteAsync behavior if useful.
 Add missing outbox status documentation only if clearly needed and safe.
 ```
 
-Avoid:
+Tránh:
 
 ```text
 Changing event contract.
@@ -372,7 +359,7 @@ Adding Inbox/WebhookLog.
 Rewriting all persistence.
 ```
 
-If unsure:
+Nếu chưa chắc:
 
 ```text
 Document the gap and defer implementation.
@@ -380,7 +367,7 @@ Document the gap and defer implementation.
 
 ---
 
-## 10. Runtime smoke checks
+## 10. Smoke test runtime
 
 Full system may be needed for Ordering/RabbitMQ flow:
 
@@ -394,7 +381,7 @@ Or targeted if dependencies allow:
 docker compose up -d --build postgres rabbitmq orderingservice notificationworker
 ```
 
-Check logs:
+Kiểm tra logs:
 
 ```powershell
 docker compose logs orderingservice --tail 100
@@ -402,22 +389,22 @@ docker compose logs notificationworker --tail 100
 docker compose logs rabbitmq --tail 100
 ```
 
-Check endpoint:
+Kiểm tra endpoint:
 
 ```text
 POST /orders/checkout
 GET /debug/outbox
 ```
 
-Use actual request body from current Postman/docs.
+Dùng request body thật từ Postman/docs hiện tại.
 
-Do not invent checkout payload.
+Không tự bịa payload checkout.
 
 ---
 
-## 11. Day 39 handoff notes
+## 11. Ghi chú handoff Day 39
 
-Create backlog for next day:
+Tạo backlog cho ngày tiếp theo:
 
 ```text
 Day 39: Outbox Publisher + Advanced Idempotency + Inbox/WebhookLog
@@ -437,13 +424,13 @@ Idempotency key / eventId checks.
 
 ## 12. Backlog
 
-Create:
+Tạo:
 
 ```text
 docs/backlog/day-38-transactional-outbox-backlog.md
 ```
 
-Include:
+Bao gồm:
 
 ```text
 Transaction boundary:
@@ -466,7 +453,7 @@ Day 39 handoff:
 
 ---
 
-## 13. Build/test plan
+## 13. Kế hoạch build/test
 
 Build:
 
@@ -476,7 +463,7 @@ dotnet build Services/NotificationWorker/NotificationWorker.csproj
 dotnet build BuildingBlocks.Contracts/BuildingBlocks.Contracts.csproj
 ```
 
-If code changed:
+Nếu có đổi code:
 
 ```powershell
 dotnet build
@@ -490,7 +477,7 @@ docker compose up -d --build
 
 ---
 
-## 14. Docs update
+## 14. Cập nhật docs
 
 Update:
 
@@ -502,9 +489,9 @@ Link Day 38 docs.
 
 ---
 
-## 15. Production fit review
+## 15. Review độ phù hợp production-minded
 
-What this improves:
+Điều phần này cải thiện:
 
 ```text
 Outbox transaction boundary becomes explicit.
@@ -512,7 +499,7 @@ Reliability risks are easier to discuss.
 Day 39 publisher/idempotency work has a clear base.
 ```
 
-What remains future work:
+Những phần còn là future work:
 
 ```text
 Further publisher hardening.
@@ -522,7 +509,7 @@ Consumer idempotency.
 Monitoring stuck outbox messages.
 ```
 
-Do not claim:
+Không claim:
 
 ```text
 Exactly-once delivery.
@@ -532,7 +519,7 @@ Kafka publishing from OrderingService.
 
 ---
 
-## 16. Pass checklist
+## 16. Checklist đạt yêu cầu
 
 ```text
 [ ] OrderingService outbox code is inspected.
@@ -549,7 +536,7 @@ Kafka publishing from OrderingService.
 
 ---
 
-## 17. Optional commit/tag after review
+## 17. Commit/tag tùy chọn sau review
 
 ```text
 Commit: Day 38: Standard Transactional Outbox
@@ -558,8 +545,9 @@ Tag: day-38-standard-transactional-outbox
 
 ---
 
-## 18. Next day
+## 18. Ngày tiếp theo
 
 ```text
 Day 39: Outbox Publisher + Advanced Idempotency + Inbox/WebhookLog
 ```
+

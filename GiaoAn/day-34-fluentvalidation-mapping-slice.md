@@ -1,25 +1,12 @@
----
-day: 34
-title: "FluentValidation Pipeline + Mapping"
-duration: "90-120 minutes"
-phase: "Stage 2 - Production Hardening"
-project: "MicroShop"
-testing: "Postman negative tests + build verification"
-type: "lesson"
-repo_aware: true
-source_of_truth: true
-encoding_note: "ASCII-safe Markdown to avoid mojibake in Notion/Rider/GitHub"
----
-
 # Day 34: FluentValidation Pipeline + Mapping
 
-## 0. Current position
+## 0. Vị trí hiện tại
 
-You completed Day 33 database/schema evolution review.
+Bạn đã hoàn thành Day 33 database/schema evolution review.
 
 Day 34 focuses on validation and DTO mapping.
 
-Goal:
+Mục tiêu:
 
 ```text
 Make request validation explicit, testable, and consistent in one small slice.
@@ -27,9 +14,9 @@ Make request validation explicit, testable, and consistent in one small slice.
 
 Do not apply validation everywhere today.
 
-## 1. Current repo context
+## 1. Bối cảnh repo hiện tại
 
-Current repo truth:
+Sự thật hiện tại của repo:
 
 ```text
 Services:
@@ -52,7 +39,7 @@ Shared:
 - MicroShop.ServiceDefaults
 ```
 
-Important routes:
+Các route quan trọng:
 
 ```text
 GET /order-summaries
@@ -101,7 +88,7 @@ GET /health
 GET /alive
 ```
 
-Never use:
+Không dùng:
 
 ```text
 /orders/read-model
@@ -110,7 +97,7 @@ CUST-900
 ```
 
 
-## 2. Goal
+## 2. Mục tiêu
 
 ```text
 [ ] Validation strategy is documented.
@@ -120,7 +107,7 @@ CUST-900
 [ ] Postman negative tests are added.
 ```
 
-Main outputs:
+Output chính:
 
 ```text
 docs/api/validation-and-mapping-standard.md
@@ -135,9 +122,9 @@ FluentValidation validators for one target slice
 Mapping helpers or explicit mapping methods for one target slice
 ```
 
-## 3. Scope guard
+## 3. Giới hạn phạm vi
 
-Do:
+Nên làm:
 
 ```text
 [ ] Inspect existing validation.
@@ -147,7 +134,7 @@ Do:
 [ ] Add Postman negative tests.
 ```
 
-Do not:
+Không làm:
 
 ```text
 [ ] Do not add validators to every service.
@@ -157,20 +144,20 @@ Do not:
 [ ] Do not claim all validation is standardized.
 ```
 
-What this proves:
+Điều phần này chứng minh:
 
 ```text
 MicroShop has a validation/mapping direction and one verified slice.
 ```
 
-What this does not prove:
+Điều phần này chưa chứng minh:
 
 ```text
 Every request in every service is validated.
 All mapping is standardized.
 ```
 
-## 4. Pre-check
+## 4. Kiểm tra trước khi làm
 
 ```powershell
 Get-ChildItem Services -Recurse -Filter *.cs |
@@ -211,13 +198,13 @@ Avoid Identity/Payment as first validation slice because they are security/payme
 
 ## 6. Validation standard
 
-Create:
+Tạo:
 
 ```text
 docs/api/validation-and-mapping-standard.md
 ```
 
-Include:
+Bao gồm:
 
 ```text
 Validate at API/Application boundary.
@@ -301,7 +288,7 @@ Prefer explicit mapping for now.
 
 ## 11. Postman negative tests
 
-Lite mode:
+Chế độ lite:
 
 ```powershell
 docker compose up -d --build zookeeper kafka mongodb orderqueryservice projectionworker
@@ -323,7 +310,7 @@ Payload:
 }
 ```
 
-Expected:
+Kỳ vọng:
 
 ```text
 400 validation error
@@ -332,13 +319,13 @@ errors contains relevant fields
 
 ## 12. Day 34 notes
 
-Create:
+Tạo:
 
 ```text
 docs/api/day-34-validation-mapping-notes.md
 ```
 
-Include:
+Bao gồm:
 
 ```text
 Target service
@@ -350,9 +337,9 @@ Verified negative tests
 Future work
 ```
 
-Update docs/README.md.
+Cập nhật docs/README.md.
 
-## 13. Build/test plan
+## 13. Kế hoạch build/test
 
 ```powershell
 dotnet build Services/OrderQueryService/OrderQueryService.csproj
@@ -364,9 +351,9 @@ If Catalog target:
 dotnet build Services/CatalogService/CatalogService.csproj
 ```
 
-Run Postman negative tests.
+Chạy negative test bằng Postman.
 
-## 14. Production fit review
+## 14. Review độ phù hợp production-minded
 
 Improves:
 
@@ -376,7 +363,7 @@ Validation rules are explicit and testable.
 Mapping direction is clearer.
 ```
 
-Future work:
+Việc làm sau:
 
 ```text
 Global validation pipeline.
@@ -384,7 +371,7 @@ Consistent validation errors across all services.
 Mapping strategy across all services.
 ```
 
-## 15. Pass checklist
+## 15. Checklist đạt yêu cầu
 
 ```text
 [ ] Existing validation/mapping is inspected.
@@ -395,18 +382,19 @@ Mapping strategy across all services.
 [ ] Mapping is reviewed for target endpoint.
 [ ] day-34-validation-mapping-notes.md exists.
 [ ] Build passes for touched service.
-[ ] No broad validation refactor is introduced.
+[ ] Không đưa vào refactor validation diện rộng.
 ```
 
-## 16. Optional commit/tag after review
+## 16. Commit/tag tùy chọn sau review
 
 ```text
 Commit: Day 34: FluentValidation Mapping Slice
 Tag: day-34-fluentvalidation-mapping-slice
 ```
 
-## 17. Next day
+## 17. Ngày tiếp theo
 
 ```text
 Day 35: Specification Pattern
 ```
+

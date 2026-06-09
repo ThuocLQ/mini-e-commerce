@@ -1,21 +1,8 @@
----
-day: 30
-title: "Foundation Demo + Checkpoint"
-duration: "90-120 minutes"
-phase: "Phase 1.7 - Foundation Review"
-project: "MicroShop"
-testing: "Demo-first + Postman + Docker logs + Kafka CLI"
-type: "lesson"
-repo_aware: true
-source_of_truth: true
-encoding_note: "ASCII-safe Markdown to avoid mojibake in Notion/Rider/GitHub"
----
-
 # Day 30: Foundation Demo + Checkpoint
 
-## 0. Current position
+## 0. Vị trí hiện tại
 
-You have completed the Stage 1 foundation lessons up to:
+Bạn đã hoàn thành các bài nền tảng Stage 1 đến:
 
 ```text
 Day 27: Kafka -> MongoDB ProjectionWorker
@@ -25,7 +12,7 @@ Day 29: README + Architecture Diagram + ADR + API Surface Review
 
 Day 30 is a checkpoint day.
 
-Goal:
+Mục tiêu:
 
 ```text
 Run a clean foundation demo.
@@ -41,7 +28,7 @@ It is about proving the foundation and preparing the next stage.
 
 ---
 
-## 1. Current repo context
+## 1. Bối cảnh repo hiện tại
 
 Current services:
 
@@ -102,9 +89,9 @@ Use:
 
 ---
 
-## 2. Goal of Day 30
+## 2. Mục tiêu of Day 30
 
-By the end:
+Sau khi hoàn thành:
 
 ```text
 [ ] You can start the local runtime.
@@ -120,7 +107,7 @@ By the end:
 [ ] A Stage 2 hardening backlog exists.
 ```
 
-Main outputs:
+Output chính:
 
 ```text
 docs/checkpoints/stage-1-foundation-checkpoint.md
@@ -136,9 +123,9 @@ Tag: day-30-foundation-demo-checkpoint
 
 ---
 
-## 3. Scope guard
+## 3. Giới hạn phạm vi
 
-Do:
+Nên làm:
 
 ```text
 [ ] Run demo.
@@ -149,7 +136,7 @@ Do:
 [ ] Write hardening backlog.
 ```
 
-Do not:
+Không làm:
 
 ```text
 [ ] Do not add Kafka DLT yet.
@@ -170,7 +157,7 @@ It does not pretend Stage 2 hardening is already done.
 
 ---
 
-## 4. Pre-check
+## 4. Kiểm tra trước khi làm
 
 Run:
 
@@ -335,7 +322,7 @@ Check containers:
 docker compose ps
 ```
 
-Check logs:
+Kiểm tra logs:
 
 ```powershell
 docker logs microshop-projectionworker --tail 100
@@ -403,7 +390,7 @@ Describe topic:
 docker exec microshop-kafka kafka-topics --bootstrap-server localhost:9092 --describe --topic microshop.order-events
 ```
 
-Expected:
+Kỳ vọng:
 
 ```text
 Topic exists.
@@ -435,7 +422,7 @@ Use GUID key = orderId.
 11111111-1111-1111-1111-111111111111:{"eventId":"bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb","eventType":"OrderPaid","orderId":"11111111-1111-1111-1111-111111111111","customerId":"22222222-2222-2222-2222-222222222222","customerName":"Demo Customer","totalAmount":1977.3,"currency":"VND","itemCount":0,"items":[],"occurredAtUtc":"2026-05-28T10:05:00Z"}
 ```
 
-Expected:
+Kỳ vọng:
 
 ```text
 ProjectionWorker applies OrderCreated.
@@ -523,7 +510,7 @@ Use actual response.
 docker exec microshop-kafka kafka-consumer-groups --bootstrap-server localhost:9092 --describe --group projection-worker
 ```
 
-Expected:
+Kỳ vọng:
 
 ```text
 LAG = 0
@@ -554,7 +541,7 @@ Produce invalid payload:
 33333333-3333-3333-3333-333333333333:{"bad":"payload"}
 ```
 
-Expected:
+Kỳ vọng:
 
 ```text
 ProjectionWorker stores it in projection_failures.
@@ -562,7 +549,7 @@ Offset is committed.
 Partition is not blocked forever by this invalid training message.
 ```
 
-Check logs:
+Kiểm tra logs:
 
 ```powershell
 docker logs microshop-projectionworker --tail 100
@@ -663,7 +650,7 @@ Create file:
 docs/checkpoints/stage-1-foundation-checkpoint.md
 ```
 
-Suggested content:
+Nội dung gợi ý:
 
 ````md
 # Stage 1 Foundation Checkpoint
@@ -755,7 +742,7 @@ Create file:
 docs/backlog/stage-2-production-hardening-backlog.md
 ```
 
-Suggested content:
+Nội dung gợi ý:
 
 ````md
 # Stage 2 Production Hardening Backlog
@@ -875,7 +862,7 @@ GET {{gateway_url}}/order-summaries
 GET {{gateway_url}}/order-summaries/{{orderId}}
 ```
 
-Environment:
+Biến môi trường:
 
 ```text
 gateway_url
@@ -905,7 +892,7 @@ Check docs for wrong old names:
 Select-String -Path .\docs\**\*.md,README.md -Pattern "/orders/read-model|ORD-900|CUST-900|Buoi|Buoi|Lesson 30|Lesson 29"
 ```
 
-Expected:
+Kỳ vọng:
 
 ```text
 No old endpoint.
@@ -918,7 +905,7 @@ If old docs intentionally contain history, mark them clearly as old or archived.
 
 ---
 
-## 22. Pass checklist
+## 22. Checklist đạt yêu cầu
 
 You pass Day 30 when:
 
@@ -942,7 +929,7 @@ You pass Day 30 when:
 
 ---
 
-## 23. Optional commit and tag after review
+## 23. Commit va tag tuy chon after review
 
 Do this only after implementation and docs are reviewed.
 
@@ -1019,3 +1006,4 @@ Testing with Testcontainers
 Do not start all at once.
 
 Pick one hardening slice per day.
+

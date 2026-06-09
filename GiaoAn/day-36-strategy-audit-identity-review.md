@@ -1,21 +1,8 @@
----
-day: 36
-title: "Advanced Strategy Pattern + Audit Log + Advanced Identity Review"
-duration: "90-120 minutes"
-phase: "Stage 2 - Production Hardening"
-project: "MicroShop"
-testing: "Architecture review + targeted smoke checks"
-type: "lesson"
-repo_aware: true
-source_of_truth: true
-encoding_note: "ASCII-safe Markdown"
----
-
 # Day 36: Advanced Strategy Pattern + Audit Log + Advanced Identity Review
 
-## 0. Current position
+## 0. Vị trí hiện tại
 
-You have completed:
+Bạn đã hoàn thành:
 
 ```text
 Day 31: Clean Architecture + Hexagonal Review
@@ -25,7 +12,7 @@ Day 34: FluentValidation Pipeline + Mapping
 Day 35: Specification Pattern Lite / Query Criteria
 ```
 
-Correct roadmap position:
+Vi tri dung trong roadmap:
 
 ```text
 Day 36: Advanced Strategy Pattern + Audit Log + Advanced Identity Review
@@ -34,13 +21,13 @@ Day 38: Standard Transactional Outbox
 Day 39: Outbox Publisher + Advanced Idempotency + Inbox/WebhookLog
 ```
 
-Day 36 closes Phase 2.1.
+Day 36 khep lai Phase 2.1.
 
 ---
 
-## 1. Current repo context
+## 1. Bối cảnh repo hiện tại
 
-Current repo truth:
+Sự thật hiện tại của repo:
 
 ```text
 Services:
@@ -63,7 +50,7 @@ Shared:
 - MicroShop.ServiceDefaults
 ```
 
-Current infrastructure:
+Hạ tầng hiện tại:
 
 ```text
 PostgreSQL - write-side relational databases
@@ -75,7 +62,7 @@ Docker Compose - local runtime
 Aspire AppHost - local .NET orchestration
 ```
 
-Never use:
+Không dùng:
 
 ```text
 /orders/read-model
@@ -84,7 +71,7 @@ CUST-900
 ```
 
 
-Current relevant routes:
+Các route liên quan hiện tại:
 
 ```text
 POST /auth/login
@@ -99,9 +86,9 @@ POST /discounts/apply
 
 ---
 
-## 2. Goal
+## 2. Mục tiêu
 
-By the end:
+Sau khi hoàn thành:
 
 ```text
 [ ] Strategy Pattern candidate areas are reviewed.
@@ -114,7 +101,7 @@ By the end:
 [ ] A Stage 2 backlog is created for audit and identity hardening.
 ```
 
-Main outputs:
+Output chính:
 
 ```text
 docs/patterns/strategy-pattern-review-day-36.md
@@ -126,9 +113,9 @@ docs/backlog/day-36-audit-identity-hardening-backlog.md
 
 ---
 
-## 3. Scope guard
+## 3. Giới hạn phạm vi
 
-Do:
+Nên làm:
 
 ```text
 [ ] Review current strategy candidates.
@@ -139,7 +126,7 @@ Do:
 [ ] Do tiny safe cleanup only if obvious.
 ```
 
-Do not:
+Không làm:
 
 ```text
 [ ] Do not rewrite IdentityService.
@@ -150,13 +137,13 @@ Do not:
 [ ] Do not claim auth is production-ready.
 ```
 
-What this proves:
+Điều phần này chứng minh:
 
 ```text
 MicroShop has a security/audit/strategy hardening direction.
 ```
 
-What this does not prove:
+Điều phần này chưa chứng minh:
 
 ```text
 Authentication is production-grade.
@@ -167,7 +154,7 @@ All strategy candidates are refactored.
 
 ---
 
-## 4. Pre-check
+## 4. Kiểm tra trước khi làm
 
 ```powershell
 git status --short
@@ -184,7 +171,7 @@ Get-Content Services/ApiGateway/appsettings.Docker.json
 
 ---
 
-## 5. Advanced Strategy Pattern review
+## 5. Review Advanced Strategy Pattern
 
 Current repo-aware strategy review:
 
@@ -212,7 +199,7 @@ IdentityService:
     Local JWT vs external OIDC/SSO is a future auth provider strategy direction.
 ```
 
-Use criteria:
+Tiêu chí sử dụng:
 
 ```text
 Multiple algorithms?
@@ -222,16 +209,16 @@ Likely future providers?
 Testing benefits?
 ```
 
-If answer is no:
+Nếu câu trả lời là không:
 
 ```text
-Do not force Strategy Pattern.
-Document as not needed yet.
+Không ép dùng Strategy Pattern.
+Document là chưa cần ở thời điểm hiện tại.
 ```
 
 ---
 
-## 6. Possible strategy shapes
+## 6. Hình dạng Strategy Pattern tham khảo
 
 Payment provider design reference:
 
@@ -263,28 +250,28 @@ Is invalid discount input handled safely?
 Are strategy behaviors covered by tests or at least documented test cases?
 ```
 
-Rules:
+Quy tắc:
 
 ```text
 Use this only as design reference.
-Do not wire real external payment provider today.
-Do not create fake abstraction if only one behavior exists.
+Không wire payment provider thật hôm nay.
+Không tạo abstraction giả nếu chỉ có một behavior.
 ```
 
 ---
 
-## 7. Audit log policy
+## 7. Chính sách audit log
 
-Create:
+Tạo:
 
 ```text
 docs/security/audit-log-policy.md
 ```
 
-Suggested content:
+Nội dung gợi ý:
 
 ```text
-Goal:
+Mục tiêu:
 Security-sensitive and business-critical actions should be auditable.
 
 Events to consider:
@@ -309,36 +296,36 @@ Audit entry fields:
 - correlationId or traceId
 - metadata
 
-Rules:
+Quy tắc:
 - Do not store secrets or raw passwords.
 - Do not log full JWT tokens.
 - Do not log sensitive payment details.
 - Prefer append-only audit records.
 - Keep audit separate from normal application logs.
 
-Current stage:
+Giai đoạn hiện tại:
 Day 36 documents policy only.
 Implementation is future work.
 ```
 
 ---
 
-## 8. Identity hardening review
+## 8. Review hardening Identity
 
-Create:
+Tạo:
 
 ```text
 docs/security/identity-hardening-review-day-36.md
 ```
 
-Include:
+Bao gồm:
 
 ```text
-Current routes:
+Route hiện tại:
 POST /auth/login
 GET /auth/me
 
-Review checklist:
+Checklist review:
 [ ] Password handling is safe for training-stage.
 [ ] JWT signing key/config is not hardcoded in production docs.
 [ ] Token lifetime is documented.
@@ -347,7 +334,7 @@ Review checklist:
 [ ] No raw token is logged.
 [ ] Claims are minimal and understandable.
 
-Not implemented yet:
+Chưa triển khai:
 Refresh tokens.
 RBAC/permissions.
 External OIDC/SSO.
@@ -358,15 +345,15 @@ Secret rotation.
 
 ---
 
-## 9. SSO/OIDC decision note
+## 9. Ghi chú quyết định SSO/OIDC
 
-Create:
+Tạo:
 
 ```text
 docs/security/sso-oidc-decision-note.md
 ```
 
-Include:
+Bao gồm:
 
 ```text
 MicroShop currently has IdentityService/JWT foundation for learning.
@@ -374,13 +361,13 @@ MicroShop currently has IdentityService/JWT foundation for learning.
 Production enterprise systems often delegate authentication to an external Identity Provider:
 Keycloak, Microsoft Entra ID, Auth0, Okta.
 
-Decision direction:
-Keep local JWT foundation for learning.
-Future path is OIDC with external Identity Provider.
-Gateway validates tokens.
-Services enforce authorization policies.
+Hướng quyết định:
+Giu nen local JWT de hoc.
+Huong sau nay la OIDC voi external Identity Provider.
+Gateway validate token.
+Cac service enforce authorization policy.
 
-Not implemented today:
+Chưa triển khai hôm nay:
 Keycloak integration.
 Microsoft Entra ID integration.
 Auth0/Okta integration.
@@ -390,9 +377,9 @@ RBAC/ABAC full implementation.
 
 ---
 
-## 10. Strategy review doc
+## 10. Tài liệu review Strategy
 
-Create:
+Tạo:
 
 ```text
 docs/patterns/strategy-pattern-review-day-36.md
@@ -407,7 +394,7 @@ BasketService -> HTTP/gRPC validation strategy -> Existing comparison paths; no 
 IdentityService -> auth provider strategy -> Future OIDC/SSO
 ```
 
-Decision:
+Quyết định:
 
 ```text
 Do not force a generic strategy framework today.
@@ -418,13 +405,13 @@ Use Strategy Pattern only where multiple behaviors share a stable interface.
 
 ## 11. Backlog
 
-Create:
+Tạo:
 
 ```text
 docs/backlog/day-36-audit-identity-hardening-backlog.md
 ```
 
-Include:
+Bao gồm:
 
 ```text
 Audit:
@@ -452,9 +439,9 @@ Strategy Pattern:
 
 ---
 
-## 12. Runtime smoke checks
+## 12. Smoke test runtime
 
-No full runtime is required unless code changes.
+Không cần chạy full runtime nếu không đổi code.
 
 If checking Identity routes:
 
@@ -462,7 +449,7 @@ If checking Identity routes:
 docker compose up -d --build identityservice
 ```
 
-If checking through gateway, use full system or optional gateway only when configured:
+Nếu kiểm tra qua gateway, dùng full system hoặc gateway tùy chọn khi đã cấu hình:
 
 ```powershell
 docker compose up -d --build
@@ -475,20 +462,20 @@ POST {identity_url}/auth/login
 GET {identity_url}/auth/me
 ```
 
-Gateway if running:
+Gateway nếu đang chạy:
 
 ```text
 POST {gateway_url}/auth/login
 GET {gateway_url}/auth/me
 ```
 
-Use actual request payloads from current docs/Postman.
+Dùng payload request thật từ docs/Postman hiện tại.
 
-Do not invent credentials.
+Không tự bịa credentials.
 
 ---
 
-## 13. Build/test plan
+## 13. Kế hoạch build/test
 
 ```powershell
 dotnet build Services/IdentityService/IdentityService.csproj
@@ -496,7 +483,7 @@ dotnet build Services/PaymentService/PaymentService.csproj
 dotnet build Services/DiscountService/DiscountService.csproj
 ```
 
-If strategy code was changed:
+Nếu có đổi code strategy:
 
 ```powershell
 dotnet build
@@ -504,7 +491,7 @@ dotnet build
 
 ---
 
-## 14. Docs update
+## 14. Cập nhật docs
 
 Update:
 
@@ -516,9 +503,9 @@ Add links to the Day 36 docs.
 
 ---
 
-## 15. Production fit review
+## 15. Review độ phù hợp production-minded
 
-What this improves:
+Điều phần này cải thiện:
 
 ```text
 Security and audit gaps become visible.
@@ -526,7 +513,7 @@ Strategy candidates are identified without over-engineering.
 Identity limitations are documented honestly.
 ```
 
-What remains future work:
+Những phần còn là future work:
 
 ```text
 Actual audit log implementation.
@@ -538,7 +525,7 @@ Payment provider abstraction.
 
 ---
 
-## 16. Pass checklist
+## 16. Checklist đạt yêu cầu
 
 ```text
 [ ] Strategy candidates are reviewed.
@@ -554,7 +541,7 @@ Payment provider abstraction.
 
 ---
 
-## 17. Optional commit/tag after review
+## 17. Commit/tag tùy chọn sau review
 
 ```text
 Commit: Day 36: Strategy Audit Identity Review
@@ -563,8 +550,9 @@ Tag: day-36-strategy-audit-identity-review
 
 ---
 
-## 18. Next day
+## 18. Ngày tiếp theo
 
 ```text
 Day 37: CloudEvents / Event Envelope
 ```
+

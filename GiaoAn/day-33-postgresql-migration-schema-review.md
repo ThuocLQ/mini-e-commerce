@@ -1,21 +1,8 @@
----
-day: 33
-title: "PostgreSQL + Migration + Schema Evolution Hardening"
-duration: "90-120 minutes"
-phase: "Stage 2 - Production Hardening"
-project: "MicroShop"
-testing: "Database inspection + migration review + smoke checks"
-type: "lesson"
-repo_aware: true
-source_of_truth: true
-encoding_note: "ASCII-safe Markdown to avoid mojibake in Notion/Rider/GitHub"
----
+ Day 33: PostgreSQL + Migration + Schema Evolution Hardening
 
-# Day 33: PostgreSQL + Migration + Schema Evolution Hardening
+## 0. Vị trí hiện tại
 
-## 0. Current position
-
-You completed Day 31 architecture review and Day 32 API contract hardening.
+Bạn đã hoàn thành Day 31 architecture review va Day 32 API contract hardening.
 
 Day 33 focuses on database hardening.
 
@@ -27,9 +14,9 @@ Day 33 is not a naive SQLite -> PostgreSQL rewrite unless the repo still has lef
 Day 33 reviews PostgreSQL usage, migrations, schema evolution, and connection/config safety.
 ```
 
-## 1. Current repo context
+## 1. Bối cảnh repo hiện tại
 
-Current repo truth:
+Sự thật hiện tại của repo:
 
 ```text
 Services:
@@ -52,7 +39,7 @@ Shared:
 - MicroShop.ServiceDefaults
 ```
 
-Important routes:
+Các route quan trọng:
 
 ```text
 GET /order-summaries
@@ -101,7 +88,7 @@ GET /health
 GET /alive
 ```
 
-Never use:
+Không dùng:
 
 ```text
 /orders/read-model
@@ -110,7 +97,7 @@ CUST-900
 ```
 
 
-Current infrastructure:
+Hạ tầng hiện tại:
 
 ```text
 PostgreSQL - write-side relational databases
@@ -120,7 +107,7 @@ Kafka - event stream/projection learning
 RabbitMQ - workflow/task messaging
 ```
 
-## 2. Goal
+## 2. Mục tiêu
 
 ```text
 [ ] Current database usage is documented per service.
@@ -132,7 +119,7 @@ RabbitMQ - workflow/task messaging
 [ ] Basic DB smoke checks are documented.
 ```
 
-Main outputs:
+Output chính:
 
 ```text
 docs/database/postgresql-schema-evolution-review-day-33.md
@@ -140,9 +127,9 @@ docs/database/migration-policy.md
 docs/backlog/day-33-database-hardening-backlog.md
 ```
 
-## 3. Scope guard
+## 3. Giới hạn phạm vi
 
-Do:
+Nên làm:
 
 ```text
 [ ] Inspect database configuration.
@@ -152,7 +139,7 @@ Do:
 [ ] Create backlog.
 ```
 
-Do not:
+Không làm:
 
 ```text
 [ ] Do not rewrite all persistence code.
@@ -162,20 +149,20 @@ Do not:
 [ ] Do not claim database strategy is production-complete.
 ```
 
-What this proves:
+Điều phần này chứng minh:
 
 ```text
 MicroShop has a reviewed database baseline and schema evolution policy.
 ```
 
-What this does not prove:
+Điều phần này chưa chứng minh:
 
 ```text
 Zero-downtime migration is implemented.
 Backup/restore is production-ready.
 ```
 
-## 4. Pre-check
+## 4. Kiểm tra trước khi làm
 
 ```powershell
 git status --short
@@ -212,13 +199,13 @@ Do not invent unverified details.
 
 ## 6. Create migration policy
 
-Create:
+Tạo:
 
 ```text
 docs/database/migration-policy.md
 ```
 
-Include:
+Bao gồm:
 
 ```text
 Do not change schema silently.
@@ -231,13 +218,13 @@ Avoid destructive migrations without compatibility window.
 
 ## 7. Create database review doc
 
-Create:
+Tạo:
 
 ```text
 docs/database/postgresql-schema-evolution-review-day-33.md
 ```
 
-Include:
+Bao gồm:
 
 ```text
 Current databases table
@@ -245,10 +232,10 @@ Connection string findings
 Migration/initializer findings
 SQLite leftovers if any
 Schema evolution risks
-What this proves / what this does not prove
+Điều phần này chứng minh / điều phần này chưa chứng minh
 ```
 
-## 8. Runtime smoke checks
+## 8. Smoke test runtime
 
 Full system if machine can handle it:
 
@@ -267,17 +254,17 @@ docker compose logs orderingservice --tail 100
 
 Use actual service names from compose.
 
-Do not invent credentials.
+Không tự bịa credentials.
 
 ## 9. Backlog
 
-Create:
+Tạo:
 
 ```text
 docs/backlog/day-33-database-hardening-backlog.md
 ```
 
-Include:
+Bao gồm:
 
 ```text
 [ ] Standardize migration approach per relational service.
@@ -304,7 +291,7 @@ Add links to database docs.
 
 Postman not required unless endpoint behavior changed.
 
-Optional smoke routes:
+Route smoke test tùy chọn:
 
 ```text
 GET /products
@@ -312,9 +299,9 @@ GET /orders
 GET /order-summaries
 ```
 
-Only use routes that are running and configured.
+Chỉ dùng route đang chạy và đã được cấu hình.
 
-## 11. Build/test plan
+## 11. Kế hoạch build/test
 
 ```powershell
 dotnet build Services/CatalogService/CatalogService.csproj
@@ -330,9 +317,9 @@ If reasonable:
 dotnet build
 ```
 
-Document unrelated failures.
+Ghi lại các lỗi không liên quan nếu có.
 
-## 12. Production fit review
+## 12. Review độ phù hợp production-minded
 
 Improves:
 
@@ -342,7 +329,7 @@ Migration risk visibility.
 Schema evolution policy.
 ```
 
-Future work:
+Việc làm sau:
 
 ```text
 Automated migration pipeline.
@@ -352,7 +339,7 @@ Testcontainers.
 Zero-downtime migration techniques.
 ```
 
-## 13. Pass checklist
+## 13. Checklist đạt yêu cầu
 
 ```text
 [ ] Current DB usage is inspected.
@@ -364,18 +351,19 @@ Zero-downtime migration techniques.
 [ ] day-33 database backlog exists.
 [ ] docs/README.md links new database docs.
 [ ] Build passes for reviewed/touched projects or failures are documented.
-[ ] No broad persistence rewrite is introduced.
+[ ] Không đưa vào refactor persistence diện rộng.
 ```
 
-## 14. Optional commit/tag after review
+## 14. Commit/tag tùy chọn sau review
 
 ```text
 Commit: Day 33: PostgreSQL Migration Schema Review
 Tag: day-33-postgresql-migration-schema-review
 ```
 
-## 15. Next day
+## 15. Ngày tiếp theo
 
 ```text
 Day 34: FluentValidation Pipeline + Mapping
 ```
+

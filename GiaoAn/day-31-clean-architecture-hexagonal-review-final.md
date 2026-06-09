@@ -8,14 +8,14 @@ testing: "Architecture review + build verification + targeted smoke checks"
 type: "lesson"
 repo_aware: true
 source_of_truth: true
-encoding_note: "ASCII-safe Markdown to avoid mojibake in Notion/Rider/GitHub"
+encoding_note: "UTF-8 Markdown with Vietnamese accents"
 ---
 
 # Day 31: Clean Architecture + Hexagonal Review
 
-## 0. Current position
+## 0. Vị trí hiện tại
 
-You have completed:
+Bạn đã hoàn thành:
 
 ```text
 Day 30: Foundation Demo + Checkpoint
@@ -34,7 +34,7 @@ Docs, runbooks, and checkpoint notes exist.
 
 Day 31 starts Stage 2 production hardening.
 
-Correct roadmap position:
+Vi tri dung trong roadmap:
 
 ```text
 Day 31: Clean Architecture / Hexagonal Review
@@ -51,7 +51,7 @@ API error format belongs to Day 32.
 
 ---
 
-## 1. Current repo context
+## 1. Bối cảnh repo hiện tại
 
 Current services:
 
@@ -81,7 +81,7 @@ MicroShop.AppHost
 MicroShop.ServiceDefaults
 ```
 
-Current infrastructure:
+Hạ tầng hiện tại:
 
 ```text
 PostgreSQL - write-side relational databases
@@ -152,7 +152,7 @@ CUST-900
 
 ---
 
-## 2. Goal
+## 2. Mục tiêu
 
 Day 31 goal:
 
@@ -160,7 +160,7 @@ Day 31 goal:
 Review current architecture boundaries and identify hardening gaps.
 ```
 
-By the end:
+Sau khi hoàn thành:
 
 ```text
 [ ] You understand Clean Architecture / Hexagonal Architecture in MicroShop terms.
@@ -175,7 +175,7 @@ By the end:
 [ ] You create a Stage 2 architecture refactor backlog.
 ```
 
-Main outputs:
+Output chính:
 
 ```text
 docs/architecture/clean-architecture-review-day-31.md
@@ -192,9 +192,9 @@ No broad refactor.
 
 ---
 
-## 3. Scope guard
+## 3. Giới hạn phạm vi
 
-Do:
+Nên làm:
 
 ```text
 [ ] Review architecture.
@@ -205,7 +205,7 @@ Do:
 [ ] Fix only tiny safe issues if obvious.
 ```
 
-Do not:
+Không làm:
 
 ```text
 [ ] Do not rewrite all services.
@@ -219,14 +219,14 @@ Do not:
 [ ] Do not claim production-ready architecture.
 ```
 
-What this proves:
+Điều phần này chứng minh:
 
 ```text
 MicroShop has a reviewed architecture baseline for Stage 2.
 You know where boundaries are clean and where they need hardening.
 ```
 
-What this does not prove:
+Điều phần này chưa chứng minh:
 
 ```text
 All services are fully Clean Architecture compliant.
@@ -269,7 +269,7 @@ Application depends on Domain.
 Domain depends on nothing project-specific.
 ```
 
-Avoid:
+Tránh:
 
 ```text
 Domain depends on Infrastructure.
@@ -654,7 +654,7 @@ Create file:
 docs/architecture/clean-architecture-review-day-31.md
 ```
 
-Suggested content:
+Nội dung gợi ý:
 
 ````md
 # Day 31 Clean Architecture Review
@@ -742,13 +742,13 @@ Fill in `TBD` after actual inspection.
 
 ## 11. Create service boundary review
 
-Create:
+Tạo:
 
 ```text
 docs/architecture/service-boundary-review.md
 ```
 
-Suggested content:
+Nội dung gợi ý:
 
 ````md
 # MicroShop Service Boundary Review
@@ -799,13 +799,13 @@ OrderingService does not publish Kafka events yet unless future code implements 
 
 ## 12. Create hardening backlog
 
-Create:
+Tạo:
 
 ```text
 docs/backlog/day-31-architecture-hardening-backlog.md
 ```
 
-Suggested content:
+Nội dung gợi ý:
 
 ````md
 # Day 31 Architecture Hardening Backlog
@@ -869,7 +869,7 @@ Add comment to debug endpoint explaining local/training purpose.
 Fix stale route comment.
 ```
 
-Avoid:
+Tránh:
 
 ```text
 Moving repositories across projects.
@@ -887,7 +887,7 @@ Document as backlog, do not code it today.
 
 ---
 
-## 14. Build/test plan
+## 14. Kế hoạch build/test
 
 Build core reviewed projects:
 
@@ -995,9 +995,9 @@ GET {{order_query_url}}/order-summaries/{{orderId}}
 
 ---
 
-## 17. Production fit review
+## 17. Review độ phù hợp production-minded
 
-What this improves:
+Điều phần này cải thiện:
 
 ```text
 Architecture risks become visible.
@@ -1006,7 +1006,7 @@ Future refactors are less random.
 Service responsibilities become clearer.
 ```
 
-What remains future work:
+Những phần còn là future work:
 
 ```text
 Actual refactoring.
@@ -1018,7 +1018,7 @@ Event-driven reliability hardening.
 Observability production stack.
 ```
 
-Do not claim:
+Không claim:
 
 ```text
 The architecture is fully production-ready.
@@ -1036,7 +1036,7 @@ production-minded hardening backlog
 
 ---
 
-## 18. Pass checklist
+## 18. Checklist đạt yêu cầu
 
 You pass Day 31 when:
 
@@ -1058,7 +1058,7 @@ You pass Day 31 when:
 
 ---
 
-## 19. Optional commit and tag after review
+## 19. Commit va tag tuy chon after review
 
 Do this only after implementation and review.
 
@@ -1084,7 +1084,7 @@ git tag day-31-clean-architecture-hexagonal-review
 
 ---
 
-## 20. Next day
+## 20. Ngày tiếp theo
 
 Day 32:
 
@@ -1100,3 +1100,4 @@ Which routes need governance?
 Where should ProblemDetails-style responses start?
 Which services should get versioning first?
 ```
+

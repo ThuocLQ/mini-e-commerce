@@ -1,29 +1,16 @@
----
-day: 37
-title: "CloudEvents + Event Envelope"
-duration: "90-120 minutes"
-phase: "Stage 2 - Reliable Event-Driven Advanced"
-project: "MicroShop"
-testing: "Contract review + sample event validation + Kafka/RabbitMQ docs"
-type: "lesson"
-repo_aware: true
-source_of_truth: true
-encoding_note: "ASCII-safe Markdown"
----
-
 # Day 37: CloudEvents + Event Envelope
 
-## 0. Current position
+## 0. Vị trí hiện tại
 
-You completed:
+Bạn đã hoàn thành:
 
 ```text
 Day 36: Advanced Strategy Pattern + Audit Log + Advanced Identity Review
 ```
 
-Day 37 starts Phase 2.2: Reliable Event-Driven Advanced.
+Day 37 bắt đầu Phase 2.2: Reliable Event-Driven Advanced.
 
-Correct roadmap:
+Roadmap đúng:
 
 ```text
 Day 37: CloudEvents / Event Envelope
@@ -33,9 +20,9 @@ Day 40: Kafka Consumer Group + Rebalance
 Day 41: MongoDB Projection Rebuild
 ```
 
-Day 37 is not about implementing Kafka DLT yet.
+Day 37 chưa triển khai Kafka DLT.
 
-It focuses on:
+Bài này tập trung vào:
 
 ```text
 CloudEvents mindset
@@ -47,9 +34,9 @@ RabbitMQ/Kafka contract consistency
 
 ---
 
-## 1. Current repo context
+## 1. Bối cảnh repo hiện tại
 
-Current repo truth:
+Sự thật hiện tại của repo:
 
 ```text
 Services:
@@ -72,7 +59,7 @@ Shared:
 - MicroShop.ServiceDefaults
 ```
 
-Never use:
+Không dùng:
 
 ```text
 /orders/read-model
@@ -81,16 +68,16 @@ CUST-900
 ```
 
 
-Current flows:
+Flow hiện tại:
 
 ```text
-RabbitMQ workflow:
+Workflow RabbitMQ:
 OrderingService
 -> Outbox basics
 -> RabbitMQ
 -> NotificationWorker
 
-Kafka projection demo:
+Demo projection Kafka:
 Kafka CLI demo producer
 -> topic microshop.order-events
 -> ProjectionWorker
@@ -98,22 +85,22 @@ Kafka CLI demo producer
 -> OrderQueryService
 ```
 
-Important:
+Lưu ý quan trọng:
 
 ```text
 RabbitMQ asks: who should process this work?
 Kafka asks: who wants to observe this event stream?
 ```
 
-Do not say Kafka replaced RabbitMQ.
+Không nói Kafka thay thế RabbitMQ.
 
-Do not say OrderingService publishes Kafka unless code has been implemented and verified.
+Không nói OrderingService publish Kafka nếu code chưa được implement và verify.
 
 ---
 
-## 2. Goal
+## 2. Mục tiêu
 
-By the end:
+Sau khi hoàn thành:
 
 ```text
 [ ] Current event contracts are inspected.
@@ -124,7 +111,7 @@ By the end:
 [ ] A migration/backlog plan is created.
 ```
 
-Main outputs:
+Output chính:
 
 ```text
 docs/messaging/event-envelope-standard.md
@@ -132,7 +119,7 @@ docs/messaging/cloudevents-review-day-37.md
 docs/backlog/day-37-event-envelope-backlog.md
 ```
 
-Optional code outputs:
+Output code tùy chọn:
 
 ```text
 None by default.
@@ -141,9 +128,9 @@ Design-first unless repo is ready for a small sample envelope type.
 
 ---
 
-## 3. Scope guard
+## 3. Giới hạn phạm vi
 
-Do:
+Nên làm:
 
 ```text
 [ ] Inspect current contracts.
@@ -153,7 +140,7 @@ Do:
 [ ] Create backlog.
 ```
 
-Do not:
+Không làm:
 
 ```text
 [ ] Do not rewrite all event contracts today.
@@ -164,13 +151,13 @@ Do not:
 [ ] Do not claim CloudEvents compliance if not fully implemented.
 ```
 
-What this proves:
+Điều phần này chứng minh:
 
 ```text
 MicroShop has an event contract governance direction.
 ```
 
-What this does not prove:
+Điều phần này chưa chứng minh:
 
 ```text
 All events are CloudEvents-compliant.
@@ -180,7 +167,7 @@ Event versioning is enforced at runtime.
 
 ---
 
-## 4. Pre-check
+## 4. Kiểm tra trước khi làm
 
 Inspect contracts:
 
@@ -204,7 +191,7 @@ Get-ChildItem Workers/ProjectionWorker -Recurse -Filter *.cs |
 
 ---
 
-## 5. CloudEvents mental model
+## 5. Tư duy CloudEvents
 
 CloudEvents is a standard way to describe event metadata.
 
@@ -247,25 +234,25 @@ Example shape:
 Day 37 target:
 
 ```text
-Use CloudEvents as a reference standard.
-Document MicroShop event envelope.
-Do not force full runtime migration today.
+Dùng CloudEvents như chuẩn tham chiếu.
+Document event envelope của MicroShop.
+Không ép migrate runtime toàn bộ trong hôm nay.
 ```
 
 ---
 
-## 6. MicroShop event envelope standard
+## 6. Chuẩn event envelope của MicroShop
 
-Create:
+Tạo:
 
 ```text
 docs/messaging/event-envelope-standard.md
 ```
 
-Include:
+Bao gồm:
 
 ```text
-Goal:
+Mục tiêu:
 Events should have consistent metadata for tracing, versioning, replay, and debugging.
 
 Envelope fields:
@@ -301,7 +288,7 @@ Do not remove fields without a migration plan.
 
 ---
 
-## 7. Compare current RabbitMQ and Kafka payloads separately
+## 7. So sánh riêng payload RabbitMQ và Kafka hiện tại
 
 Current RabbitMQ base contract:
 
@@ -361,7 +348,7 @@ Data is flattened instead of nested.
 eventType is simple name, not namespaced.
 ```
 
-Important distinction:
+Phân biệt quan trọng:
 
 ```text
 RabbitMQ IntegrationEvent already has Version.
@@ -370,21 +357,21 @@ RabbitMQ OrderCreatedIntegrationEvent does not include customerName/itemCount/it
 Kafka projection demo payload does include customerName/itemCount/items.
 ```
 
-This is acceptable for training-stage demo.
+Điều này chấp nhận được với demo ở giai đoạn training.
 
-Document as backlog.
+Ghi lại vào backlog.
 
 ---
 
-## 8. CloudEvents review doc
+## 8. Tài liệu review CloudEvents
 
-Create:
+Tạo:
 
 ```text
 docs/messaging/cloudevents-review-day-37.md
 ```
 
-Include:
+Bao gồm:
 
 ```text
 Reviewed current events:
@@ -403,7 +390,7 @@ subject missing/current
 CloudEvents type naming missing/current
 data nesting flattened/current
 
-Decision:
+Quyết định:
 Use CloudEvents as reference.
 Create MicroShop envelope standard.
 Do not migrate all runtime events on Day 37.
@@ -411,9 +398,9 @@ Do not migrate all runtime events on Day 37.
 
 ---
 
-## 9. Optional sample contract design
+## 9. Thiết kế contract mẫu tùy chọn
 
-Do not implement unless approved.
+Không implement nếu chưa được duyệt.
 
 Possible generic envelope:
 
@@ -430,7 +417,7 @@ public sealed record MicroShopEventEnvelope<TData>(
     TData Data);
 ```
 
-Rules:
+Quy tắc:
 
 ```text
 Keep it in BuildingBlocks.Contracts only if all consumers can adopt it gradually.
@@ -440,11 +427,11 @@ Do not break NotificationWorker consumer.
 
 ---
 
-## 10. Runtime verification
+## 10. Xác minh runtime
 
-No runtime required if docs only.
+Không cần chạy runtime nếu chỉ sửa docs.
 
-Optional builds:
+Build tùy chọn:
 
 ```powershell
 dotnet build BuildingBlocks.Contracts/BuildingBlocks.Contracts.csproj
@@ -464,13 +451,13 @@ docker compose up -d --build zookeeper kafka mongodb orderqueryservice projectio
 
 ## 11. Backlog
 
-Create:
+Tạo:
 
 ```text
 docs/backlog/day-37-event-envelope-backlog.md
 ```
 
-Include:
+Bao gồm:
 
 ```text
 [ ] Add event envelope standard docs.
@@ -485,7 +472,7 @@ Include:
 
 ---
 
-## 12. Docs update
+## 12. Cập nhật docs
 
 Update:
 
@@ -497,9 +484,9 @@ Link Day 37 docs.
 
 ---
 
-## 13. Production fit review
+## 13. Review độ phù hợp production-minded
 
-What this improves:
+Điều phần này cải thiện:
 
 ```text
 Event metadata becomes intentional.
@@ -507,7 +494,7 @@ Future tracing/replay/versioning becomes easier.
 RabbitMQ/Kafka contracts have a shared direction.
 ```
 
-What remains future work:
+Những phần còn là future work:
 
 ```text
 Runtime envelope migration.
@@ -518,7 +505,7 @@ Event compatibility checks.
 
 ---
 
-## 14. Pass checklist
+## 14. Checklist đạt yêu cầu
 
 ```text
 [ ] Current event contracts are inspected.
@@ -535,7 +522,7 @@ Event compatibility checks.
 
 ---
 
-## 15. Optional commit/tag after review
+## 15. Commit/tag tùy chọn sau review
 
 ```text
 Commit: Day 37: CloudEvents Event Envelope
@@ -544,8 +531,9 @@ Tag: day-37-cloudevents-event-envelope
 
 ---
 
-## 16. Next day
+## 16. Ngày tiếp theo
 
 ```text
 Day 38: Standard Transactional Outbox
 ```
+
