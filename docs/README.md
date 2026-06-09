@@ -37,7 +37,9 @@ Read these in order:
 | Debug local services | [runbooks/microshop-local-debug-runbook.md](runbooks/microshop-local-debug-runbook.md), [operational-visibility.md](operational-visibility.md) |
 | Review API routes | [api-surface-review.md](api-surface-review.md), [api/api-versioning-policy.md](api/api-versioning-policy.md), [api/api-error-handling-standard.md](api/api-error-handling-standard.md), [api/validation-and-mapping-standard.md](api/validation-and-mapping-standard.md) |
 | Review database migration policy | [database/migration-policy.md](database/migration-policy.md), [database/postgresql-schema-evolution-review-day-33.md](database/postgresql-schema-evolution-review-day-33.md) |
-| Review query patterns | [patterns/specification-pattern.md](patterns/specification-pattern.md), [patterns/day-35-specification-review.md](patterns/day-35-specification-review.md) |
+| Review query and strategy patterns | [patterns/specification-pattern.md](patterns/specification-pattern.md), [patterns/day-35-specification-review.md](patterns/day-35-specification-review.md), [patterns/strategy-pattern-review-day-36.md](patterns/strategy-pattern-review-day-36.md) |
+| Review security and identity hardening | [security/audit-log-policy.md](security/audit-log-policy.md), [security/identity-hardening-review-day-36.md](security/identity-hardening-review-day-36.md), [security/sso-oidc-decision-note.md](security/sso-oidc-decision-note.md) |
+| Review messaging reliability | [messaging/event-envelope-standard.md](messaging/event-envelope-standard.md), [messaging/cloudevents-review-day-37.md](messaging/cloudevents-review-day-37.md), [messaging/transactional-outbox-standard.md](messaging/transactional-outbox-standard.md), [messaging/outbox-transaction-review-day-38.md](messaging/outbox-transaction-review-day-38.md) |
 | Review architecture decisions | [adr/README.md](adr/README.md) |
 | Continue the roadmap with ChatGPT/Codex | [chatgpt-handoff-microshop-learning-roadmap.md](chatgpt-handoff-microshop-learning-roadmap.md) |
 
@@ -52,7 +54,9 @@ Read these in order:
 | API | What routes exist | [api-surface-review.md](api-surface-review.md) |
 | API Standards | API compatibility, errors, validation, and mapping | [api/api-versioning-policy.md](api/api-versioning-policy.md), [api/api-error-handling-standard.md](api/api-error-handling-standard.md), [api/validation-and-mapping-standard.md](api/validation-and-mapping-standard.md) |
 | Database | Database ownership and migration policy | [database/migration-policy.md](database/migration-policy.md), [database/postgresql-schema-evolution-review-day-33.md](database/postgresql-schema-evolution-review-day-33.md) |
-| Patterns | Query and design pattern notes | [patterns/specification-pattern.md](patterns/specification-pattern.md), [patterns/day-35-specification-review.md](patterns/day-35-specification-review.md) |
+| Patterns | Query and design pattern notes | [patterns/specification-pattern.md](patterns/specification-pattern.md), [patterns/day-35-specification-review.md](patterns/day-35-specification-review.md), [patterns/strategy-pattern-review-day-36.md](patterns/strategy-pattern-review-day-36.md) |
+| Security | Identity, audit, and SSO/OIDC hardening notes | [security/audit-log-policy.md](security/audit-log-policy.md), [security/identity-hardening-review-day-36.md](security/identity-hardening-review-day-36.md), [security/sso-oidc-decision-note.md](security/sso-oidc-decision-note.md) |
+| Messaging | Event envelope and outbox reliability docs | [messaging/event-envelope-standard.md](messaging/event-envelope-standard.md), [messaging/cloudevents-review-day-37.md](messaging/cloudevents-review-day-37.md), [messaging/transactional-outbox-standard.md](messaging/transactional-outbox-standard.md), [messaging/outbox-transaction-review-day-38.md](messaging/outbox-transaction-review-day-38.md) |
 | Checkpoints | Stage checkpoint reports | [checkpoints/stage-1-foundation-checkpoint.md](checkpoints/stage-1-foundation-checkpoint.md) |
 | Backlog | Production hardening roadmap | [backlog/stage-2-production-hardening-backlog.md](backlog/stage-2-production-hardening-backlog.md) |
 | Notes | Topic-specific learning notes | [mongodb-read-model-notes.md](mongodb-read-model-notes.md), [aspire-decision.md](aspire-decision.md), [docker-compose-decision.md](docker-compose-decision.md), [config-secrets-decision.md](config-secrets-decision.md) |
@@ -76,12 +80,23 @@ Read these in order:
 | [database/postgresql-schema-evolution-review-day-33.md](database/postgresql-schema-evolution-review-day-33.md) | Day 33 PostgreSQL schema evolution review |
 | [patterns/specification-pattern.md](patterns/specification-pattern.md) | Day 35 Specification Lite / query criteria pattern |
 | [patterns/day-35-specification-review.md](patterns/day-35-specification-review.md) | Day 35 CatalogService query criteria review |
+| [patterns/strategy-pattern-review-day-36.md](patterns/strategy-pattern-review-day-36.md) | Day 36 strategy pattern candidate review |
+| [security/audit-log-policy.md](security/audit-log-policy.md) | Day 36 audit log policy |
+| [security/identity-hardening-review-day-36.md](security/identity-hardening-review-day-36.md) | Day 36 IdentityService hardening review |
+| [security/sso-oidc-decision-note.md](security/sso-oidc-decision-note.md) | Day 36 SSO/OIDC direction note |
+| [messaging/event-envelope-standard.md](messaging/event-envelope-standard.md) | Day 37 event envelope standard |
+| [messaging/cloudevents-review-day-37.md](messaging/cloudevents-review-day-37.md) | Day 37 CloudEvents review |
+| [messaging/transactional-outbox-standard.md](messaging/transactional-outbox-standard.md) | Day 38 transactional outbox standard |
+| [messaging/outbox-transaction-review-day-38.md](messaging/outbox-transaction-review-day-38.md) | Day 38 OrderingService outbox transaction review |
 | [demo-script-foundation.md](demo-script-foundation.md) | Step-by-step demo for the foundation stage |
 | [checkpoints/stage-1-foundation-checkpoint.md](checkpoints/stage-1-foundation-checkpoint.md) | Stage 1 checkpoint report |
 | [backlog/stage-2-production-hardening-backlog.md](backlog/stage-2-production-hardening-backlog.md) | Stage 2 production hardening backlog |
 | [backlog/day-31-architecture-hardening-backlog.md](backlog/day-31-architecture-hardening-backlog.md) | Day 31 architecture hardening backlog |
 | [backlog/day-33-database-hardening-backlog.md](backlog/day-33-database-hardening-backlog.md) | Day 33 database hardening backlog |
 | [backlog/day-35-query-hardening-backlog.md](backlog/day-35-query-hardening-backlog.md) | Day 35 query hardening backlog |
+| [backlog/day-36-audit-identity-hardening-backlog.md](backlog/day-36-audit-identity-hardening-backlog.md) | Day 36 audit and identity hardening backlog |
+| [backlog/day-37-event-envelope-backlog.md](backlog/day-37-event-envelope-backlog.md) | Day 37 event envelope backlog |
+| [backlog/day-38-transactional-outbox-backlog.md](backlog/day-38-transactional-outbox-backlog.md) | Day 38 transactional outbox backlog |
 | [lesson-authoring-standard.md](lesson-authoring-standard.md) | Mandatory context/rules for future ChatGPT/Codex lessons |
 | [operational-visibility.md](operational-visibility.md) | Health checks, logs, and local visibility notes |
 | [runbooks/microshop-local-debug-runbook.md](runbooks/microshop-local-debug-runbook.md) | Practical debug checklist |
