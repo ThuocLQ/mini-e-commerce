@@ -2,18 +2,24 @@ namespace DiscountService.Domain.Discounts;
 
 public sealed class DiscountStrategyFactory
 {
-    private readonly IReadOnlyList<IDiscountStrategy> _strategies;
+    private readonly IReadOnlyDictionary<DiscountType, IDiscountStrategy> _strategiesByType;
 
     public DiscountStrategyFactory(IEnumerable<IDiscountStrategy> strategies)
     {
-        _strategies = strategies.ToList();
+        _strategiesByType = strategies
+            .GroupBy(strategy => strategy.Type)
+            .ToDictionary(
+                group => group.Key,
+                group => group.Count() == 1
+                    ? group.Single()
+                    : throw new InvalidOperationException(
+                        $"Multiple discount strategies were registered for type '{group.Key}'."));
     }
 
     public IDiscountStrategy GetStrategy(DiscountType type)
     {
-        var strategy = _strategies.FirstOrDefault(strategy => strategy.Type == type);
-
-        return strategy
-               ?? throw new InvalidOperationException($"Discount strategy for type '{type}' was not found.");
+        return _strategiesByType.TryGetValue(type, out var strategy)
+            ? strategy
+            : throw new InvalidOperationException($"Discount strategy for type '{type}' was not found.");
     }
 }
