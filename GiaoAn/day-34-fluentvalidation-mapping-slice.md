@@ -1,94 +1,103 @@
+---
+day: 34
+title: "FluentValidation Pipeline + Mapping"
+duration: "90-120 phút"
+project: "MicroShop"
+type: "lesson"
+repo_aware: true
+source_of_truth: true
+language: "vi"
+encoding_note: "UTF-8 Markdown tiếng Việt chuẩn"
+style: "learning-practice"
+---
+
 # Day 34: FluentValidation Pipeline + Mapping
 
-## 0. Vị trí hiện tại
+## 0. Hôm nay học gì?
 
-Bạn đã hoàn thành Day 33 database/schema evolution review.
+Hôm nay mình học cách validate input và mapping DTO rõ ràng hơn.
 
-Day 34 focuses on validation and DTO mapping.
+Bài này làm một slice nhỏ, không thêm validator cho toàn bộ repo.
 
-Mục tiêu:
+## 1. Vì sao cần bài này?
 
-```text
-Make request validation explicit, testable, and consistent in one small slice.
-```
+Nếu request xấu đi sâu vào business/database mới fail thì debug rất mệt. Validation tốt giúp reject sớm, trả lỗi rõ ràng.
 
-Do not apply validation everywhere today.
+Mapping tốt giúp API không leak persistence model ra ngoài.
 
-## 1. Bối cảnh repo hiện tại
+## 2. Khái niệm cốt lõi
 
-Sự thật hiện tại của repo:
+### Validation
 
-```text
-Services:
-- Services/ApiGateway
-- Services/CatalogService
-- Services/BasketService
-- Services/OrderingService
-- Services/DiscountService
-- Services/IdentityService
-- Services/PaymentService
-- Services/OrderQueryService
-
-Background workers:
-- Services/NotificationWorker
-- Workers/ProjectionWorker
-
-Shared:
-- BuildingBlocks.Contracts
-- MicroShop.AppHost
-- MicroShop.ServiceDefaults
-```
-
-Các route quan trọng:
+Validation trả lời:
 
 ```text
-GET /order-summaries
-GET /order-summaries/{orderId}
-POST /debug/order-summaries
-
-GET /orders
-GET /orders/{id}
-POST /orders/checkout
-GET /debug/outbox
-
-GET /products
-GET /products/{id}
-GET /products/search
-GET /products/count
-GET /products/price-range
-POST /products
-PUT /products/{id}
-DELETE /products/{id}
-
-GET /basket/{userId}
-POST /basket/{userId}/items
-POST /basket/{userId}/items-grpc
-PUT /basket/{userId}/items/{productId}
-DELETE /basket/{userId}/items/{productId}
-PUT /basket/{userId}/clear
-DELETE /basket/{userId}
-GET /basket/products/{productId}/validate
-GET /basket/products/{productId}/validate-grpc
-POST /basket/preview-item
-POST /basket/preview-item-grpc
-GET /basket/products/{productId}/compare-communication
-
-GET /discounts/{code}
-POST /discounts/apply
-
-POST /auth/login
-GET /auth/me
-
-POST /payments
-GET /payments/{id}
-POST /webhooks/payment
-POST /payments/webhooks/payment
-
-GET /health
-GET /alive
+Request này có hợp lệ không?
+Sai field nào?
+Sai vì sao?
 ```
 
-Không dùng:
+### FluentValidation
+
+FluentValidation giúp viết rule rõ:
+
+```csharp
+RuleFor(x => x.CustomerName).NotEmpty();
+RuleFor(x => x.TotalAmount).GreaterThanOrEqualTo(0);
+```
+
+### Mapping
+
+Mapping là chuyển đổi:
+
+```text
+Request DTO -> command/query/read model
+Domain/read model -> response DTO
+```
+
+## 3. Nhìn vào repo hiện tại
+
+Các service chính:
+
+```text
+Services/ApiGateway
+Services/CatalogService
+Services/BasketService
+Services/OrderingService
+Services/DiscountService
+Services/IdentityService
+Services/PaymentService
+Services/OrderQueryService
+```
+
+Các worker:
+
+```text
+Services/NotificationWorker
+Workers/ProjectionWorker
+```
+
+Các project dùng chung:
+
+```text
+BuildingBlocks.Contracts
+MicroShop.AppHost
+MicroShop.ServiceDefaults
+```
+
+Hạ tầng local:
+
+```text
+PostgreSQL: lưu dữ liệu write-side
+Redis: lưu basket/cache
+RabbitMQ: workflow/task messaging
+Kafka: event stream/projection learning
+MongoDB: read model và projection failure
+Docker Compose: chạy local runtime
+Aspire AppHost: orchestration local .NET
+```
+
+Route/ID cũ không dùng lại:
 
 ```text
 /orders/read-model
@@ -97,145 +106,46 @@ CUST-900
 ```
 
 
-## 2. Mục tiêu
+Target khuyến nghị:
 
 ```text
-[ ] Validation strategy is documented.
-[ ] Mapping strategy is documented.
-[ ] One target slice uses explicit validation.
-[ ] Invalid requests return documented error shape.
-[ ] Postman negative tests are added.
+OrderQueryService
+POST /debug/order-summaries
+DTO: DebugUpsertOrderSummaryRequest
 ```
 
-Output chính:
+Repo-aware note:
 
 ```text
-docs/api/validation-and-mapping-standard.md
-docs/api/day-34-validation-mapping-notes.md
-postman/MicroShop.Day34.Validation.postman_collection.json
+OrderQueryService hiện đã có FluentValidation.DependencyInjectionExtensions và validator.
+Day 34 không nói như thể FluentValidation còn thiếu.
+Trọng tâm là review/giải thích wiring hiện có và bổ sung docs/test nếu thiếu.
 ```
 
-Optional code output:
+## 4. Thực hành từng bước
 
-```text
-FluentValidation validators for one target slice
-Mapping helpers or explicit mapping methods for one target slice
-```
-
-## 3. Giới hạn phạm vi
-
-Nên làm:
-
-```text
-[ ] Inspect existing validation.
-[ ] Choose one target service/endpoint.
-[ ] Add or document FluentValidation.
-[ ] Keep mapping explicit.
-[ ] Add Postman negative tests.
-```
-
-Không làm:
-
-```text
-[ ] Do not add validators to every service.
-[ ] Do not introduce a huge shared validation framework today.
-[ ] Do not change route shapes.
-[ ] Do not change RabbitMQ/Kafka behavior.
-[ ] Do not claim all validation is standardized.
-```
-
-Điều phần này chứng minh:
-
-```text
-MicroShop has a validation/mapping direction and one verified slice.
-```
-
-Điều phần này chưa chứng minh:
-
-```text
-Every request in every service is validated.
-All mapping is standardized.
-```
-
-## 4. Kiểm tra trước khi làm
+### Bước 1: Inspect validation/mapping
 
 ```powershell
 Get-ChildItem Services -Recurse -Filter *.cs |
   Select-String -Pattern "FluentValidation|IValidator|Validate|ValidationResult|MapTo|Mapper|AutoMapper|Mapster|BadRequest"
-Get-ChildItem Services -Recurse -Filter *Endpoints.cs
-Get-ChildItem Services -Recurse -Filter *.csproj |
-  Select-String -Pattern "FluentValidation|AutoMapper|Mapster"
 ```
 
-## 5. Choose target slice
-
-Recommended target:
-
-```text
-OrderQueryService:
-    POST /debug/order-summaries
-    DTO: DebugUpsertOrderSummaryRequest
-```
-
-Why:
-
-```text
-It is current from recent lessons.
-It is a debug endpoint, lower production risk.
-It likely accepts a request body that can be validated.
-POST /debug/order-summaries is expected only in Development/local learning mode.
-If it is not mapped outside Development, document that behavior instead of changing it.
-```
-
-Alternative:
-
-```text
-CatalogService:
-    POST /products
-```
-
-Avoid Identity/Payment as first validation slice because they are security/payment sensitive.
-
-## 6. Validation standard
-
-Tạo:
-
-```text
-docs/api/validation-and-mapping-standard.md
-```
-
-Bao gồm:
-
-```text
-Validate at API/Application boundary.
-Keep validation messages clear.
-Do not rely only on database constraints.
-Return documented error format.
-Do not expose persistence models directly.
-Map request DTO -> command/query.
-Map domain/read model -> response DTO.
-Keep mapping explicit unless a mapping library is intentionally adopted.
-```
-
-## 7. Add FluentValidation package
-
-OrderQueryService currently does not reference FluentValidation.
-
-If target is OrderQueryService, add:
+### Bước 2: Inspect package/wiring
 
 ```powershell
-dotnet add Services/OrderQueryService/OrderQueryService.csproj package FluentValidation
+Get-ChildItem Services -Recurse -Filter *.csproj |
+  Select-String -Pattern "FluentValidation|AutoMapper|Mapster"
+
+Get-ChildItem Services/OrderQueryService -Recurse -Filter *.cs |
+  Select-String -Pattern "FluentValidation|DependencyInjectionExtensions|IValidator|Validator"
 ```
 
-If the repo changes later and FluentValidation is already referenced, do not add it again.
+### Bước 3: Review validator
 
-## 8. Example validator
-
-Adjust property names to real request DTO.
+Validator mong muốn:
 
 ```csharp
-using FluentValidation;
-
 public sealed class DebugUpsertOrderSummaryRequestValidator
     : AbstractValidator<DebugUpsertOrderSummaryRequest>
 {
@@ -251,56 +161,7 @@ public sealed class DebugUpsertOrderSummaryRequestValidator
 }
 ```
 
-## 9. Endpoint usage
-
-Example:
-
-```csharp
-var validationResult = await validator.ValidateAsync(request, cancellationToken);
-
-if (!validationResult.IsValid)
-{
-    return Results.ValidationProblem(
-        validationResult.Errors
-            .GroupBy(x => x.PropertyName)
-            .ToDictionary(
-                group => group.Key,
-                group => group.Select(error => error.ErrorMessage).ToArray()));
-}
-```
-
-If Day 32 established a local ProblemDetails helper, align with it.
-
-Do not create a global validation pipeline today unless repo already has one.
-
-## 10. Mapping review
-
-For target endpoint, check:
-
-```text
-Request DTO -> application command/query/read model
-Read model/domain -> response DTO
-```
-
-Avoid returning persistence model directly unless intentionally accepted for training-stage and documented.
-
-Prefer explicit mapping for now.
-
-## 11. Postman negative tests
-
-Chế độ lite:
-
-```powershell
-docker compose up -d --build zookeeper kafka mongodb orderqueryservice projectionworker
-```
-
-Test invalid debug payload:
-
-```text
-POST {{order_query_url}}/debug/order-summaries
-```
-
-Payload:
+### Bước 4: Test invalid payload
 
 ```json
 {
@@ -310,91 +171,55 @@ Payload:
 }
 ```
 
-Kỳ vọng:
-
-```text
-400 validation error
-errors contains relevant fields
-```
-
-## 12. Day 34 notes
+### Bước 5: Viết docs
 
 Tạo:
 
 ```text
+docs/api/validation-and-mapping-standard.md
 docs/api/day-34-validation-mapping-notes.md
 ```
 
-Bao gồm:
+## 5. Kết quả kỳ vọng
+
+Kỳ vọng:
 
 ```text
-Target service
-Endpoint
-Request DTO
-Validator
-Mapping notes
-Verified negative tests
-Future work
+Biết validator hiện đang được wire thế nào.
+Invalid request trả 400 rõ ràng.
+Không crash service.
+Không ghi data sai.
+Mapping target endpoint được review.
 ```
 
-Cập nhật docs/README.md.
-
-## 13. Kế hoạch build/test
-
-```powershell
-dotnet build Services/OrderQueryService/OrderQueryService.csproj
-```
-
-If Catalog target:
-
-```powershell
-dotnet build Services/CatalogService/CatalogService.csproj
-```
-
-Chạy negative test bằng Postman.
-
-## 14. Review độ phù hợp production-minded
-
-Improves:
+## 6. Lỗi hay gặp
 
 ```text
-Bad input is rejected earlier.
-Validation rules are explicit and testable.
-Mapping direction is clearer.
+Lỗi 1: Nghĩ OrderQueryService chưa có FluentValidation dù repo đã có.
+Lỗi 2: Add package lại không cần thiết.
+Lỗi 3: Tạo global validation framework quá sớm.
+Lỗi 4: Validate nhưng không test response thật.
 ```
 
-Việc làm sau:
+## 7. Tổng kết bài học
+
+Day 34 giúp mình học cách đưa validation vào có kiểm soát: bắt đầu từ một slice nhỏ, test lỗi thật, rồi mới mở rộng sau.
+
+## 8. Checklist trước khi commit
 
 ```text
-Global validation pipeline.
-Consistent validation errors across all services.
-Mapping strategy across all services.
+[ ] Hiểu được mục tiêu chính của bài.
+[ ] Đã chạy các lệnh kiểm tra chính.
+[ ] Đã tạo/cập nhật đúng docs hoặc code trong scope.
+[ ] Đã test phần cần test.
+[ ] Không dùng endpoint/id cũ.
+[ ] Không claim production-ready.
+[ ] Không làm lệch RabbitMQ/Kafka responsibility.
 ```
 
-## 15. Checklist đạt yêu cầu
-
-```text
-[ ] Existing validation/mapping is inspected.
-[ ] Target slice is chosen.
-[ ] validation-and-mapping-standard.md exists.
-[ ] DebugUpsertOrderSummaryRequestValidator exists or validation decision is documented.
-[ ] Negative Postman tests exist.
-[ ] Mapping is reviewed for target endpoint.
-[ ] day-34-validation-mapping-notes.md exists.
-[ ] Build passes for touched service.
-[ ] Không đưa vào refactor validation diện rộng.
-```
-
-## 16. Commit/tag tùy chọn sau review
+## 9. Commit/tag gợi ý
 
 ```text
 Commit: Day 34: FluentValidation Mapping Slice
 Tag: day-34-fluentvalidation-mapping-slice
 ```
-
-## 17. Ngày tiếp theo
-
-```text
-Day 35: Specification Pattern
-```
-

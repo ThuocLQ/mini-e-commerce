@@ -1,94 +1,91 @@
-# Day 35: Specification Pattern Lite / Query Criteria
+---
+day: 35
+title: "Specification Pattern Lite + Query Criteria"
+duration: "90-120 phút"
+project: "MicroShop"
+type: "lesson"
+repo_aware: true
+source_of_truth: true
+language: "vi"
+encoding_note: "UTF-8 Markdown tiếng Việt chuẩn"
+style: "learning-practice"
+---
 
-## 0. Vị trí hiện tại
+# Day 35: Specification Pattern Lite + Query Criteria
 
-Bạn đã hoàn thành Day 34 validation/mapping slice.
+## 0. Hôm nay học gì?
 
-Day 35 focuses on query logic organization.
+Hôm nay mình học cách tổ chức query/filter logic để endpoint và repository sạch hơn.
 
-Mục tiêu:
+Bài này dùng Specification Pattern Lite, không dựng generic framework phức tạp.
 
-```text
-Avoid scattering query/filter rules across endpoints and repositories.
-Introduce a lightweight query criteria / specification-lite approach in one target slice.
-Do not force a full generic Specification Pattern framework.
-```
+## 1. Vì sao cần bài này?
 
-## 1. Bối cảnh repo hiện tại
+Query ban đầu thường đơn giản. Nhưng khi có search, filter, sort, paging, price range..., logic dễ bị rải ở nhiều nơi.
 
-Sự thật hiện tại của repo:
+Query Criteria giúp gom ý định query lại rõ hơn mà không over-engineering.
 
-```text
-Services:
-- Services/ApiGateway
-- Services/CatalogService
-- Services/BasketService
-- Services/OrderingService
-- Services/DiscountService
-- Services/IdentityService
-- Services/PaymentService
-- Services/OrderQueryService
+## 2. Khái niệm cốt lõi
 
-Background workers:
-- Services/NotificationWorker
-- Workers/ProjectionWorker
+### Specification Pattern là gì?
 
-Shared:
-- BuildingBlocks.Contracts
-- MicroShop.AppHost
-- MicroShop.ServiceDefaults
-```
+Specification là một rule có thể tái sử dụng.
 
-Các route quan trọng:
+Ví dụ:
 
 ```text
-GET /order-summaries
-GET /order-summaries/{orderId}
-POST /debug/order-summaries
-
-GET /orders
-GET /orders/{id}
-POST /orders/checkout
-GET /debug/outbox
-
-GET /products
-GET /products/{id}
-GET /products/search
-GET /products/count
-GET /products/price-range
-POST /products
-PUT /products/{id}
-DELETE /products/{id}
-
-GET /basket/{userId}
-POST /basket/{userId}/items
-POST /basket/{userId}/items-grpc
-PUT /basket/{userId}/items/{productId}
-DELETE /basket/{userId}/items/{productId}
-PUT /basket/{userId}/clear
-DELETE /basket/{userId}
-GET /basket/products/{productId}/validate
-GET /basket/products/{productId}/validate-grpc
-POST /basket/preview-item
-POST /basket/preview-item-grpc
-GET /basket/products/{productId}/compare-communication
-
-GET /discounts/{code}
-POST /discounts/apply
-
-POST /auth/login
-GET /auth/me
-
-POST /payments
-GET /payments/{id}
-POST /webhooks/payment
-POST /payments/webhooks/payment
-
-GET /health
-GET /alive
+Product có giá trong khoảng min/max.
+Product match keyword.
+Order thuộc customer X.
 ```
 
-Không dùng:
+### Vì sao dùng Lite?
+
+Vì repo hiện tại CatalogService còn khá đơn giản. Dùng `ProductQueryCriteria` là đủ, không cần generic framework.
+
+## 3. Nhìn vào repo hiện tại
+
+Các service chính:
+
+```text
+Services/ApiGateway
+Services/CatalogService
+Services/BasketService
+Services/OrderingService
+Services/DiscountService
+Services/IdentityService
+Services/PaymentService
+Services/OrderQueryService
+```
+
+Các worker:
+
+```text
+Services/NotificationWorker
+Workers/ProjectionWorker
+```
+
+Các project dùng chung:
+
+```text
+BuildingBlocks.Contracts
+MicroShop.AppHost
+MicroShop.ServiceDefaults
+```
+
+Hạ tầng local:
+
+```text
+PostgreSQL: lưu dữ liệu write-side
+Redis: lưu basket/cache
+RabbitMQ: workflow/task messaging
+Kafka: event stream/projection learning
+MongoDB: read model và projection failure
+Docker Compose: chạy local runtime
+Aspire AppHost: orchestration local .NET
+```
+
+Route/ID cũ không dùng lại:
 
 ```text
 /orders/read-model
@@ -97,18 +94,40 @@ CUST-900
 ```
 
 
-## 2. Mục tiêu
+Target khuyến nghị:
 
 ```text
-[ ] Specification Pattern is understood.
-[ ] Current query/filter logic is reviewed.
-[ ] One target slice is selected.
-[ ] Specification/query criteria docs are created.
-[ ] Optional minimal implementation is added if safe.
-[ ] Postman verifies query behavior did not regress.
+CatalogService product query/search
 ```
 
-Output chính:
+Route:
+
+```text
+GET /products
+GET /products/search
+GET /products/count
+GET /products/price-range?minPrice=0&maxPrice=1000
+```
+
+Lưu ý: không document `/products/price-range` trống nếu code cần `minPrice` và `maxPrice`.
+
+## 4. Thực hành từng bước
+
+### Bước 1: Search query/filter logic
+
+```powershell
+Get-ChildItem Services -Recurse -Filter *.cs |
+  Select-String -Pattern "search|filter|Where|OrderBy|price|count|range|Specification|Criteria"
+```
+
+### Bước 2: Inspect CatalogService
+
+```powershell
+Get-ChildItem Services/CatalogService -Recurse -Filter *Endpoints.cs
+Get-ChildItem Services/CatalogService -Recurse -Filter *.cs
+```
+
+### Bước 3: Tạo docs
 
 ```text
 docs/patterns/specification-pattern.md
@@ -116,147 +135,7 @@ docs/patterns/day-35-specification-review.md
 docs/backlog/day-35-query-hardening-backlog.md
 ```
 
-Output code tùy chọn:
-
-```text
-Query criteria object in one service
-ProductQueryCriteria or ProductSearchCriteria
-Repository method accepting query criteria
-```
-
-## 3. Giới hạn phạm vi
-
-Nên làm:
-
-```text
-[ ] Review query/filter logic.
-[ ] Introduce Specification Pattern concept.
-[ ] Apply to one small slice if useful.
-[ ] Keep behavior unchanged.
-[ ] Add tests/Postman checks around search/filter.
-```
-
-Không làm:
-
-```text
-[ ] Do not rewrite all repositories.
-[ ] Do not build a generic framework too early.
-[ ] Do not change API contracts.
-[ ] Do not change database schema.
-[ ] Do not change RabbitMQ/Kafka behavior.
-[ ] Do not claim all queries use specifications.
-```
-
-Điều phần này chứng minh:
-
-```text
-MicroShop has a direction for reusable query rules.
-One query slice can be made cleaner without broad refactor.
-```
-
-Điều phần này chưa chứng minh:
-
-```text
-All repositories are standardized.
-All query performance issues are solved.
-```
-
-## 4. Kiểm tra trước khi làm
-
-```powershell
-Get-ChildItem Services -Recurse -Filter *.cs |
-  Select-String -Pattern "search|filter|Where|OrderBy|price|count|range|Specification|Criteria"
-Get-ChildItem Services/CatalogService -Recurse -Filter *Endpoints.cs
-Get-ChildItem Services/CatalogService -Recurse -Filter *.cs
-Get-ChildItem Services/OrderingService -Recurse -Filter *Endpoints.cs
-Get-ChildItem Services/OrderingService -Recurse -Filter *.cs
-```
-
-## 5. What is Specification Pattern Lite?
-
-A specification represents a reusable business/query rule.
-
-Examples:
-
-```text
-Products with price between min and max.
-Products matching search keyword.
-Active orders for customer.
-Orders created within date range.
-```
-
-Benefits:
-
-```text
-Reusable query rules.
-More testable logic.
-Less duplicated filtering.
-Clearer intent.
-```
-
-Risk:
-
-```text
-Over-engineering if used for simple queries.
-Too generic abstraction can become harder than direct code.
-CatalogService currently has simple Dapper query methods such as SearchAsync, GetByPriceRangeAsync, and GetAllAsync.
-Day 35 should not force a full Specification Pattern framework if a simple query criteria object is enough.
-```
-
-## 6. Target slice recommendation
-
-Recommended target:
-
-```text
-CatalogService product query/search
-```
-
-Why:
-
-```text
-Catalog has query routes:
-GET /products
-GET /products/search
-GET /products/count
-GET /products/price-range
-```
-
-Alternative:
-
-```text
-OrderingService GET /orders query filters if they exist.
-```
-
-Hôm nay không target ProjectionWorker.
-
-## 7. Documentation first
-
-Tạo:
-
-```text
-docs/patterns/specification-pattern.md
-```
-
-Bao gồm:
-
-```text
-Goal
-When to use
-When not to use
-MicroShop candidate
-Example query criteria objects
-Current stage
-```
-
-## 8. Minimal implementation option
-
-Chỉ implement nếu query code của CatalogService đã sẵn sàng.
-
-Tránh abstraction qua generic gia tao.
-
-Với Dapper, ưu tiên object filter/sort/paging nhỏ gọn.
-
-Cách local tốt hơn:
+### Bước 4: Nếu implement, dùng criteria nhỏ
 
 ```csharp
 public sealed record ProductQueryCriteria(
@@ -270,40 +149,7 @@ public sealed record ProductQueryCriteria(
 }
 ```
 
-Repository method:
-
-```csharp
-Task<IReadOnlyList<ProductDto>> SearchAsync(
-    ProductQueryCriteria criteria,
-    CancellationToken cancellationToken);
-```
-
-Quy tắc:
-
-```text
-Criteria expresses query intent.
-Repository owns SQL translation.
-Validation of Page/PageSize/MinPrice/MaxPrice follows Day 34 direction.
-```
-
-## 9. Postman query tests
-
-Full system nếu cần:
-
-```powershell
-docker compose up -d --build
-```
-
-Gateway routes:
-
-```text
-GET {{gateway_url}}/catalog/products
-GET {{gateway_url}}/catalog/products/search?keyword=phone
-GET {{gateway_url}}/catalog/products/count
-GET {{gateway_url}}/catalog/products/price-range?minPrice=0&maxPrice=1000
-```
-
-Gọi trực tiếp service nếu gateway không chạy:
+### Bước 5: Test route
 
 ```text
 GET {{catalog_url}}/products
@@ -312,112 +158,45 @@ GET {{catalog_url}}/products/count
 GET {{catalog_url}}/products/price-range?minPrice=0&maxPrice=1000
 ```
 
-Dùng đúng tên route/query parameter từ code.
+## 5. Kết quả kỳ vọng
 
-Lưu ý quan trọng:
-
-```text
-The price-range endpoint requires minPrice and maxPrice query params.
-Do not document /products/price-range without minPrice/maxPrice unless current code changes.
-```
-
-Không tự bịa parameter ngoai phan code ho tro.
-
-## 10. Day 35 review doc
-
-Tạo:
+Kỳ vọng:
 
 ```text
-docs/patterns/day-35-specification-review.md
+Query/filter logic được review.
+Biết có nên dùng criteria không.
+Không tạo generic framework quá sớm.
+Price-range docs/test có minPrice/maxPrice.
 ```
 
-Bao gồm:
+## 6. Lỗi hay gặp
 
 ```text
-Target service
-Reviewed routes
-Current query logic
-Candidate query criteria decision
-Future work
+Lỗi 1: Over-engineering bằng generic Specification framework.
+Lỗi 2: Đổi API contract khi không cần.
+Lỗi 3: Quên query params của price-range.
+Lỗi 4: Criteria chứa SQL quá sớm.
 ```
 
-## 11. Query hardening backlog
+## 7. Tổng kết bài học
 
-Tạo:
+Day 35 giúp mình học cách làm query code sạch hơn mà vẫn thực tế. Senior không phải lúc nào cũng tạo abstraction to, mà biết chọn abstraction vừa đủ.
+
+## 8. Checklist trước khi commit
 
 ```text
-docs/backlog/day-35-query-hardening-backlog.md
+[ ] Hiểu được mục tiêu chính của bài.
+[ ] Đã chạy các lệnh kiểm tra chính.
+[ ] Đã tạo/cập nhật đúng docs hoặc code trong scope.
+[ ] Đã test phần cần test.
+[ ] Không dùng endpoint/id cũ.
+[ ] Không claim production-ready.
+[ ] Không làm lệch RabbitMQ/Kafka responsibility.
 ```
 
-Bao gồm:
-
-```text
-[ ] Keep search/filter logic out of endpoint bodies.
-[ ] Add validation for paging/filter inputs.
-[ ] Document query parameter behavior.
-[ ] Add query tests for CatalogService.
-[ ] Review indexes for product search/filter paths.
-[ ] Avoid complex generic specification framework too early.
-```
-
-## 12. Kế hoạch build/test
-
-```powershell
-dotnet build Services/CatalogService/CatalogService.csproj
-```
-
-If gateway used:
-
-```powershell
-dotnet build Services/ApiGateway/ApiGateway.csproj
-```
-
-Run product query/search/filter requests before and after.
-
-## 13. Review độ phù hợp production-minded
-
-Improves:
-
-```text
-Query intent becomes clearer.
-Filter logic becomes easier to test.
-Endpoints stay thinner.
-```
-
-Việc làm sau:
-
-```text
-Repository performance tuning.
-Indexes.
-Query tests.
-Consistent paging/filtering standard.
-```
-
-## 14. Checklist đạt yêu cầu
-
-```text
-[ ] Query/filter logic is inspected.
-[ ] Target service is selected.
-[ ] specification-pattern.md exists.
-[ ] day-35-specification-review.md exists.
-[ ] day-35 query backlog exists.
-[ ] Optional code changes are limited to one slice.
-[ ] Query behavior is verified by Postman or manual requests.
-[ ] Build passes for touched projects.
-[ ] Price-range route includes minPrice and maxPrice in docs/tests.
-[ ] Không đưa generic framework vào quá sớm.
-```
-
-## 15. Commit/tag tùy chọn sau review
+## 9. Commit/tag gợi ý
 
 ```text
 Commit: Day 35: Specification Lite Query Criteria
 Tag: day-35-specification-lite-query-criteria
 ```
-
-## 16. Ngày tiếp theo
-
-```text
-Day 36: Strategy Pattern + Audit Log + Advanced Identity Review
-```
-

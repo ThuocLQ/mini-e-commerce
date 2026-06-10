@@ -1,201 +1,37 @@
+---
+day: 37
+title: "CloudEvents + Event Envelope"
+duration: "90-120 phút"
+project: "MicroShop"
+type: "lesson"
+repo_aware: true
+source_of_truth: true
+language: "vi"
+encoding_note: "UTF-8 Markdown tiếng Việt chuẩn"
+style: "learning-practice"
+---
+
 # Day 37: CloudEvents + Event Envelope
 
-## 0. Vị trí hiện tại
+## 0. Hôm nay học gì?
 
-Bạn đã hoàn thành:
+Hôm nay mình học cách chuẩn hóa event metadata bằng CloudEvents/Event Envelope.
 
-```text
-Day 36: Advanced Strategy Pattern + Audit Log + Advanced Identity Review
-```
+Bài này chưa migrate toàn bộ runtime payload. Trọng tâm là hiểu chuẩn và review contract hiện có.
 
-Day 37 bắt đầu Phase 2.2: Reliable Event-Driven Advanced.
+## 1. Vì sao cần bài này?
 
-Roadmap đúng:
+Event-driven system rất dễ rối nếu mỗi event có một shape khác nhau. Event Envelope giúp event có metadata ổn định: eventId, type, source, version, correlationId...
 
-```text
-Day 37: CloudEvents / Event Envelope
-Day 38: Standard Transactional Outbox
-Day 39: Outbox Publisher + Advanced Idempotency + Inbox/WebhookLog
-Day 40: Kafka Consumer Group + Rebalance
-Day 41: MongoDB Projection Rebuild
-```
+Nhờ đó sau này dễ trace, replay, versioning và debug hơn.
 
-Day 37 chưa triển khai Kafka DLT.
+## 2. Khái niệm cốt lõi
 
-Bài này tập trung vào:
+### CloudEvents
 
-```text
-CloudEvents mindset
-standard event envelope
-metadata fields
-event versioning direction
-RabbitMQ/Kafka contract consistency
-```
+CloudEvents là chuẩn mô tả metadata của event.
 
----
-
-## 1. Bối cảnh repo hiện tại
-
-Sự thật hiện tại của repo:
-
-```text
-Services:
-- Services/ApiGateway
-- Services/CatalogService
-- Services/BasketService
-- Services/OrderingService
-- Services/DiscountService
-- Services/IdentityService
-- Services/PaymentService
-- Services/OrderQueryService
-
-Workers:
-- Services/NotificationWorker
-- Workers/ProjectionWorker
-
-Shared:
-- BuildingBlocks.Contracts
-- MicroShop.AppHost
-- MicroShop.ServiceDefaults
-```
-
-Không dùng:
-
-```text
-/orders/read-model
-ORD-900
-CUST-900
-```
-
-
-Flow hiện tại:
-
-```text
-Workflow RabbitMQ:
-OrderingService
--> Outbox basics
--> RabbitMQ
--> NotificationWorker
-
-Demo projection Kafka:
-Kafka CLI demo producer
--> topic microshop.order-events
--> ProjectionWorker
--> MongoDB MicroShop_OrderReadDb.order_summaries
--> OrderQueryService
-```
-
-Lưu ý quan trọng:
-
-```text
-RabbitMQ asks: who should process this work?
-Kafka asks: who wants to observe this event stream?
-```
-
-Không nói Kafka thay thế RabbitMQ.
-
-Không nói OrderingService publish Kafka nếu code chưa được implement và verify.
-
----
-
-## 2. Mục tiêu
-
-Sau khi hoàn thành:
-
-```text
-[ ] Current event contracts are inspected.
-[ ] CloudEvents concept is understood.
-[ ] A MicroShop event envelope standard is documented.
-[ ] Existing RabbitMQ/Kafka event payloads are compared against the standard.
-[ ] Versioning/backward compatibility rules for events are documented.
-[ ] A migration/backlog plan is created.
-```
-
-Output chính:
-
-```text
-docs/messaging/event-envelope-standard.md
-docs/messaging/cloudevents-review-day-37.md
-docs/backlog/day-37-event-envelope-backlog.md
-```
-
-Output code tùy chọn:
-
-```text
-None by default.
-Design-first unless repo is ready for a small sample envelope type.
-```
-
----
-
-## 3. Giới hạn phạm vi
-
-Nên làm:
-
-```text
-[ ] Inspect current contracts.
-[ ] Document envelope standard.
-[ ] Compare current events to target envelope.
-[ ] Add sample event JSON.
-[ ] Create backlog.
-```
-
-Không làm:
-
-```text
-[ ] Do not rewrite all event contracts today.
-[ ] Do not change RabbitMQ/Kafka runtime behavior today.
-[ ] Do not add Schema Registry today.
-[ ] Do not add Kafka DLT today.
-[ ] Do not implement OrderingService Kafka publisher today.
-[ ] Do not claim CloudEvents compliance if not fully implemented.
-```
-
-Điều phần này chứng minh:
-
-```text
-MicroShop has an event contract governance direction.
-```
-
-Điều phần này chưa chứng minh:
-
-```text
-All events are CloudEvents-compliant.
-Schema Registry is implemented.
-Event versioning is enforced at runtime.
-```
-
----
-
-## 4. Kiểm tra trước khi làm
-
-Inspect contracts:
-
-```powershell
-Get-ChildItem BuildingBlocks.Contracts -Recurse -Filter *.cs |
-  Select-String -Pattern "IntegrationEvent|OrderCreated|OrderPaid|OrderCancelled|EventId|OccurredAt"
-```
-
-Inspect producers/consumers:
-
-```powershell
-Get-ChildItem Services/OrderingService -Recurse -Filter *.cs |
-  Select-String -Pattern "Outbox|Publish|OrderCreatedIntegrationEvent|IntegrationEvent"
-
-Get-ChildItem Services/NotificationWorker -Recurse -Filter *.cs |
-  Select-String -Pattern "Consumer|OrderCreatedIntegrationEvent|MassTransit"
-
-Get-ChildItem Workers/ProjectionWorker -Recurse -Filter *.cs |
-  Select-String -Pattern "eventId|eventType|orderId|customerId|customerName|occurredAtUtc|projection_failures"
-```
-
----
-
-## 5. Tư duy CloudEvents
-
-CloudEvents is a standard way to describe event metadata.
-
-Core metadata concepts:
+Field hay gặp:
 
 ```text
 id
@@ -208,98 +44,120 @@ datacontenttype
 data
 ```
 
-Example shape:
+### Event Envelope
+
+Envelope là lớp bọc quanh payload nghiệp vụ.
+
+```text
+metadata + data
+```
+
+Ví dụ:
 
 ```json
 {
-  "specversion": "1.0",
-  "id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+  "eventId": "...",
+  "eventType": "com.microshop.order.created.v1",
   "source": "microshop.ordering-service",
-  "type": "com.microshop.order.created.v1",
-  "time": "2026-05-28T10:00:00Z",
-  "subject": "orders/11111111-1111-1111-1111-111111111111",
-  "datacontenttype": "application/json",
+  "occurredAtUtc": "...",
   "data": {
-    "orderId": "11111111-1111-1111-1111-111111111111",
-    "customerId": "22222222-2222-2222-2222-222222222222",
-    "customerName": "Demo Customer",
-    "totalAmount": 1977.3,
-    "currency": "VND",
-    "itemCount": 0,
-    "items": []
+    "orderId": "..."
   }
 }
 ```
 
-Day 37 target:
+## 3. Nhìn vào repo hiện tại
+
+Các service chính:
 
 ```text
-Dùng CloudEvents như chuẩn tham chiếu.
-Document event envelope của MicroShop.
-Không ép migrate runtime toàn bộ trong hôm nay.
+Services/ApiGateway
+Services/CatalogService
+Services/BasketService
+Services/OrderingService
+Services/DiscountService
+Services/IdentityService
+Services/PaymentService
+Services/OrderQueryService
 ```
 
----
-
-## 6. Chuẩn event envelope của MicroShop
-
-Tạo:
+Các worker:
 
 ```text
-docs/messaging/event-envelope-standard.md
+Services/NotificationWorker
+Workers/ProjectionWorker
 ```
 
-Bao gồm:
+Các project dùng chung:
 
 ```text
-Mục tiêu:
-Events should have consistent metadata for tracing, versioning, replay, and debugging.
-
-Envelope fields:
-eventId
-eventType
-eventVersion
-source
-occurredAtUtc
-correlationId
-causationId
-subject
-data
-
-CloudEvents mapping:
-eventId -> id
-eventType -> type
-source -> source
-occurredAtUtc -> time
-subject -> subject
-data -> data
-
-Recommended type style:
-com.microshop.order.created.v1
-com.microshop.order.paid.v1
-com.microshop.order.cancelled.v1
-
-Compatibility rules:
-Add optional fields when possible.
-Do not rename fields without versioning.
-Do not change field type without versioning.
-Do not remove fields without a migration plan.
+BuildingBlocks.Contracts
+MicroShop.AppHost
+MicroShop.ServiceDefaults
 ```
 
----
-
-## 7. So sánh riêng payload RabbitMQ và Kafka hiện tại
-
-Current RabbitMQ base contract:
+Hạ tầng local:
 
 ```text
-BuildingBlocks.Contracts.Events.IntegrationEvent already has:
-- EventId
-- OccurredAtUtc
-- Version
+PostgreSQL: lưu dữ liệu write-side
+Redis: lưu basket/cache
+RabbitMQ: workflow/task messaging
+Kafka: event stream/projection learning
+MongoDB: read model và projection failure
+Docker Compose: chạy local runtime
+Aspire AppHost: orchestration local .NET
 ```
 
-Current RabbitMQ OrderCreatedIntegrationEvent is intentionally minimal:
+Route/ID cũ không dùng lại:
+
+```text
+/orders/read-model
+ORD-900
+CUST-900
+```
+
+
+Repo-aware:
+
+```text
+Repo đã có BuildingBlocks.Contracts/Events/MicroShopEventEnvelope.cs.
+Day 37 không tạo khái niệm envelope từ số 0.
+Day 37 review/chuẩn hóa contract/envelope hiện có.
+Không bắt buộc migrate toàn bộ RabbitMQ/Kafka runtime payload hôm nay.
+```
+
+RabbitMQ base `IntegrationEvent` hiện có:
+
+```text
+EventId
+OccurredAtUtc
+Version
+```
+
+Kafka demo payload chưa có `eventVersion` field.
+
+## 4. Thực hành từng bước
+
+### Bước 1: Inspect contracts
+
+```powershell
+Get-ChildItem BuildingBlocks.Contracts -Recurse -Filter *.cs |
+  Select-String -Pattern "IntegrationEvent|MicroShopEventEnvelope|OrderCreated|EventId|OccurredAt|Version"
+```
+
+### Bước 2: Inspect producers/consumers
+
+```powershell
+Get-ChildItem Services/OrderingService -Recurse -Filter *.cs |
+  Select-String -Pattern "Outbox|Publish|OrderCreatedIntegrationEvent|IntegrationEvent"
+
+Get-ChildItem Workers/ProjectionWorker -Recurse -Filter *.cs |
+  Select-String -Pattern "eventId|eventType|orderId|customerId|customerName|occurredAtUtc|projection_failures"
+```
+
+### Bước 3: So sánh RabbitMQ và Kafka riêng
+
+RabbitMQ `OrderCreatedIntegrationEvent` tối giản:
 
 ```text
 OrderId
@@ -308,232 +166,62 @@ TotalAmount
 Currency
 ```
 
-RabbitMQ contract gaps vs CloudEvents-style envelope:
+Kafka demo payload có:
 
 ```text
-No source.
-No correlationId.
-No causationId.
-No subject.
-No CloudEvents-style namespaced type.
-No nested data object.
+customerName
+itemCount
+items
 ```
 
-Current valid Kafka projection demo payload:
-
-```json
-{
-  "eventId": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-  "eventType": "OrderCreated",
-  "orderId": "11111111-1111-1111-1111-111111111111",
-  "customerId": "22222222-2222-2222-2222-222222222222",
-  "customerName": "Demo Customer",
-  "totalAmount": 1977.3,
-  "currency": "VND",
-  "itemCount": 0,
-  "items": [],
-  "occurredAtUtc": "2026-05-28T10:00:00Z"
-}
-```
-
-Kafka demo payload gaps vs envelope:
+### Bước 4: Tạo docs
 
 ```text
-No source.
-No eventVersion field.
-No correlationId.
-No causationId.
-No subject.
-Data is flattened instead of nested.
-eventType is simple name, not namespaced.
-```
-
-Phân biệt quan trọng:
-
-```text
-RabbitMQ IntegrationEvent already has Version.
-Kafka demo payload currently does not have eventVersion.
-RabbitMQ OrderCreatedIntegrationEvent does not include customerName/itemCount/items.
-Kafka projection demo payload does include customerName/itemCount/items.
-```
-
-Điều này chấp nhận được với demo ở giai đoạn training.
-
-Ghi lại vào backlog.
-
----
-
-## 8. Tài liệu review CloudEvents
-
-Tạo:
-
-```text
+docs/messaging/event-envelope-standard.md
 docs/messaging/cloudevents-review-day-37.md
-```
-
-Bao gồm:
-
-```text
-Reviewed current events:
-RabbitMQ OrderCreatedIntegrationEvent
-Kafka demo event: OrderCreated / OrderPaid / OrderCancelled
-
-Findings table:
-RabbitMQ IntegrationEvent base has EventId, OccurredAtUtc, Version.
-RabbitMQ OrderCreatedIntegrationEvent has OrderId, CustomerId, TotalAmount, Currency.
-Kafka projection demo has eventId, eventType, orderId, customerId, customerName, totalAmount, currency, itemCount, items, occurredAtUtc.
-RabbitMQ and Kafka payloads should be reviewed separately.
-source missing/current
-correlationId missing/current
-causationId missing/current
-subject missing/current
-CloudEvents type naming missing/current
-data nesting flattened/current
-
-Quyết định:
-Use CloudEvents as reference.
-Create MicroShop envelope standard.
-Do not migrate all runtime events on Day 37.
-```
-
----
-
-## 9. Thiết kế contract mẫu tùy chọn
-
-Không implement nếu chưa được duyệt.
-
-Possible generic envelope:
-
-```csharp
-public sealed record MicroShopEventEnvelope<TData>(
-    Guid EventId,
-    string EventType,
-    int EventVersion,
-    string Source,
-    DateTime OccurredAtUtc,
-    string? CorrelationId,
-    string? CausationId,
-    string Subject,
-    TData Data);
-```
-
-Quy tắc:
-
-```text
-Keep it in BuildingBlocks.Contracts only if all consumers can adopt it gradually.
-Do not break current ProjectionWorker payload.
-Do not break NotificationWorker consumer.
-```
-
----
-
-## 10. Xác minh runtime
-
-Không cần chạy runtime nếu chỉ sửa docs.
-
-Build tùy chọn:
-
-```powershell
-dotnet build BuildingBlocks.Contracts/BuildingBlocks.Contracts.csproj
-dotnet build Services/NotificationWorker/NotificationWorker.csproj
-dotnet build Workers/ProjectionWorker/ProjectionWorker.csproj
-```
-
-If testing current Kafka demo, use valid Day 30 payload.
-
-Lite projection demo:
-
-```powershell
-docker compose up -d --build zookeeper kafka mongodb orderqueryservice projectionworker
-```
-
----
-
-## 11. Backlog
-
-Tạo:
-
-```text
 docs/backlog/day-37-event-envelope-backlog.md
 ```
 
-Bao gồm:
+## 5. Kết quả kỳ vọng
+
+Kỳ vọng:
 
 ```text
-[ ] Add event envelope standard docs.
-[ ] Add source/eventVersion/correlationId guidance.
-[ ] Decide event type naming convention.
-[ ] Add envelope type in BuildingBlocks.Contracts.
-[ ] Migrate RabbitMQ integration events gradually.
-[ ] Migrate Kafka projection events gradually.
-[ ] Add contract tests.
-[ ] Schema Registry concept later.
+Hiểu CloudEvents dùng để làm gì.
+Biết repo đã có MicroShopEventEnvelope.
+RabbitMQ và Kafka payload được review riêng.
+Không viết sai rằng RabbitMQ thiếu Version.
+Có backlog migrate envelope dần.
 ```
 
----
-
-## 12. Cập nhật docs
-
-Update:
+## 6. Lỗi hay gặp
 
 ```text
-docs/README.md
+Lỗi 1: Trộn RabbitMQ contract và Kafka demo payload.
+Lỗi 2: Nói current events thiếu eventVersion trong khi RabbitMQ IntegrationEvent đã có Version.
+Lỗi 3: Ép migrate toàn bộ payload runtime hôm nay.
+Lỗi 4: Claim fully CloudEvents-compliant.
 ```
 
-Link Day 37 docs.
+## 7. Tổng kết bài học
 
----
+Day 37 giúp mình học tư duy contract governance trong event-driven system. Event không chỉ có payload, mà còn cần metadata để trace, version và replay.
 
-## 13. Review độ phù hợp production-minded
-
-Điều phần này cải thiện:
+## 8. Checklist trước khi commit
 
 ```text
-Event metadata becomes intentional.
-Future tracing/replay/versioning becomes easier.
-RabbitMQ/Kafka contracts have a shared direction.
+[ ] Hiểu được mục tiêu chính của bài.
+[ ] Đã chạy các lệnh kiểm tra chính.
+[ ] Đã tạo/cập nhật đúng docs hoặc code trong scope.
+[ ] Đã test phần cần test.
+[ ] Không dùng endpoint/id cũ.
+[ ] Không claim production-ready.
+[ ] Không làm lệch RabbitMQ/Kafka responsibility.
 ```
 
-Những phần còn là future work:
-
-```text
-Runtime envelope migration.
-Schema Registry.
-Contract tests.
-Event compatibility checks.
-```
-
----
-
-## 14. Checklist đạt yêu cầu
-
-```text
-[ ] Current event contracts are inspected.
-[ ] event-envelope-standard.md exists.
-[ ] cloudevents-review-day-37.md exists.
-[ ] day-37 backlog exists.
-[ ] RabbitMQ contract and Kafka demo payload are reviewed separately.
-[ ] Current Kafka payload gaps are documented.
-[ ] Current RabbitMQ envelope gaps are documented.
-[ ] RabbitMQ/Kafka roles remain separate.
-[ ] No breaking event contract migration is introduced.
-[ ] docs/README.md links new docs.
-```
-
----
-
-## 15. Commit/tag tùy chọn sau review
+## 9. Commit/tag gợi ý
 
 ```text
 Commit: Day 37: CloudEvents Event Envelope
 Tag: day-37-cloudevents-event-envelope
 ```
-
----
-
-## 16. Ngày tiếp theo
-
-```text
-Day 38: Standard Transactional Outbox
-```
-

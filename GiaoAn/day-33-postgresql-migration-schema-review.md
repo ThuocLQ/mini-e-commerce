@@ -1,94 +1,101 @@
- Day 33: PostgreSQL + Migration + Schema Evolution Hardening
+---
+day: 33
+title: "PostgreSQL + Migration + Schema Evolution Hardening"
+duration: "90-120 phút"
+project: "MicroShop"
+type: "lesson"
+repo_aware: true
+source_of_truth: true
+language: "vi"
+encoding_note: "UTF-8 Markdown tiếng Việt chuẩn"
+style: "learning-practice"
+---
 
-## 0. Vị trí hiện tại
+# Day 33: PostgreSQL + Migration + Schema Evolution Hardening
 
-Bạn đã hoàn thành Day 31 architecture review va Day 32 API contract hardening.
+## 0. Hôm nay học gì?
 
-Day 33 focuses on database hardening.
+Hôm nay mình học cách review database ownership, migration và schema evolution.
 
-Important correction:
+Bài này không phải chuyển SQLite sang PostgreSQL mù quáng. Repo hiện đã dùng PostgreSQL ở các write-side service cần thiết.
 
-```text
-The repo already uses PostgreSQL for write-side relational databases where applicable.
-Day 33 is not a naive SQLite -> PostgreSQL rewrite unless the repo still has leftover SQLite usage.
-Day 33 reviews PostgreSQL usage, migrations, schema evolution, and connection/config safety.
-```
+## 1. Vì sao cần bài này?
 
-## 1. Bối cảnh repo hiện tại
+Database change là phần rất dễ làm hỏng production. Một column đổi sai có thể làm service crash, data mất, hoặc deploy rollback khó.
 
-Sự thật hiện tại của repo:
+Vì vậy backend engineer cần biết cách thay schema an toàn.
 
-```text
-Services:
-- Services/ApiGateway
-- Services/CatalogService
-- Services/BasketService
-- Services/OrderingService
-- Services/DiscountService
-- Services/IdentityService
-- Services/PaymentService
-- Services/OrderQueryService
+## 2. Khái niệm cốt lõi
 
-Background workers:
-- Services/NotificationWorker
-- Workers/ProjectionWorker
+### Database ownership
 
-Shared:
-- BuildingBlocks.Contracts
-- MicroShop.AppHost
-- MicroShop.ServiceDefaults
-```
-
-Các route quan trọng:
+Mỗi service nên sở hữu data của nó.
 
 ```text
-GET /order-summaries
-GET /order-summaries/{orderId}
-POST /debug/order-summaries
-
-GET /orders
-GET /orders/{id}
-POST /orders/checkout
-GET /debug/outbox
-
-GET /products
-GET /products/{id}
-GET /products/search
-GET /products/count
-GET /products/price-range
-POST /products
-PUT /products/{id}
-DELETE /products/{id}
-
-GET /basket/{userId}
-POST /basket/{userId}/items
-POST /basket/{userId}/items-grpc
-PUT /basket/{userId}/items/{productId}
-DELETE /basket/{userId}/items/{productId}
-PUT /basket/{userId}/clear
-DELETE /basket/{userId}
-GET /basket/products/{productId}/validate
-GET /basket/products/{productId}/validate-grpc
-POST /basket/preview-item
-POST /basket/preview-item-grpc
-GET /basket/products/{productId}/compare-communication
-
-GET /discounts/{code}
-POST /discounts/apply
-
-POST /auth/login
-GET /auth/me
-
-POST /payments
-GET /payments/{id}
-POST /webhooks/payment
-POST /payments/webhooks/payment
-
-GET /health
-GET /alive
+OrderingService sở hữu order/outbox data.
+CatalogService sở hữu product data.
+BasketService sở hữu basket state/cache.
+OrderQueryService sở hữu read model.
 ```
 
-Không dùng:
+### Migration
+
+Migration là cách thay đổi schema có dấu vết, review được, chạy lại được.
+
+### Schema evolution
+
+Schema evolution là cách thay đổi DB từ từ:
+
+```text
+Add nullable column.
+Backfill.
+Deploy code mới.
+Enforce constraint sau.
+```
+
+## 3. Nhìn vào repo hiện tại
+
+Các service chính:
+
+```text
+Services/ApiGateway
+Services/CatalogService
+Services/BasketService
+Services/OrderingService
+Services/DiscountService
+Services/IdentityService
+Services/PaymentService
+Services/OrderQueryService
+```
+
+Các worker:
+
+```text
+Services/NotificationWorker
+Workers/ProjectionWorker
+```
+
+Các project dùng chung:
+
+```text
+BuildingBlocks.Contracts
+MicroShop.AppHost
+MicroShop.ServiceDefaults
+```
+
+Hạ tầng local:
+
+```text
+PostgreSQL: lưu dữ liệu write-side
+Redis: lưu basket/cache
+RabbitMQ: workflow/task messaging
+Kafka: event stream/projection learning
+MongoDB: read model và projection failure
+Docker Compose: chạy local runtime
+Aspire AppHost: orchestration local .NET
+```
+
+Route/ID cũ không dùng lại:
 
 ```text
 /orders/read-model
@@ -97,126 +104,35 @@ CUST-900
 ```
 
 
-Hạ tầng hiện tại:
+Cần verify store thật theo code, không tự đoán.
 
-```text
-PostgreSQL - write-side relational databases
-Redis - BasketService state/cache
-MongoDB - read model and projection failures
-Kafka - event stream/projection learning
-RabbitMQ - workflow/task messaging
-```
+SQLite nếu nằm trong docs cũ thì chỉ là historical material. Nếu nằm trong production code/config hiện tại mới là issue.
 
-## 2. Mục tiêu
+## 4. Thực hành từng bước
 
-```text
-[ ] Current database usage is documented per service.
-[ ] PostgreSQL configuration is reviewed.
-[ ] Any leftover SQLite references are found and classified.
-[ ] Migration strategy is documented.
-[ ] Schema evolution rules are documented.
-[ ] Connection string/config safety is reviewed.
-[ ] Basic DB smoke checks are documented.
-```
-
-Output chính:
-
-```text
-docs/database/postgresql-schema-evolution-review-day-33.md
-docs/database/migration-policy.md
-docs/backlog/day-33-database-hardening-backlog.md
-```
-
-## 3. Giới hạn phạm vi
-
-Nên làm:
-
-```text
-[ ] Inspect database configuration.
-[ ] Inspect migrations/initializers.
-[ ] Document current DB ownership.
-[ ] Define migration/schema evolution policy.
-[ ] Create backlog.
-```
-
-Không làm:
-
-```text
-[ ] Do not rewrite all persistence code.
-[ ] Do not switch databases blindly.
-[ ] Do not delete old migrations.
-[ ] Do not change Kafka/MongoDB projection behavior.
-[ ] Do not claim database strategy is production-complete.
-```
-
-Điều phần này chứng minh:
-
-```text
-MicroShop has a reviewed database baseline and schema evolution policy.
-```
-
-Điều phần này chưa chứng minh:
-
-```text
-Zero-downtime migration is implemented.
-Backup/restore is production-ready.
-```
-
-## 4. Kiểm tra trước khi làm
+### Bước 1: Search database config
 
 ```powershell
-git status --short
-docker compose config --services
 Get-ChildItem Services -Recurse -Filter appsettings*.json |
   Select-String -Pattern "ConnectionStrings|Postgres|PostgreSQL|Npgsql|Sqlite|SQLite|Mongo|Redis"
+```
+
+### Bước 2: Search database code
+
+```powershell
 Get-ChildItem Services -Recurse -Filter *.cs |
   Select-String -Pattern "Npgsql|Dapper|DbConnection|ConnectionFactory|DatabaseInitializer|Migration|Sqlite|SQLite"
+```
+
+### Bước 3: Inspect migrations
+
+```powershell
 Get-ChildItem Services -Recurse -Directory -Filter Migrations
 Get-ChildItem Services -Recurse -Filter *DatabaseInitializer*.cs
 Get-ChildItem Services -Recurse -Filter *ConnectionFactory*.cs
 ```
 
-## 5. Database ownership review
-
-Create table:
-
-```text
-Service | Primary data store | Owns which data | Migration/initializer strategy | Risks
-```
-
-Verify before filling.
-
-Suggested starting point:
-
-```text
-CatalogService -> PostgreSQL/write-side product data
-OrderingService -> PostgreSQL/write-side order/outbox data
-BasketService -> Redis basket state/cache
-OrderQueryService -> MongoDB read model only
-```
-
-Do not invent unverified details.
-
-## 6. Create migration policy
-
-Tạo:
-
-```text
-docs/database/migration-policy.md
-```
-
-Bao gồm:
-
-```text
-Do not change schema silently.
-Prefer migration scripts or migration tools.
-Keep service-owned schemas separate.
-Document breaking schema changes.
-Use additive changes first.
-Avoid destructive migrations without compatibility window.
-```
-
-## 7. Create database review doc
+### Bước 4: Tạo database review
 
 Tạo:
 
@@ -224,146 +140,68 @@ Tạo:
 docs/database/postgresql-schema-evolution-review-day-33.md
 ```
 
-Bao gồm:
+Bảng:
 
 ```text
-Current databases table
-Connection string findings
-Migration/initializer findings
-SQLite leftovers if any
-Schema evolution risks
-Điều phần này chứng minh / điều phần này chưa chứng minh
+Service | Primary store | Data sở hữu | Migration/initializer | Risk
 ```
 
-## 8. Smoke test runtime
-
-Full system if machine can handle it:
-
-```powershell
-docker compose up -d --build
-```
-
-Check:
-
-```powershell
-docker compose ps postgres
-docker compose logs postgres --tail 100
-docker compose logs catalogservice --tail 100
-docker compose logs orderingservice --tail 100
-```
-
-Use actual service names from compose.
-
-Không tự bịa credentials.
-
-## 9. Backlog
+### Bước 5: Tạo migration policy
 
 Tạo:
 
 ```text
-docs/backlog/day-33-database-hardening-backlog.md
+docs/database/migration-policy.md
 ```
 
-Bao gồm:
+Ghi rule:
 
 ```text
-[ ] Standardize migration approach per relational service.
-[ ] Document database ownership per service.
-[ ] Remove or archive stale SQLite references if any.
-[ ] Review connection string handling and secrets.
-[ ] Add DB + one service smoke tests.
-[ ] Add migration smoke tests.
-[ ] Add seed data policy.
-[ ] Add backup/restore drill.
-[ ] Review indexes for main query paths.
-[ ] Add Testcontainers integration tests later.
+Không thay schema âm thầm.
+Ưu tiên additive change.
+Không drop/rename/type change nếu chưa có plan.
+Rollback phải được nghĩ trước.
 ```
 
-## 10. Docs/Postman updates
+## 5. Kết quả kỳ vọng
 
-Update:
+Kỳ vọng:
 
 ```text
-docs/README.md
+Biết service nào dùng DB nào.
+Biết SQLite hit nào là historical docs, hit nào là code thật.
+Có migration policy.
+Có backlog DB hardening.
 ```
 
-Add links to database docs.
-
-Postman not required unless endpoint behavior changed.
-
-Route smoke test tùy chọn:
+## 6. Lỗi hay gặp
 
 ```text
-GET /products
-GET /orders
-GET /order-summaries
+Lỗi 1: Thấy chữ SQLite trong docs cũ rồi kết luận code production sai.
+Lỗi 2: Xóa migration cũ.
+Lỗi 3: Đổi DB/schema trong lúc bài chỉ yêu cầu review.
+Lỗi 4: Không phân biệt write-side DB và MongoDB read model.
 ```
 
-Chỉ dùng route đang chạy và đã được cấu hình.
+## 7. Tổng kết bài học
 
-## 11. Kế hoạch build/test
+Day 33 giúp mình học tư duy database lifecycle: không chỉ CRUD được là xong, mà còn phải biết schema thay đổi thế nào cho an toàn.
 
-```powershell
-dotnet build Services/CatalogService/CatalogService.csproj
-dotnet build Services/OrderingService/OrderingService.csproj
-dotnet build Services/IdentityService/IdentityService.csproj
-dotnet build Services/PaymentService/PaymentService.csproj
-dotnet build Services/DiscountService/DiscountService.csproj
-```
-
-If reasonable:
-
-```powershell
-dotnet build
-```
-
-Ghi lại các lỗi không liên quan nếu có.
-
-## 12. Review độ phù hợp production-minded
-
-Improves:
+## 8. Checklist trước khi commit
 
 ```text
-Database ownership clarity.
-Migration risk visibility.
-Schema evolution policy.
+[ ] Hiểu được mục tiêu chính của bài.
+[ ] Đã chạy các lệnh kiểm tra chính.
+[ ] Đã tạo/cập nhật đúng docs hoặc code trong scope.
+[ ] Đã test phần cần test.
+[ ] Không dùng endpoint/id cũ.
+[ ] Không claim production-ready.
+[ ] Không làm lệch RabbitMQ/Kafka responsibility.
 ```
 
-Việc làm sau:
-
-```text
-Automated migration pipeline.
-Rollback drills.
-Backup/restore.
-Testcontainers.
-Zero-downtime migration techniques.
-```
-
-## 13. Checklist đạt yêu cầu
-
-```text
-[ ] Current DB usage is inspected.
-[ ] PostgreSQL config is reviewed.
-[ ] SQLite leftovers are searched and classified as production code/config/docs/history.
-[ ] Migration/initializer files are inspected.
-[ ] migration-policy.md exists.
-[ ] postgresql-schema-evolution-review-day-33.md exists.
-[ ] day-33 database backlog exists.
-[ ] docs/README.md links new database docs.
-[ ] Build passes for reviewed/touched projects or failures are documented.
-[ ] Không đưa vào refactor persistence diện rộng.
-```
-
-## 14. Commit/tag tùy chọn sau review
+## 9. Commit/tag gợi ý
 
 ```text
 Commit: Day 33: PostgreSQL Migration Schema Review
 Tag: day-33-postgresql-migration-schema-review
 ```
-
-## 15. Ngày tiếp theo
-
-```text
-Day 34: FluentValidation Pipeline + Mapping
-```
-

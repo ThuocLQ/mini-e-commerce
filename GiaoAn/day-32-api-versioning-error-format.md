@@ -1,104 +1,119 @@
-# Day 32: API Versioning + Backward Compatibility + Standard Error Format
-
-## 0. Vị trí hiện tại
-
-Bạn đã hoàn thành:
-
-```text
-Day 31: Clean Architecture + Hexagonal Review
-```
-
-Day 31 reviewed architecture boundaries.
-
-Day 32 now focuses on API contract stability:
-
-```text
-API versioning direction
-Backward compatibility rules
-Standard error format
-ProblemDetails-style responses
-Postman negative tests
-```
-
-Bài này nen dung cac finding tu Day 31, nhung khong refactor toan bo service.
-
+---
+day: 32
+title: "API Versioning + Backward Compatibility + Standard Error Format"
+duration: "90-120 phút"
+project: "MicroShop"
+type: "lesson"
+repo_aware: true
+source_of_truth: true
+language: "vi"
+encoding_note: "UTF-8 Markdown tiếng Việt chuẩn"
+style: "learning-practice"
 ---
 
-## 1. Bối cảnh repo hiện tại
+# Day 32: API Versioning + Backward Compatibility + Standard Error Format
 
-Sự thật hiện tại của repo:
+## 0. Hôm nay học gì?
 
-```text
-Services:
-- Services/ApiGateway
-- Services/CatalogService
-- Services/BasketService
-- Services/OrderingService
-- Services/DiscountService
-- Services/IdentityService
-- Services/PaymentService
-- Services/OrderQueryService
+Hôm nay mình học cách giữ API ổn định khi hệ thống lớn dần: versioning, backward compatibility và error response chuẩn.
 
-Background workers:
-- Services/NotificationWorker
-- Workers/ProjectionWorker
+Bài này làm một slice nhỏ, không chuẩn hóa toàn bộ API ngay.
 
-Shared:
-- BuildingBlocks.Contracts
-- MicroShop.AppHost
-- MicroShop.ServiceDefaults
-```
+## 1. Vì sao cần bài này?
 
-Các route quan trọng:
+Client cần response lỗi đoán được. Nếu mỗi service trả lỗi một kiểu, frontend/client rất khó xử lý.
+
+Versioning và backward compatibility giúp API thay đổi mà không phá client cũ.
+
+## 2. Khái niệm cốt lõi
+
+### API versioning
+
+Versioning là cách đánh dấu phiên bản API:
 
 ```text
-GET /order-summaries
-GET /order-summaries/{orderId}
-POST /debug/order-summaries
-
-GET /orders
-GET /orders/{id}
-POST /orders/checkout
-GET /debug/outbox
-
-GET /products
-GET /products/{id}
-GET /products/search
-GET /products/count
-GET /products/price-range
-POST /products
-PUT /products/{id}
-DELETE /products/{id}
-
-GET /basket/{userId}
-POST /basket/{userId}/items
-POST /basket/{userId}/items-grpc
-PUT /basket/{userId}/items/{productId}
-DELETE /basket/{userId}/items/{productId}
-PUT /basket/{userId}/clear
-DELETE /basket/{userId}
-GET /basket/products/{productId}/validate
-GET /basket/products/{productId}/validate-grpc
-POST /basket/preview-item
-POST /basket/preview-item-grpc
-GET /basket/products/{productId}/compare-communication
-
-GET /discounts/{code}
-POST /discounts/apply
-
-POST /auth/login
-GET /auth/me
-
-POST /payments
-GET /payments/{id}
-POST /webhooks/payment
-POST /payments/webhooks/payment
-
-GET /health
-GET /alive
+/api/v1/products
+/api/v2/products
 ```
 
-Không dùng:
+Hiện tại MicroShop vẫn dùng route unversioned. Day 32 chỉ document policy.
+
+### Backward compatibility
+
+Non-breaking:
+
+```text
+Thêm field optional.
+Thêm endpoint mới.
+```
+
+Breaking:
+
+```text
+Xóa field.
+Đổi tên field.
+Đổi type.
+Đổi route shape.
+Đổi status code.
+```
+
+### ProblemDetails
+
+ProblemDetails là format lỗi chuẩn kiểu:
+
+```json
+{
+  "type": "...",
+  "title": "...",
+  "status": 404,
+  "detail": "...",
+  "traceId": "..."
+}
+```
+
+## 3. Nhìn vào repo hiện tại
+
+Các service chính:
+
+```text
+Services/ApiGateway
+Services/CatalogService
+Services/BasketService
+Services/OrderingService
+Services/DiscountService
+Services/IdentityService
+Services/PaymentService
+Services/OrderQueryService
+```
+
+Các worker:
+
+```text
+Services/NotificationWorker
+Workers/ProjectionWorker
+```
+
+Các project dùng chung:
+
+```text
+BuildingBlocks.Contracts
+MicroShop.AppHost
+MicroShop.ServiceDefaults
+```
+
+Hạ tầng local:
+
+```text
+PostgreSQL: lưu dữ liệu write-side
+Redis: lưu basket/cache
+RabbitMQ: workflow/task messaging
+Kafka: event stream/projection learning
+MongoDB: read model và projection failure
+Docker Compose: chạy local runtime
+Aspire AppHost: orchestration local .NET
+```
+
+Route/ID cũ không dùng lại:
 
 ```text
 /orders/read-model
@@ -107,130 +122,31 @@ CUST-900
 ```
 
 
-Gateway route rules should be verified before implementation:
+Target đầu tiên:
+
+```text
+OrderQueryService
+GET /order-summaries/{orderId}
+POST /debug/order-summaries
+```
+
+Lưu ý:
+
+```text
+Results.Problem(...) có thể không tự có traceId đúng shape.
+Phải verify response thật bằng Postman.
+```
+
+## 4. Thực hành từng bước
+
+### Bước 1: Inspect error behavior
 
 ```powershell
-Get-Content Services/ApiGateway/appsettings.json
-Get-Content Services/ApiGateway/appsettings.Docker.json
-Get-ChildItem Services -Recurse -Filter *Endpoints.cs
-```
-
-OpenAPI/Swagger rule:
-
-```text
-Do not claim Swagger/OpenAPI UI exists unless code enables it.
-If only AddEndpointsApiExplorer exists, say API surface is documented manually.
-```
-
----
-
-## 2. Mục tiêu
-
-Sau khi hoàn thành:
-
-```text
-[ ] API versioning strategy is documented.
-[ ] Backward compatibility rules are documented.
-[ ] Standard error response format is documented.
-[ ] A small slice implements ProblemDetails-style errors.
-[ ] API versioning package is not added unless explicitly chosen as a code task.
-[ ] OrderQueryService is the first target slice.
-[ ] ApiGateway is tested only for preserving downstream errors.
-[ ] Postman negative tests exist.
-```
-
-Output chính:
-
-```text
-docs/api/api-versioning-policy.md
-docs/api/api-error-handling-standard.md
-docs/api/day-32-api-hardening-notes.md
-postman/MicroShop.Day32.ApiHardening.postman_collection.json
-```
-
-Output code tùy chọn:
-
-```text
-ProblemDetails-style responses in OrderQueryService
-Local helper inside OrderQueryService if useful
-```
-
----
-
-## 3. Giới hạn phạm vi
-
-Nên làm:
-
-```text
-[ ] Document API versioning policy.
-[ ] Document backward compatibility rules.
-[ ] Implement standard errors only in a small slice.
-[ ] Keep code changes local to OrderQueryService first.
-[ ] Test gateway only if gateway is running.
-```
-
-Không làm:
-
-```text
-[ ] Do not version every endpoint today.
-[ ] Do not introduce global shared middleware across the repo yet.
-[ ] Do not enable Swagger/OpenAPI unless chosen as a separate task.
-[ ] Do not change RabbitMQ/Kafka behavior.
-[ ] Do not refactor domain/application layers.
-[ ] Do not claim all APIs are standardized.
-```
-
-Điều phần này chứng minh:
-
-```text
-MicroShop has a direction for stable API evolution.
-ProblemDetails-style errors can be introduced safely in one slice.
-```
-
-Điều phần này chưa chứng minh:
-
-```text
-All APIs are versioned.
-All errors across all services are standardized.
-OpenAPI is production-ready.
-```
-
----
-
-## 4. Kiểm tra trước khi làm
-
-Run:
-
-```powershell
-git status --short
-docker compose config --services
-```
-
-Inspect current API/error behavior:
-
-```powershell
-Get-ChildItem Services -Recurse -Filter *Endpoints.cs
 Get-ChildItem Services -Recurse -Filter *.cs |
   Select-String -Pattern "ProblemDetails|Results.Problem|BadRequest|NotFound|Validation|UseExceptionHandler|AddProblemDetails"
 ```
 
-Inspect gateway routes:
-
-```powershell
-Get-Content Services/ApiGateway/appsettings.json
-Get-Content Services/ApiGateway/appsettings.Docker.json
-```
-
-Check Swagger/OpenAPI status:
-
-```powershell
-Get-ChildItem . -Recurse -Filter *.cs |
-  Select-String -Pattern "AddSwaggerGen|UseSwagger|UseSwaggerUI|AddOpenApi|MapOpenApi|AddEndpointsApiExplorer"
-```
-
----
-
-## 5. API versioning policy
+### Bước 2: Tạo API versioning policy
 
 Tạo:
 
@@ -238,82 +154,14 @@ Tạo:
 docs/api/api-versioning-policy.md
 ```
 
-Nội dung gợi ý:
-
-````md
-# MicroShop API Versioning Policy
-
-## Goal
-
-API changes should be explicit and backward compatible where possible.
-
-## Current Stage
-
-MicroShop is a training-stage project.
-
-Versioning is documented first before broad implementation.
-
-## Recommended Strategy
-
-Use URL versioning for public APIs when versioning is introduced.
-
-Example:
+Ghi rõ:
 
 ```text
-/api/v1/products
-/api/v1/orders
+Day 32 chưa migrate toàn bộ route sang /api/v1.
+Chưa cần add API versioning package.
 ```
 
-Current unversioned routes remain for Stage 1/early Stage 2 compatibility:
-
-```text
-/products
-/orders
-/order-summaries
-```
-
-## Compatibility Rules
-
-Non-breaking changes:
-
-```text
-Adding optional response fields.
-Adding new endpoints.
-Adding optional request fields.
-```
-
-Breaking changes:
-
-```text
-Removing fields.
-Renaming fields.
-Changing field types.
-Changing status codes without compatibility note.
-Changing route shape.
-Changing validation rules in a way that rejects valid old clients.
-```
-
-## Current Decision
-
-Day 32 does not migrate every route to /api/v1.
-
-Day 32 does not require adding an API versioning package yet.
-
-Day 32 documents policy and focuses on standard errors first.
-
-## Việc làm sau
-
-```text
-Add API versioning package or route groups.
-Decide gateway route versioning strategy.
-Document deprecated routes.
-Add OpenAPI version docs if Swagger/OpenAPI is enabled later.
-```
-````
-
----
-
-## 6. Chuẩn định dạng lỗi
+### Bước 3: Tạo error handling standard
 
 Tạo:
 
@@ -321,16 +169,7 @@ Tạo:
 docs/api/api-error-handling-standard.md
 ```
 
-Use ProblemDetails-style format:
-
-````md
-# MicroShop API Error Handling Standard
-
-## Goal
-
-APIs should return predictable error responses.
-
-## Standard Shape
+Ví dụ:
 
 ```json
 {
@@ -343,358 +182,62 @@ APIs should return predictable error responses.
 }
 ```
 
-## Validation Shape
+### Bước 4: Implement/check một slice nhỏ
 
-```json
-{
-  "type": "https://microshop.local/problems/validation",
-  "title": "Validation failed",
-  "status": 400,
-  "detail": "One or more validation errors occurred.",
-  "errors": {
-    "field": [
-      "Error message"
-    ]
-  },
-  "traceId": "..."
-}
-```
-
-## Rules
+Case:
 
 ```text
-Do not leak stack traces.
-Log exceptions server-side.
-Use stable status/title/type.
-Include traceId when possible.
+GET /order-summaries/{missingOrderId} -> 404 ProblemDetails-style
+GET /order-summaries/not-a-guid -> có thể 404 do route constraint
 ```
 
-## Day 32 Target Slice
+### Bước 5: Test bằng Postman
 
 ```text
-OrderQueryService first.
-ApiGateway only verifies downstream error preservation.
-```
-
-## Not Complete Yet
-
-```text
-All services are not fully standardized.
-Auth-specific errors are not fully standardized.
-Gateway-level normalization is future work.
-```
-````
-
----
-
-## 7. Mục tiêu trien khai
-
-Target only OrderQueryService first:
-
-```text
-GET /order-summaries/{orderId} missing -> 404 ProblemDetails-style
-POST /debug/order-summaries invalid -> 400 ProblemDetails-style
-MongoDB unavailable -> 503 ProblemDetails-style if cleanly mappable
-```
-
-Important invalid GUID behavior:
-
-```text
-If route is /order-summaries/{orderId:guid},
-then /order-summaries/not-a-guid usually does not match endpoint.
-ASP.NET returns 404 before endpoint logic.
-Document this behavior.
-Do not force it into 400 today by changing route shape.
-```
-
-ApiGateway scope:
-
-```text
-Only verify whether gateway preserves downstream error shape.
-Do not implement gateway-level error normalization today.
-```
-
----
-
-## 8. Tùy chọn helper local tối thiểu
-
-If useful, add a local helper inside OrderQueryService.
-
-Example:
-
-```csharp
-internal static class ApiProblemResults
-{
-    public static IResult NotFound(HttpContext context, string detail)
-    {
-        return Results.Problem(
-            title: "Resource not found",
-            detail: detail,
-            statusCode: StatusCodes.Status404NotFound,
-            type: "https://microshop.local/problems/not-found",
-            instance: context.Request.Path);
-    }
-
-    public static IResult BadRequest(HttpContext context, string detail)
-    {
-        return Results.Problem(
-            title: "Bad request",
-            detail: detail,
-            statusCode: StatusCodes.Status400BadRequest,
-            type: "https://microshop.local/problems/bad-request",
-            instance: context.Request.Path);
-    }
-
-    public static IResult ServiceUnavailable(HttpContext context, string detail)
-    {
-        return Results.Problem(
-            title: "Service unavailable",
-            detail: detail,
-            statusCode: StatusCodes.Status503ServiceUnavailable,
-            type: "https://microshop.local/problems/service-unavailable",
-            instance: context.Request.Path);
-    }
-}
-```
-
-Quy tắc:
-
-```text
-Keep it local to OrderQueryService on Day 32.
-Do not move to ServiceDefaults/shared package yet.
-Verify the actual response body after using Results.Problem.
-If traceId is required in a specific shape, document whether custom ProblemDetails handling is needed.
-```
-
----
-
-## 9. Test runtime
-
-Chế độ lite:
-
-```powershell
-docker compose up -d --build zookeeper kafka mongodb orderqueryservice projectionworker
-```
-
-Direct service tests:
-
-```text
-GET {{order_query_url}}/order-summaries
 GET {{order_query_url}}/order-summaries/99999999-9999-9999-9999-999999999999
 GET {{order_query_url}}/order-summaries/not-a-guid
 ```
 
-Kỳ vọng:
-
-```text
-Missing GUID order -> 404 ProblemDetails-style if implemented.
-not-a-guid -> likely 404 due to route constraint.
-Verify actual response body. Results.Problem may not include traceId in the exact shape unless customized.
-```
-
-Test gateway tuy chon:
-
-```powershell
-docker compose up -d --build --no-deps api-gateway
-```
-
-Then:
-
-```text
-GET {{gateway_url}}/order-summaries/99999999-9999-9999-9999-999999999999
-```
+## 5. Kết quả kỳ vọng
 
 Kỳ vọng:
 
 ```text
-Gateway preserves downstream error shape or behavior is documented.
+Có policy versioning.
+Có chuẩn error response.
+Có actual response body được ghi lại.
+Biết traceId có/không có trong response thật.
+Không thêm global middleware quá sớm.
 ```
 
----
-
-## 10. Cập nhật Postman
-
-Create or update:
+## 6. Lỗi hay gặp
 
 ```text
-postman/MicroShop.Day32.ApiHardening.postman_collection.json
+Lỗi 1: Thêm API versioning package khi chưa cần.
+Lỗi 2: Claim toàn bộ API đã chuẩn error.
+Lỗi 3: Không verify Results.Problem response thật.
+Lỗi 4: Ép invalid GUID thành 400 bằng cách đổi route shape không cần thiết.
 ```
 
-Requests:
+## 7. Tổng kết bài học
+
+Day 32 giúp API của MicroShop có hướng ổn định hơn. Quan trọng nhất là biết chuẩn hóa từng slice nhỏ, verify response thật, không vội làm global framework.
+
+## 8. Checklist trước khi commit
 
 ```text
-GET {{order_query_url}}/order-summaries
-GET {{order_query_url}}/order-summaries/{{missingOrderId}}
-GET {{order_query_url}}/order-summaries/not-a-guid
+[ ] Hiểu được mục tiêu chính của bài.
+[ ] Đã chạy các lệnh kiểm tra chính.
+[ ] Đã tạo/cập nhật đúng docs hoặc code trong scope.
+[ ] Đã test phần cần test.
+[ ] Không dùng endpoint/id cũ.
+[ ] Không claim production-ready.
+[ ] Không làm lệch RabbitMQ/Kafka responsibility.
 ```
 
-Gateway tùy chọn:
+## 9. Commit/tag gợi ý
 
 ```text
-GET {{gateway_url}}/order-summaries/{{missingOrderId}}
+Commit: Day 32: API Versioning Error Format
+Tag: day-32-api-versioning-error-format
 ```
-
-Biến môi trường:
-
-```text
-order_query_url
-gateway_url
-missingOrderId = 99999999-9999-9999-9999-999999999999
-```
-
----
-
-## 11. Kế hoạch build/test
-
-Build các project bị chạm:
-
-```powershell
-dotnet build Services/OrderQueryService/OrderQueryService.csproj
-```
-
-If gateway was tested or touched:
-
-```powershell
-dotnet build Services/ApiGateway/ApiGateway.csproj
-```
-
-If shared code was touched:
-
-```powershell
-dotnet build
-```
-
----
-
-## 12. Cập nhật docs
-
-Tạo:
-
-```text
-docs/api/day-32-api-hardening-notes.md
-```
-
-Nội dung gợi ý:
-
-````md
-# Day 32 API Hardening Notes
-
-## Reviewed target
-
-```text
-OrderQueryService
-GET /order-summaries
-GET /order-summaries/{orderId}
-POST /debug/order-summaries
-```
-
-## Findings
-
-| Scenario | Current behavior | Target behavior | Status |
-| --- | --- | --- | --- |
-| Missing order summary | TBD | 404 ProblemDetails-style | TBD |
-| Invalid GUID route | 404 due to route constraint | Documented 404 | TBD |
-| Debug invalid payload | TBD | 400 ProblemDetails-style | TBD |
-| MongoDB unavailable | TBD | 503 ProblemDetails-style if cleanly mapped | TBD |
-
-## Gateway
-
-```text
-Gateway chi duoc test de dam bao giu nguyen error shape tu downstream.
-Day 32 khong implement normalization o gateway.
-```
-
-## Future work
-
-```text
-API versioning implementation.
-Service-wide error standardization.
-Validation pipeline.
-OpenAPI/Swagger enablement if desired.
-```
-````
-
-Update `docs/README.md` to link:
-
-```text
-docs/api/api-versioning-policy.md
-docs/api/api-error-handling-standard.md
-docs/api/day-32-api-hardening-notes.md
-```
-
----
-
-## 13. Review độ phù hợp production-minded
-
-Điều phần này cải thiện:
-
-```text
-API contracts become more predictable.
-Error responses become easier for clients to handle.
-Versioning policy reduces random future breaking changes.
-```
-
-Những phần còn là future work:
-
-```text
-Actual route versioning implementation.
-Service-wide validation pipeline.
-Auth/authorization error consistency.
-Gateway error normalization.
-OpenAPI/Swagger enablement if desired.
-```
-
----
-
-## 14. Checklist đạt yêu cầu
-
-```text
-[ ] API versioning policy doc exists.
-[ ] API error handling standard doc exists.
-[ ] Day 32 API hardening notes exist.
-[ ] OrderQueryService missing order behavior is standardized or documented.
-[ ] Invalid GUID route behavior is documented as likely 404.
-[ ] Debug invalid payload behavior is standardized or documented.
-[ ] Mongo unavailable behavior is documented or mapped to 503 if safe.
-[ ] Gateway only verifies downstream behavior if running.
-[ ] Không thêm shared/global error middleware.
-[ ] Actual ProblemDetails response body is verified, including whether traceId appears.
-[ ] Postman negative tests exist.
-[ ] Build passes for touched projects.
-[ ] docs/README.md links new API docs.
-```
-
----
-
-## 15. Commit/tag tùy chọn sau review
-
-Recommended commit:
-
-```text
-Day 32: API Versioning Error Format
-```
-
-Recommended tag:
-
-```text
-day-32-api-versioning-error-format
-```
-
-Commands:
-
-```powershell
-git add .
-git commit -m "Day 32: API Versioning Error Format"
-git tag day-32-api-versioning-error-format
-```
-
----
-
-## 16. Ngày tiếp theo
-
-Day 33:
-
-```text
-PostgreSQL + Migration + Schema Evolution Hardening
-```
-
