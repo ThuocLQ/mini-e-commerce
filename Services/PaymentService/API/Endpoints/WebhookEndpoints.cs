@@ -26,6 +26,7 @@ public static class WebhookEndpoints
     {
         var command = new PaymentWebhookCommand(
             request.PaymentId,
+            request.ProviderEventId,
             request.ProviderTransactionId,
             request.Status,
             request.FailureReason);

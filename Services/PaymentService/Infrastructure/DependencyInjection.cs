@@ -12,6 +12,7 @@ public static class DependencyInjection
         services.AddSingleton<IDbConnectionFactory, NpgsqlConnectionFactory>();
         services.AddSingleton<IDatabaseInitializer, PostgresDatabaseInitializer>();
         services.AddScoped<IPaymentRepository, DapperPaymentRepository>();
+        services.AddScoped<IPaymentWebhookRepository, DapperPaymentWebhookRepository>();
 
         return services;
     }

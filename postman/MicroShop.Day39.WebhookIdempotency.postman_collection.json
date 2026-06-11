@@ -1,0 +1,220 @@
+{
+  "info": {
+    "name": "MicroShop - Day 39 Webhook Idempotency",
+    "_postman_id": "d70c3b71-f7ec-4d6b-9cf4-5d0f0a2d3917",
+    "description": "Day 39 lab: create a payment, send a succeeded webhook with providerEventId, send the same webhook again, and verify the payment remains succeeded.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "gatewayBaseUrl",
+      "value": "https://localhost:7001"
+    },
+    {
+      "key": "paymentId",
+      "value": ""
+    },
+    {
+      "key": "providerEventId",
+      "value": "evt_day39_payment_succeeded_001"
+    },
+    {
+      "key": "providerTransactionId",
+      "value": "txn_day39_payment_succeeded_001"
+    }
+  ],
+  "item": [
+    {
+      "name": "01 - Create payment",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Payment created', function () {",
+              "  pm.response.to.have.status(201);",
+              "});",
+              "",
+              "const payment = pm.response.json();",
+              "pm.collectionVariables.set('paymentId', payment.id);",
+              "",
+              "pm.test('Payment starts pending', function () {",
+              "  pm.expect(payment.status).to.eql('Pending');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"orderId\": \"39393939-3939-3939-3939-393939393939\",\n  \"customerId\": \"00000000-0000-0000-0000-000000000039\",\n  \"amount\": 390,\n  \"currency\": \"USD\"\n}"
+        },
+        "url": {
+          "raw": "{{gatewayBaseUrl}}/payments",
+          "host": [
+            "{{gatewayBaseUrl}}"
+          ],
+          "path": [
+            "payments"
+          ]
+        }
+      }
+    },
+    {
+      "name": "02 - Send succeeded webhook",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Webhook accepted', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "",
+              "const payment = pm.response.json();",
+              "pm.test('Payment succeeded', function () {",
+              "  pm.expect(payment.id).to.eql(pm.collectionVariables.get('paymentId'));",
+              "  pm.expect(payment.status).to.eql('Succeeded');",
+              "  pm.expect(payment.providerTransactionId).to.eql(pm.collectionVariables.get('providerTransactionId'));",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"paymentId\": \"{{paymentId}}\",\n  \"providerEventId\": \"{{providerEventId}}\",\n  \"providerTransactionId\": \"{{providerTransactionId}}\",\n  \"status\": \"SUCCEEDED\",\n  \"failureReason\": null\n}"
+        },
+        "url": {
+          "raw": "{{gatewayBaseUrl}}/payments/webhooks/payment",
+          "host": [
+            "{{gatewayBaseUrl}}"
+          ],
+          "path": [
+            "payments",
+            "webhooks",
+            "payment"
+          ]
+        }
+      }
+    },
+    {
+      "name": "03 - Send duplicate succeeded webhook",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Duplicate webhook is idempotent', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "",
+              "const payment = pm.response.json();",
+              "pm.test('Payment remains succeeded', function () {",
+              "  pm.expect(payment.id).to.eql(pm.collectionVariables.get('paymentId'));",
+              "  pm.expect(payment.status).to.eql('Succeeded');",
+              "  pm.expect(payment.providerTransactionId).to.eql(pm.collectionVariables.get('providerTransactionId'));",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"paymentId\": \"{{paymentId}}\",\n  \"providerEventId\": \"{{providerEventId}}\",\n  \"providerTransactionId\": \"{{providerTransactionId}}\",\n  \"status\": \"SUCCEEDED\",\n  \"failureReason\": null\n}"
+        },
+        "url": {
+          "raw": "{{gatewayBaseUrl}}/payments/webhooks/payment",
+          "host": [
+            "{{gatewayBaseUrl}}"
+          ],
+          "path": [
+            "payments",
+            "webhooks",
+            "payment"
+          ]
+        }
+      }
+    },
+    {
+      "name": "04 - Get payment after duplicate webhook",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Payment found', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "",
+              "const payment = pm.response.json();",
+              "pm.test('Payment is still succeeded', function () {",
+              "  pm.expect(payment.id).to.eql(pm.collectionVariables.get('paymentId'));",
+              "  pm.expect(payment.status).to.eql('Succeeded');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{gatewayBaseUrl}}/payments/{{paymentId}}",
+          "host": [
+            "{{gatewayBaseUrl}}"
+          ],
+          "path": [
+            "payments",
+            "{{paymentId}}"
+          ]
+        }
+      }
+    }
+  ]
+}
