@@ -60,6 +60,14 @@ public sealed class KafkaProjectionWorker : BackgroundService
                 await ProcessAsync(consumeResult, stoppingToken);
 
                 consumer.Commit(consumeResult);
+
+                _logger.LogInformation(
+                    "Projection Kafka offset committed. Service={Service}, Topic={Topic}, Partition={Partition}, Offset={Offset}, Key={Key}.",
+                    "ProjectionWorker",
+                    consumeResult.Topic,
+                    consumeResult.Partition.Value,
+                    consumeResult.Offset.Value,
+                    consumeResult.Message.Key);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -106,7 +114,32 @@ public sealed class KafkaProjectionWorker : BackgroundService
             AllowAutoCreateTopics = false
         };
 
-        return new ConsumerBuilder<string, string>(config).Build();
+        return new ConsumerBuilder<string, string>(config)
+            .SetPartitionsAssignedHandler((_, partitions) =>
+            {
+                _logger.LogInformation(
+                    "ProjectionWorker Kafka partitions assigned. Service={Service}, Topic={Topic}, Partitions={Partitions}.",
+                    "ProjectionWorker",
+                    _options.Topic,
+                    FormatTopicPartitions(partitions));
+            })
+            .SetPartitionsRevokedHandler((_, partitions) =>
+            {
+                _logger.LogWarning(
+                    "ProjectionWorker Kafka partitions revoked during rebalance. Service={Service}, Topic={Topic}, Partitions={Partitions}.",
+                    "ProjectionWorker",
+                    _options.Topic,
+                    FormatTopicPartitionOffsets(partitions));
+            })
+            .SetPartitionsLostHandler((_, partitions) =>
+            {
+                _logger.LogWarning(
+                    "ProjectionWorker Kafka partitions lost during rebalance. Service={Service}, Topic={Topic}, Partitions={Partitions}. Uncommitted messages may be replayed.",
+                    "ProjectionWorker",
+                    _options.Topic,
+                    FormatTopicPartitionOffsets(partitions));
+            })
+            .Build();
     }
 
     private async Task ProcessAsync(
@@ -221,5 +254,19 @@ public sealed class KafkaProjectionWorker : BackgroundService
         return string.Equals(value, "Latest", StringComparison.OrdinalIgnoreCase)
             ? AutoOffsetReset.Latest
             : AutoOffsetReset.Earliest;
+    }
+
+    private static string FormatTopicPartitions(IEnumerable<TopicPartition> partitions)
+    {
+        return string.Join(
+            ", ",
+            partitions.Select(partition => $"{partition.Topic}[{partition.Partition.Value}]"));
+    }
+
+    private static string FormatTopicPartitionOffsets(IEnumerable<TopicPartitionOffset> partitions)
+    {
+        return string.Join(
+            ", ",
+            partitions.Select(partition => $"{partition.Topic}[{partition.Partition.Value}]@{partition.Offset.Value}"));
     }
 }
