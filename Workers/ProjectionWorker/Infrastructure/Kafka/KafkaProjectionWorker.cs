@@ -18,6 +18,7 @@ public sealed class KafkaProjectionWorker : BackgroundService
     };
 
     private readonly KafkaOptions _options;
+    private readonly MongoDbOptions _mongoOptions;
     private readonly OrderProjectionHandler _projectionHandler;
     private readonly IProjectionFailureStore _failureStore;
     private readonly IMongoProjectionInitializer _mongoProjectionInitializer;
@@ -25,12 +26,14 @@ public sealed class KafkaProjectionWorker : BackgroundService
 
     public KafkaProjectionWorker(
         IOptions<KafkaOptions> options,
+        IOptions<MongoDbOptions> mongoOptions,
         OrderProjectionHandler projectionHandler,
         IProjectionFailureStore failureStore,
         IMongoProjectionInitializer mongoProjectionInitializer,
         ILogger<KafkaProjectionWorker> logger)
     {
         _options = options.Value;
+        _mongoOptions = mongoOptions.Value;
         _projectionHandler = projectionHandler;
         _failureStore = failureStore;
         _mongoProjectionInitializer = mongoProjectionInitializer;
@@ -45,9 +48,19 @@ public sealed class KafkaProjectionWorker : BackgroundService
         consumer.Subscribe(_options.Topic);
 
         _logger.LogInformation(
-            "ProjectionWorker subscribed to Kafka topic {Topic} with group {GroupId}.",
+            "ProjectionWorker subscribed to Kafka topic {Topic} with group {GroupId}. RebuildMode={RebuildMode}, TargetCollection={TargetCollection}.",
             _options.Topic,
-            _options.GroupId);
+            _options.GroupId,
+            _mongoOptions.RebuildModeEnabled,
+            _mongoOptions.EffectiveOrderSummariesCollectionName);
+
+        if (_mongoOptions.RebuildModeEnabled
+            && string.Equals(_options.GroupId, "projection-worker", StringComparison.OrdinalIgnoreCase))
+        {
+            _logger.LogWarning(
+                "Projection rebuild mode is enabled with the default consumer group {GroupId}. Use a dedicated rebuild group id to replay without moving the live projection group offset.",
+                _options.GroupId);
+        }
 
         while (!stoppingToken.IsCancellationRequested)
         {

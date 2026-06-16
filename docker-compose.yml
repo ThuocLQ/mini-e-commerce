@@ -303,6 +303,38 @@ services:
     networks:
       - microshop-network
 
+  projectionworker-rebuild:
+    profiles:
+      - projection-rebuild
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        PROJECT_PATH: Workers/ProjectionWorker/ProjectionWorker.csproj
+        PROJECT_DLL: ProjectionWorker.dll
+    container_name: microshop-projectionworker-rebuild
+    environment:
+      DOTNET_ENVIRONMENT: Development
+      Kafka__BootstrapServers: kafka:29092
+      Kafka__Topic: microshop.order-events
+      Kafka__GroupId: projection-worker-rebuild-demo
+      Kafka__AutoOffsetReset: Earliest
+      MongoDb__ConnectionString: mongodb://microshop:microshop@mongodb:27017/?authSource=admin
+      MongoDb__DatabaseName: MicroShop_OrderReadDb
+      MongoDb__OrderSummariesCollectionName: order_summaries
+      MongoDb__RebuildModeEnabled: true
+      MongoDb__RebuildOrderSummariesCollectionName: order_summaries_rebuild
+      MongoDb__ProjectionFailuresCollectionName: projection_failures
+      MongoDb__InitializeMaxRetryCount: 10
+      MongoDb__InitializeRetryDelaySeconds: 3
+    depends_on:
+      kafka:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+    networks:
+      - microshop-network
+
   notificationworker:
     build:
       context: .

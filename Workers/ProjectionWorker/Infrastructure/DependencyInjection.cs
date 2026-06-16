@@ -29,6 +29,8 @@ public static class DependencyInjection
             .Validate(options => !string.IsNullOrWhiteSpace(options.ConnectionString), "MongoDb:ConnectionString is required.")
             .Validate(options => !string.IsNullOrWhiteSpace(options.DatabaseName), "MongoDb:DatabaseName is required.")
             .Validate(options => !string.IsNullOrWhiteSpace(options.OrderSummariesCollectionName), "MongoDb:OrderSummariesCollectionName is required.")
+            .Validate(options => !options.RebuildModeEnabled || !string.IsNullOrWhiteSpace(options.RebuildOrderSummariesCollectionName), "MongoDb:RebuildOrderSummariesCollectionName is required when rebuild mode is enabled.")
+            .Validate(options => !options.RebuildModeEnabled || !string.Equals(options.OrderSummariesCollectionName, options.RebuildOrderSummariesCollectionName, StringComparison.OrdinalIgnoreCase), "MongoDb:RebuildOrderSummariesCollectionName must be different from MongoDb:OrderSummariesCollectionName when rebuild mode is enabled.")
             .Validate(options => !string.IsNullOrWhiteSpace(options.ProjectionFailuresCollectionName), "MongoDb:ProjectionFailuresCollectionName is required.")
             .Validate(options => options.InitializeMaxRetryCount > 0, "MongoDb:InitializeMaxRetryCount must be greater than 0.")
             .Validate(options => options.InitializeRetryDelaySeconds > 0, "MongoDb:InitializeRetryDelaySeconds must be greater than 0.")

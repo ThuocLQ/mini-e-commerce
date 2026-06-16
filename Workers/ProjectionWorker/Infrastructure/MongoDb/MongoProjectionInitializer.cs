@@ -41,7 +41,7 @@ public sealed class MongoProjectionInitializer : IMongoProjectionInitializer
         var database = _mongoClient.GetDatabase(_options.DatabaseName);
 
         var orderSummaries = database.GetCollection<OrderSummaryProjectionDocument>(
-            _options.OrderSummariesCollectionName);
+            _options.EffectiveOrderSummariesCollectionName);
 
         await orderSummaries.Indexes.CreateManyAsync(
             [

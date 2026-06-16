@@ -89,6 +89,8 @@ OrderSummary có field nào?
 Có lastEventId/lastEventAtUtc không?
 Có processed_projection_events không?
 projection_failures đang lưu gì?
+ProjectionWorker có rebuild mode không?
+Rebuild worker dùng consumer group riêng không?
 ```
 
 ## 3. Lab cụ thể
@@ -105,7 +107,39 @@ docker compose up -d --build zookeeper kafka mongodb orderqueryservice projectio
 GET {{order_query_url}}/order-summaries
 ```
 
-### Bước 3: Tạo rebuild collection trong MongoDB
+### Bước 3: Chạy rebuild worker profile
+
+Repo hiện có `projectionworker-rebuild` trong Docker Compose profile `projection-rebuild`.
+
+Service này:
+
+```text
+Kafka__GroupId = projection-worker-rebuild-demo
+MongoDb__RebuildModeEnabled = true
+MongoDb__RebuildOrderSummariesCollectionName = order_summaries_rebuild
+```
+
+Chạy:
+
+```powershell
+docker compose --profile projection-rebuild up -d --build projectionworker-rebuild
+```
+
+Kiểm tra log:
+
+```powershell
+docker compose logs projectionworker-rebuild --tail 100
+```
+
+Kỳ vọng log có:
+
+```text
+RebuildMode=True
+TargetCollection=order_summaries_rebuild
+GroupId=projection-worker-rebuild-demo
+```
+
+### Bước 4: Verify rebuild collection trong MongoDB
 
 Tìm tên container MongoDB:
 
@@ -130,9 +164,9 @@ db.order_summaries_rebuild.createIndex({ orderId: 1 }, { unique: true })
 db.order_summaries_rebuild.getIndexes()
 ```
 
-Nếu repo dùng collection name khác, dùng name thật từ code, không đoán.
+Nếu rebuild worker đã start trước đó, initializer cũng có thể tự tạo index. Lệnh trên dùng để kiểm tra/thử lại trong lab.
 
-### Bước 4: Produce/replay event demo
+### Bước 5: Produce/replay event demo
 
 Mở Kafka producer:
 
@@ -149,11 +183,12 @@ Gửi event:
 Logic cần hiểu:
 
 ```text
-ProjectionWorker hiện tại có thể vẫn ghi vào order_summaries, chưa ghi vào order_summaries_rebuild.
-Nếu chưa có rebuild mode, bước này dùng để quan sát current projection, không giả vờ đã rebuild thật.
+projectionworker ghi vào order_summaries.
+projectionworker-rebuild ghi vào order_summaries_rebuild.
+Hai worker dùng group khác nhau nên rebuild group có thể replay từ earliest mà không kéo offset của live projection group.
 ```
 
-### Bước 5: Verify collection hiện tại
+### Bước 6: Verify live và rebuild collection
 
 Trong `mongosh`:
 
@@ -161,26 +196,11 @@ Trong `mongosh`:
 use MicroShop_OrderReadDb
 
 db.order_summaries.find({ orderId: "11111111-1111-1111-1111-111111111111" }).pretty()
+db.order_summaries_rebuild.find({ orderId: "11111111-1111-1111-1111-111111111111" }).pretty()
 db.projection_failures.find().sort({ _id: -1 }).limit(5).pretty()
 ```
 
-Nếu chưa có rebuild mode, mô phỏng copy sang rebuild collection để kiểm tra index/verify flow:
-
-```javascript
-const doc = db.order_summaries.findOne({ orderId: "11111111-1111-1111-1111-111111111111" })
-
-if (doc) {
-  db.order_summaries_rebuild.updateOne(
-    { orderId: doc.orderId },
-    { $set: doc },
-    { upsert: true }
-  )
-}
-
-db.order_summaries_rebuild.find({ orderId: "11111111-1111-1111-1111-111111111111" }).pretty()
-```
-
-### Bước 6: Test duplicate replay
+### Bước 7: Test duplicate replay
 
 Produce lại cùng event.
 
@@ -195,18 +215,22 @@ Kỳ vọng tối thiểu:
 
 ```text
 Không có nhiều document cùng orderId.
-Nếu chỉ upsert theo orderId thì chống duplicate document, nhưng chưa chắc chống old-event overwrite.
+Upsert theo orderId chống duplicate document.
+Logic lastProjectedEventOccurredAtUtc giúp tránh old event overwrite newer state theo occurredAtUtc.
+Vẫn chưa có processed_projection_events để track từng eventId đã xử lý.
 ```
 
-### Bước 7: Ghi kết luận repo thật
+### Bước 8: Ghi kết luận repo thật
 
 Ghi ngay trong bài/note:
 
 ```text
 Current repo:
-- Có/không có rebuild mode.
-- Có/không có processed_projection_events.
-- Có/không có lastEventAtUtc/aggregateVersion.
+- Có rebuild mode bằng config + compose profile projection-rebuild.
+- Có rebuild collection order_summaries_rebuild.
+- Chưa có processed_projection_events.
+- Có lastProjectedEventOccurredAtUtc để chặn old event overwrite theo timestamp.
+- Chưa có aggregateVersion/sequence.
 - Kafka retention hiện chưa xác minh / đã xác minh.
 - Rebuild thật cần thêm gì.
 ```
@@ -237,7 +261,7 @@ Risk:
 1. Vì sao read model có thể rebuild?
 2. Vì sao Kafka retention là rủi ro?
 3. Vì sao rebuild vào collection mới an toàn hơn?
-4. Nếu repo chưa có rebuild mode thì thiếu gì?
+4. Rebuild mode hiện tại đã giải quyết được gì và còn thiếu gì?
 5. Duplicate eventId xử lý thế nào?
 6. Khi nào cần processed_projection_events?
 7. Khi nào cần aggregateVersion/sequence?
@@ -249,7 +273,7 @@ Risk:
 ```text
 Projection rebuild không chỉ là viết strategy.
 Lab tối thiểu phải tạo rebuild collection, produce/replay event, verify data và ghi rõ gap.
-Nếu repo chưa có rebuild mode, kết luận đúng là: current projection chưa hỗ trợ rebuild production-safe.
+Repo hiện đã có rebuild mode cơ bản bằng config + compose profile, nhưng chưa phải rebuild production-safe đầy đủ vì còn thiếu processed_projection_events, aggregateVersion/sequence và cutover/swap automation.
 ```
 
 ## 7. Optional commit

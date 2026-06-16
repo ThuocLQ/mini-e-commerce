@@ -17,7 +17,7 @@ public sealed class MongoOrderSummaryProjectionRepository : IOrderSummaryProject
         var database = mongoClient.GetDatabase(mongoOptions.DatabaseName);
 
         _collection = database.GetCollection<OrderSummaryProjectionDocument>(
-            mongoOptions.OrderSummariesCollectionName);
+            mongoOptions.EffectiveOrderSummariesCollectionName);
     }
 
     public async Task ApplyAsync(
