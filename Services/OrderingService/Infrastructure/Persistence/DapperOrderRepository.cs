@@ -137,6 +137,48 @@ public sealed class DapperOrderRepository : IOrderRepository
         }
     }
 
+    public async Task<bool> TryUpdateStatusAsync(
+        Guid orderId,
+        OrderStatus newStatus,
+        IReadOnlyCollection<OrderStatus> expectedCurrentStatuses,
+        System.Data.IDbTransaction? transaction = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (expectedCurrentStatuses.Count == 0)
+        {
+            throw new ArgumentException("At least one expected status is required.", nameof(expectedCurrentStatuses));
+        }
+
+        var parameters = new
+        {
+            Id = orderId,
+            Status = newStatus.ToString(),
+            ExpectedStatuses = expectedCurrentStatuses.Select(status => status.ToString()).ToArray()
+        };
+
+        if (transaction is not null)
+        {
+            var affectedRows = await transaction.Connection!.ExecuteAsync(new CommandDefinition("""
+                UPDATE Orders
+                SET Status = @Status
+                WHERE Id = @Id
+                  AND Status = ANY(@ExpectedStatuses);
+                """, parameters, transaction, cancellationToken: cancellationToken));
+
+            return affectedRows == 1;
+        }
+
+        using var connection = _connectionFactory.CreateConnection();
+        var updatedRows = await connection.ExecuteAsync(new CommandDefinition("""
+            UPDATE Orders
+            SET Status = @Status
+            WHERE Id = @Id
+              AND Status = ANY(@ExpectedStatuses);
+            """, parameters, cancellationToken: cancellationToken));
+
+        return updatedRows == 1;
+    }
+
     private static async Task InsertAsync(
         System.Data.IDbConnection connection,
         Order order,

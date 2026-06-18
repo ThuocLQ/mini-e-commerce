@@ -60,7 +60,7 @@ public class CheckoutHandler : IRequestHandler<CheckoutCommand, OrderDto>
             Guid.NewGuid(),
             request.CustomerId,
             DateTime.UtcNow,
-            OrderStatus.Pending,
+            OrderStatus.PendingPayment,
             idempotencyKey);
 
         foreach (var item in basket.Items)

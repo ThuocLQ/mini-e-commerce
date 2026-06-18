@@ -34,4 +34,78 @@ public sealed class Order
     {
         _items.Add(item);
     }
+
+    public bool MarkPendingPayment()
+    {
+        if (Status == OrderStatus.PendingPayment)
+        {
+            return false;
+        }
+
+        if (Status != OrderStatus.Pending)
+        {
+            throw new InvalidOperationException($"Order cannot move from {Status} to {OrderStatus.PendingPayment}.");
+        }
+
+        Status = OrderStatus.PendingPayment;
+        return true;
+    }
+
+    public bool MarkPaid()
+    {
+        if (Status == OrderStatus.Paid)
+        {
+            return false;
+        }
+
+        if (Status is OrderStatus.Cancelled or OrderStatus.PaymentFailed)
+        {
+            throw new InvalidOperationException($"Order cannot move from {Status} to {OrderStatus.Paid}.");
+        }
+
+        if (Status is not (OrderStatus.Pending or OrderStatus.PendingPayment))
+        {
+            throw new InvalidOperationException($"Order cannot be paid while it is {Status}.");
+        }
+
+        Status = OrderStatus.Paid;
+        return true;
+    }
+
+    public bool MarkPaymentFailed()
+    {
+        if (Status is OrderStatus.PaymentFailed or OrderStatus.Cancelled)
+        {
+            return false;
+        }
+
+        if (Status == OrderStatus.Paid)
+        {
+            return false;
+        }
+
+        if (Status is not (OrderStatus.Pending or OrderStatus.PendingPayment))
+        {
+            throw new InvalidOperationException($"Order cannot fail payment while it is {Status}.");
+        }
+
+        Status = OrderStatus.PaymentFailed;
+        return true;
+    }
+
+    public bool Cancel()
+    {
+        if (Status == OrderStatus.Cancelled)
+        {
+            return false;
+        }
+
+        if (Status == OrderStatus.Paid)
+        {
+            throw new InvalidOperationException("Paid order cannot be cancelled without a refund workflow.");
+        }
+
+        Status = OrderStatus.Cancelled;
+        return true;
+    }
 }

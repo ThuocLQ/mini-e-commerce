@@ -37,7 +37,7 @@ public sealed class CreateOrderHandler : IRequestHandler<CreateOrderCommand, Ord
             Guid.NewGuid(),
             request.CustomerId,
             DateTime.UtcNow,
-            OrderStatus.Pending);
+            OrderStatus.PendingPayment);
 
         foreach (var item in request.Items)
         {

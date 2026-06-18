@@ -15,4 +15,10 @@ public interface IOrderRepository
         Order order,
         IDbTransaction? transaction = null,
         CancellationToken cancellationToken = default);
+    Task<bool> TryUpdateStatusAsync(
+        Guid orderId,
+        OrderStatus newStatus,
+        IReadOnlyCollection<OrderStatus> expectedCurrentStatuses,
+        IDbTransaction? transaction = null,
+        CancellationToken cancellationToken = default);
 }
