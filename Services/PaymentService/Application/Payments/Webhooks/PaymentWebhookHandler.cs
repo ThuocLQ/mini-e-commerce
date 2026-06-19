@@ -27,15 +27,33 @@ public sealed class PaymentWebhookHandler : IRequestHandler<PaymentWebhookComman
             ? $"{request.PaymentId:N}:{request.ProviderTransactionId.Trim()}:{normalizedStatus}"
             : request.ProviderEventId.Trim();
 
-        var payment = await _repository.ApplyAsync(
+        if (!string.Equals(request.SignatureStatus, "Verified", StringComparison.OrdinalIgnoreCase))
+        {
+            await _repository.RecordRejectedAsync(
+                providerEventId,
+                request.PaymentId,
+                request.ProviderTransactionId,
+                normalizedStatus,
+                request.PayloadHash,
+                request.SignatureStatus,
+                "Webhook signature verification failed.",
+                DateTime.UtcNow,
+                cancellationToken);
+
+            throw new UnauthorizedAccessException("Webhook signature verification failed.");
+        }
+
+        var result = await _repository.ApplyAsync(
             providerEventId,
             request.PaymentId,
             request.ProviderTransactionId,
             status,
             request.FailureReason,
+            request.PayloadHash,
+            request.SignatureStatus,
             DateTime.UtcNow,
             cancellationToken);
 
-        return payment is null ? null : PaymentMapper.ToDto(payment);
+        return result.Payment is null ? null : PaymentMapper.ToDto(result.Payment);
     }
 }

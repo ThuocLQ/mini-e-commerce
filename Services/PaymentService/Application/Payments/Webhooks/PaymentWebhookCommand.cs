@@ -7,4 +7,6 @@ public sealed record PaymentWebhookCommand(
     string? ProviderEventId,
     string ProviderTransactionId,
     string Status,
-    string? FailureReason) : IRequest<PaymentDto?>;
+    string? FailureReason,
+    string PayloadHash,
+    string SignatureStatus) : IRequest<PaymentDto?>;

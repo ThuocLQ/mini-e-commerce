@@ -38,6 +38,12 @@ public static class DependencyInjection
                     return;
                 }
 
+                if (exception is UnauthorizedAccessException)
+                {
+                    await Results.Unauthorized().ExecuteAsync(context);
+                    return;
+                }
+
                 await Results.Problem().ExecuteAsync(context);
             });
         });

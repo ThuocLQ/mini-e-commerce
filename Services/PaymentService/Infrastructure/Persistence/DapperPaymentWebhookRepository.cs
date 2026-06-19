@@ -1,5 +1,9 @@
+using BuildingBlocks.Contracts.Events.Payments;
 using Dapper;
 using PaymentService.Application.Abstractions;
+using PaymentService.Application.Outbox;
+using PaymentService.Application.Payments.Webhooks;
+using PaymentService.Domain.Outbox;
 using PaymentService.Domain.Payments;
 
 namespace PaymentService.Infrastructure.Persistence;
@@ -13,12 +17,14 @@ public sealed class DapperPaymentWebhookRepository : IPaymentWebhookRepository
         _connectionFactory = connectionFactory;
     }
 
-    public async Task<Payment?> ApplyAsync(
+    public async Task<PaymentWebhookApplyResult> ApplyAsync(
         string providerEventId,
         Guid paymentId,
         string providerTransactionId,
         PaymentStatus status,
         string? failureReason,
+        string payloadHash,
+        string signatureStatus,
         DateTime receivedAtUtc,
         CancellationToken cancellationToken = default)
     {
@@ -35,6 +41,8 @@ public sealed class DapperPaymentWebhookRepository : IPaymentWebhookRepository
                 EventType,
                 Status,
                 Error,
+                PayloadHash,
+                SignatureStatus,
                 ReceivedAtUtc,
                 ProcessedAtUtc)
             VALUES (
@@ -45,6 +53,8 @@ public sealed class DapperPaymentWebhookRepository : IPaymentWebhookRepository
                 @EventType,
                 'Processing',
                 NULL,
+                @PayloadHash,
+                @SignatureStatus,
                 @ReceivedAtUtc,
                 NULL)
             ON CONFLICT (ProviderEventId) DO NOTHING;
@@ -55,6 +65,8 @@ public sealed class DapperPaymentWebhookRepository : IPaymentWebhookRepository
             PaymentId = paymentId,
             ProviderTransactionId = providerTransactionId.Trim(),
             EventType = status.ToString(),
+            PayloadHash = payloadHash,
+            SignatureStatus = signatureStatus,
             ReceivedAtUtc = receivedAtUtc
         }, transaction, cancellationToken: cancellationToken));
 
@@ -62,7 +74,7 @@ public sealed class DapperPaymentWebhookRepository : IPaymentWebhookRepository
         {
             var existingPayment = await GetPaymentAsync(paymentId, transaction, cancellationToken);
             transaction.Commit();
-            return existingPayment;
+            return new PaymentWebhookApplyResult(existingPayment, true, providerEventId, status);
         }
 
         var payment = await GetPaymentForUpdateAsync(paymentId, transaction, cancellationToken);
@@ -77,7 +89,7 @@ public sealed class DapperPaymentWebhookRepository : IPaymentWebhookRepository
                 cancellationToken);
 
             transaction.Commit();
-            return null;
+            return new PaymentWebhookApplyResult(null, false, providerEventId, status);
         }
 
         try
@@ -92,10 +104,11 @@ public sealed class DapperPaymentWebhookRepository : IPaymentWebhookRepository
             }
 
             await UpdatePaymentAsync(payment, transaction, cancellationToken);
+            await AddOutboxMessageAsync(payment, status, providerEventId, transaction, cancellationToken);
             await MarkWebhookProcessedAsync(providerEventId, DateTime.UtcNow, transaction, cancellationToken);
 
             transaction.Commit();
-            return payment;
+            return new PaymentWebhookApplyResult(payment, false, providerEventId, status);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -109,6 +122,60 @@ public sealed class DapperPaymentWebhookRepository : IPaymentWebhookRepository
             transaction.Commit();
             throw;
         }
+    }
+
+    public async Task RecordRejectedAsync(
+        string providerEventId,
+        Guid paymentId,
+        string providerTransactionId,
+        string eventType,
+        string payloadHash,
+        string signatureStatus,
+        string error,
+        DateTime receivedAtUtc,
+        CancellationToken cancellationToken = default)
+    {
+        using var connection = _connectionFactory.CreateConnection();
+
+        await connection.ExecuteAsync(new CommandDefinition("""
+            INSERT INTO WebhookLogs (
+                Id,
+                ProviderEventId,
+                PaymentId,
+                ProviderTransactionId,
+                EventType,
+                Status,
+                Error,
+                PayloadHash,
+                SignatureStatus,
+                ReceivedAtUtc,
+                ProcessedAtUtc)
+            VALUES (
+                @Id,
+                @ProviderEventId,
+                @PaymentId,
+                @ProviderTransactionId,
+                @EventType,
+                'Rejected',
+                @Error,
+                @PayloadHash,
+                @SignatureStatus,
+                @ReceivedAtUtc,
+                @ProcessedAtUtc)
+            ON CONFLICT (ProviderEventId) DO NOTHING;
+            """, new
+        {
+            Id = Guid.NewGuid(),
+            ProviderEventId = providerEventId,
+            PaymentId = paymentId,
+            ProviderTransactionId = string.IsNullOrWhiteSpace(providerTransactionId) ? "unknown" : providerTransactionId.Trim(),
+            EventType = string.IsNullOrWhiteSpace(eventType) ? "Unknown" : eventType.Trim(),
+            Error = Truncate(error, 4000),
+            PayloadHash = payloadHash,
+            SignatureStatus = signatureStatus,
+            ReceivedAtUtc = receivedAtUtc,
+            ProcessedAtUtc = receivedAtUtc
+        }, cancellationToken: cancellationToken));
     }
 
     private static async Task<Payment?> GetPaymentAsync(
@@ -153,6 +220,63 @@ public sealed class DapperPaymentWebhookRepository : IPaymentWebhookRepository
                 CompletedAtUtc = @CompletedAtUtc
             WHERE Id = @Id;
             """, ToParameters(payment), transaction, cancellationToken: cancellationToken));
+    }
+
+    private static async Task AddOutboxMessageAsync(
+        Payment payment,
+        PaymentStatus status,
+        string providerEventId,
+        System.Data.IDbTransaction transaction,
+        CancellationToken cancellationToken)
+    {
+        var message = status == PaymentStatus.Succeeded
+            ? PaymentOutboxMessageFactory.Create(new PaymentSucceededIntegrationEvent
+            {
+                PaymentId = payment.Id,
+                OrderId = payment.OrderId,
+                CustomerId = payment.CustomerId,
+                Amount = payment.Amount,
+                Currency = payment.Currency,
+                ProviderEventId = providerEventId,
+                ProviderTransactionId = payment.ProviderTransactionId ?? string.Empty
+            })
+            : PaymentOutboxMessageFactory.Create(new PaymentFailedIntegrationEvent
+            {
+                PaymentId = payment.Id,
+                OrderId = payment.OrderId,
+                CustomerId = payment.CustomerId,
+                Amount = payment.Amount,
+                Currency = payment.Currency,
+                ProviderEventId = providerEventId,
+                FailureReason = payment.FailureReason ?? "Payment failed."
+            });
+
+        await InsertOutboxMessageAsync(message, transaction, cancellationToken);
+    }
+
+    private static async Task InsertOutboxMessageAsync(
+        PaymentOutboxMessage message,
+        System.Data.IDbTransaction transaction,
+        CancellationToken cancellationToken)
+    {
+        await transaction.Connection!.ExecuteAsync(new CommandDefinition("""
+            INSERT INTO PaymentOutboxMessages (
+                Id, OccurredAtUtc, Type, Content, Status, RetryCount, Error, NextAttemptAtUtc, ProcessedAtUtc)
+            VALUES (
+                @Id, @OccurredAtUtc, @Type, @Content, @Status, @RetryCount, @Error, @NextAttemptAtUtc, @ProcessedAtUtc)
+            ON CONFLICT (Id) DO NOTHING;
+            """, new
+        {
+            message.Id,
+            message.OccurredAtUtc,
+            message.Type,
+            message.Content,
+            message.Status,
+            message.RetryCount,
+            message.Error,
+            message.NextAttemptAtUtc,
+            message.ProcessedAtUtc
+        }, transaction, cancellationToken: cancellationToken));
     }
 
     private static async Task MarkWebhookProcessedAsync(

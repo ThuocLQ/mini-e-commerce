@@ -9,5 +9,6 @@ public sealed record PaymentFailedIntegrationEvent : IntegrationEvent
     public Guid CustomerId { get; init; }
     public decimal Amount { get; init; }
     public string Currency { get; init; } = "USD";
+    public string ProviderEventId { get; init; } = string.Empty;
     public string FailureReason { get; init; } = "Payment failed.";
 }

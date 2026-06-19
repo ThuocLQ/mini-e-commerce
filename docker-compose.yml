@@ -243,9 +243,15 @@ services:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_HTTP_PORTS: 8080
       ConnectionStrings__PaymentDb: Host=postgres;Port=5432;Database=paymentdb;Username=microshop;Password=microshop
+      ServiceUrls__OrderingHttp: http://orderingservice:8080
+      PaymentWebhooks__SignatureHeaderName: X-MicroShop-Signature
+      PaymentWebhooks__SharedSecret: dev-webhook-secret
+      PaymentWebhooks__RequireSignature: "true"
     depends_on:
       postgres:
         condition: service_healthy
+      orderingservice:
+        condition: service_started
     ports:
       - "5289:8080"
     networks:
