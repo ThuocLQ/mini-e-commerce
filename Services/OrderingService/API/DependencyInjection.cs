@@ -17,6 +17,7 @@ public static class DependencyInjection
     public static IEndpointRouteBuilder MapApiEndpoints(this IEndpointRouteBuilder app)
     {
         app.MapOrderEndpoints();
+        app.MapPaymentSagaEndpoints();
         app.MapCheckoutEndpoints();
 
         if (app is WebApplication webApplication && webApplication.Environment.IsDevelopment())

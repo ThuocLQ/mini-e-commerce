@@ -21,6 +21,7 @@ public static class DependencyInjection
         services.AddSingleton<IDatabaseInitializer, PostgresDatabaseInitializer>();
         services.AddScoped<IOrderingUnitOfWork, DapperOrderingUnitOfWork>();
         services.AddScoped<IOrderRepository, DapperOrderRepository>();
+        services.AddScoped<IOrderPaymentSagaRepository, DapperOrderPaymentSagaRepository>();
         services.AddScoped<IOutboxRepository, DapperOutboxRepository>();
 
         var basketBaseUrl = configuration["ServiceUrls:BasketHttp"]

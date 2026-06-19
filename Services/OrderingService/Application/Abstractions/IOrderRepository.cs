@@ -7,6 +7,10 @@ public interface IOrderRepository
 {
     Task<IReadOnlyList<Order>> GetAllAsync(CancellationToken cancellationToken = default);
     Task<Order?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<Order?> GetByIdAsync(
+        Guid id,
+        IDbTransaction transaction,
+        CancellationToken cancellationToken = default);
     Task<Order?> GetByCustomerAndIdempotencyKeyAsync(
         Guid customerId,
         string idempotencyKey,

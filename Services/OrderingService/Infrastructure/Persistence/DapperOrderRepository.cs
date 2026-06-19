@@ -37,11 +37,41 @@ public sealed class DapperOrderRepository : IOrderRepository
     {
         using var connection = _connectionFactory.CreateConnection();
 
-        var orderRow = await connection.QuerySingleOrDefaultAsync<OrderRow>(new CommandDefinition("""
-            SELECT Id, CustomerId, CreatedAtUtc, Status, IdempotencyKey
-            FROM Orders
-            WHERE Id = @Id;
-            """, new { Id = id }, cancellationToken: cancellationToken));
+        return await GetByIdAsync(connection, null, id, cancellationToken);
+    }
+
+    public async Task<Order?> GetByIdAsync(
+        Guid id,
+        System.Data.IDbTransaction transaction,
+        CancellationToken cancellationToken = default)
+    {
+        return await GetByIdAsync(transaction.Connection!, transaction, id, cancellationToken);
+    }
+
+    private static async Task<Order?> GetByIdAsync(
+        System.Data.IDbConnection connection,
+        System.Data.IDbTransaction? transaction,
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        var sql = transaction is null
+            ? """
+              SELECT Id, CustomerId, CreatedAtUtc, Status, IdempotencyKey
+              FROM Orders
+              WHERE Id = @Id;
+              """
+            : """
+              SELECT Id, CustomerId, CreatedAtUtc, Status, IdempotencyKey
+              FROM Orders
+              WHERE Id = @Id
+              FOR UPDATE;
+              """;
+
+        var orderRow = await connection.QuerySingleOrDefaultAsync<OrderRow>(new CommandDefinition(
+            sql,
+            new { Id = id },
+            transaction,
+            cancellationToken: cancellationToken));
 
         if (orderRow is null)
         {
@@ -52,7 +82,7 @@ public sealed class DapperOrderRepository : IOrderRepository
             SELECT Id, OrderId, ProductId, ProductName, UnitPrice, Quantity
             FROM OrderItems
             WHERE OrderId = @OrderId;
-            """, new { OrderId = id }, cancellationToken: cancellationToken));
+            """, new { OrderId = id }, transaction, cancellationToken: cancellationToken));
 
         return MapOrder(orderRow, itemRows);
     }
