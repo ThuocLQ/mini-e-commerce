@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Logging;
@@ -26,10 +27,33 @@ public static class Extensions
 
         builder.Services.AddServiceDiscovery();
 
+        var resilienceSettings = ReadHttpClientResilienceSettings(builder.Configuration);
+
         builder.Services.ConfigureHttpClientDefaults(http =>
         {
-            // Turn on resilience by default
-            http.AddStandardResilienceHandler();
+            http.AddStandardResilienceHandler(options =>
+            {
+                options.AttemptTimeout.Timeout = TimeSpan.FromSeconds(
+                    Math.Max(1, resilienceSettings.AttemptTimeoutSeconds));
+                options.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(
+                    Math.Max(1, resilienceSettings.TotalRequestTimeoutSeconds));
+
+                options.Retry.MaxRetryAttempts = Math.Max(0, resilienceSettings.RetryMaxAttempts);
+                options.Retry.Delay = TimeSpan.FromMilliseconds(
+                    Math.Max(1, resilienceSettings.RetryDelayMilliseconds));
+
+                options.CircuitBreaker.FailureRatio = Math.Clamp(
+                    resilienceSettings.CircuitBreakerFailureRatio,
+                    0.01,
+                    1.0);
+                options.CircuitBreaker.MinimumThroughput = Math.Max(
+                    2,
+                    resilienceSettings.CircuitBreakerMinimumThroughput);
+                options.CircuitBreaker.SamplingDuration = TimeSpan.FromSeconds(
+                    Math.Max(1, resilienceSettings.CircuitBreakerSamplingDurationSeconds));
+                options.CircuitBreaker.BreakDuration = TimeSpan.FromSeconds(
+                    Math.Max(1, resilienceSettings.CircuitBreakerBreakDurationSeconds));
+            });
 
             // Turn on service discovery by default
             http.AddServiceDiscovery();
@@ -42,6 +66,46 @@ public static class Extensions
         // });
 
         return builder;
+    }
+
+    private static HttpClientResilienceSettings ReadHttpClientResilienceSettings(IConfiguration configuration)
+    {
+        var defaults = new HttpClientResilienceSettings();
+        var sectionName = HttpClientResilienceSettings.SectionName;
+
+        return new HttpClientResilienceSettings
+        {
+            AttemptTimeoutSeconds = ReadInt(configuration, sectionName, nameof(defaults.AttemptTimeoutSeconds), defaults.AttemptTimeoutSeconds),
+            TotalRequestTimeoutSeconds = ReadInt(configuration, sectionName, nameof(defaults.TotalRequestTimeoutSeconds), defaults.TotalRequestTimeoutSeconds),
+            RetryMaxAttempts = ReadInt(configuration, sectionName, nameof(defaults.RetryMaxAttempts), defaults.RetryMaxAttempts),
+            RetryDelayMilliseconds = ReadInt(configuration, sectionName, nameof(defaults.RetryDelayMilliseconds), defaults.RetryDelayMilliseconds),
+            CircuitBreakerFailureRatio = ReadDouble(configuration, sectionName, nameof(defaults.CircuitBreakerFailureRatio), defaults.CircuitBreakerFailureRatio),
+            CircuitBreakerMinimumThroughput = ReadInt(configuration, sectionName, nameof(defaults.CircuitBreakerMinimumThroughput), defaults.CircuitBreakerMinimumThroughput),
+            CircuitBreakerSamplingDurationSeconds = ReadInt(configuration, sectionName, nameof(defaults.CircuitBreakerSamplingDurationSeconds), defaults.CircuitBreakerSamplingDurationSeconds),
+            CircuitBreakerBreakDurationSeconds = ReadInt(configuration, sectionName, nameof(defaults.CircuitBreakerBreakDurationSeconds), defaults.CircuitBreakerBreakDurationSeconds)
+        };
+    }
+
+    private static int ReadInt(
+        IConfiguration configuration,
+        string sectionName,
+        string key,
+        int defaultValue)
+    {
+        return int.TryParse(configuration[$"{sectionName}:{key}"], out var value)
+            ? value
+            : defaultValue;
+    }
+
+    private static double ReadDouble(
+        IConfiguration configuration,
+        string sectionName,
+        string key,
+        double defaultValue)
+    {
+        return double.TryParse(configuration[$"{sectionName}:{key}"], out var value)
+            ? value
+            : defaultValue;
     }
 
     public static TBuilder ConfigureOpenTelemetry<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder

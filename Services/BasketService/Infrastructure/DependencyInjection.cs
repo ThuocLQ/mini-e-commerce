@@ -51,7 +51,7 @@ public static class DependencyInjection
             .ConfigureHttpClient(client =>
             {
                 client.BaseAddress = new Uri(serviceUrls.CatalogHttp);
-                client.Timeout = TimeSpan.FromSeconds(5);
+                client.Timeout = Timeout.InfiniteTimeSpan;
             });
 
         services.AddGrpcClient<CatalogGrpc.CatalogGrpcClient>(options =>
