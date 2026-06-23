@@ -35,6 +35,7 @@ Read these in order:
 | Plan production hardening | [backlog/stage-2-production-hardening-backlog.md](backlog/stage-2-production-hardening-backlog.md) |
 | Review Clean Architecture boundaries | [architecture/clean-architecture-review-day-31.md](architecture/clean-architecture-review-day-31.md), [architecture/service-boundary-review.md](architecture/service-boundary-review.md) |
 | Debug local services | [runbooks/microshop-local-debug-runbook.md](runbooks/microshop-local-debug-runbook.md), [operational-visibility.md](operational-visibility.md) |
+| Run production failure drills | [runbooks/production-failure-drills.md](runbooks/production-failure-drills.md) |
 | Review API routes | [api-surface-review.md](api-surface-review.md), [api/api-versioning-policy.md](api/api-versioning-policy.md), [api/api-error-handling-standard.md](api/api-error-handling-standard.md), [api/validation-and-mapping-standard.md](api/validation-and-mapping-standard.md) |
 | Review database migration policy | [database/migration-policy.md](database/migration-policy.md), [database/postgresql-schema-evolution-review-day-33.md](database/postgresql-schema-evolution-review-day-33.md) |
 | Review query and strategy patterns | [patterns/specification-pattern.md](patterns/specification-pattern.md), [patterns/day-35-specification-review.md](patterns/day-35-specification-review.md), [patterns/strategy-pattern-review-day-36.md](patterns/strategy-pattern-review-day-36.md) |
@@ -50,7 +51,7 @@ Read these in order:
 | Overview | Fast onboarding | [../README.md](../README.md), [architecture-diagram.md](architecture-diagram.md) |
 | Decisions | Why the project is designed this way | [adr/README.md](adr/README.md), [communication-decisions.md](communication-decisions.md) |
 | Architecture | Service boundaries and layer reviews | [architecture/clean-architecture-review-day-31.md](architecture/clean-architecture-review-day-31.md), [architecture/service-boundary-review.md](architecture/service-boundary-review.md) |
-| Operations | How to run and debug locally | [demo-script-foundation.md](demo-script-foundation.md), [operational-visibility.md](operational-visibility.md), [runbooks/microshop-local-debug-runbook.md](runbooks/microshop-local-debug-runbook.md) |
+| Operations | How to run and debug locally | [demo-script-foundation.md](demo-script-foundation.md), [operational-visibility.md](operational-visibility.md), [runbooks/microshop-local-debug-runbook.md](runbooks/microshop-local-debug-runbook.md), [runbooks/production-failure-drills.md](runbooks/production-failure-drills.md) |
 | API | What routes exist | [api-surface-review.md](api-surface-review.md) |
 | API Standards | API compatibility, errors, validation, and mapping | [api/api-versioning-policy.md](api/api-versioning-policy.md), [api/api-error-handling-standard.md](api/api-error-handling-standard.md), [api/validation-and-mapping-standard.md](api/validation-and-mapping-standard.md) |
 | Database | Database ownership and migration policy | [database/migration-policy.md](database/migration-policy.md), [database/postgresql-schema-evolution-review-day-33.md](database/postgresql-schema-evolution-review-day-33.md) |
@@ -100,6 +101,7 @@ Read these in order:
 | [lesson-authoring-standard.md](lesson-authoring-standard.md) | Mandatory context/rules for future ChatGPT/Codex lessons |
 | [operational-visibility.md](operational-visibility.md) | Health checks, logs, and local visibility notes |
 | [runbooks/microshop-local-debug-runbook.md](runbooks/microshop-local-debug-runbook.md) | Practical debug checklist |
+| [runbooks/production-failure-drills.md](runbooks/production-failure-drills.md) | Production failure drill checklist for senior demo |
 | [adr/README.md](adr/README.md) | ADR index |
 | [0001-clean-architecture-baseline.md](0001-clean-architecture-baseline.md) | Clean Architecture baseline decision |
 | [aspire-decision.md](aspire-decision.md) | Why Aspire is used locally |

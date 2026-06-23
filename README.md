@@ -5,7 +5,7 @@ MicroShop is a learning microservices backend built with .NET 10. The project is
 Current completed:
 
 ```text
-Day 30: Foundation Demo + Checkpoint
+Day 45: Timeout / Retry / Circuit Breaker
 ```
 
 ## Architecture Goals
@@ -34,7 +34,7 @@ operational visibility basics
 | `OrderingService` | Order write side, checkout, outbox basics |
 | `DiscountService` | Coupon lookup and discount calculation |
 | `IdentityService` | Authentication/JWT foundation |
-| `PaymentService` | Payment creation and webhook foundation |
+| `PaymentService` | Payment creation, webhook reliability, payment outbox, saga dispatch |
 | `OrderQueryService` | MongoDB order summary read model API |
 
 ## Workers
@@ -89,6 +89,7 @@ Ordering:
 GET /orders
 GET /orders/{id}
 POST /orders/checkout
+POST /orders/{orderId}/payment-events
 GET /debug/outbox
 ```
 
@@ -235,15 +236,16 @@ Known limitations:
 ```text
 No Kafka retry topic/DLT yet.
 No processed-event collection yet.
-No projection rebuild command yet.
 No OrderingService Kafka publisher yet.
 No schema registry yet.
 No production observability stack yet.
 No full CI/CD/deployment strategy yet.
+No local-prod compose profile yet.
+No automated failure drill suite yet.
 ```
 
 ## Next
 
 ```text
-Stage 2: Production Hardening
+Day 46: Gateway Edge Security + Rate Limit
 ```

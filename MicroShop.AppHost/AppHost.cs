@@ -97,7 +97,10 @@ if (runFull)
 
     payment = builder.AddProject<Projects.PaymentService>("PaymentService", launchProfileName: "https")
         .WithReference(paymentDb)
-        .WaitFor(paymentDb);
+        .WithReference(ordering!)
+        .WaitFor(paymentDb)
+        .WaitFor(ordering!)
+        .WithEnvironment("ServiceUrls__OrderingHttp", "https+http://OrderingService");
 }
 
 var gateway = builder.AddProject<Projects.ApiGateway>("ApiGateway", launchProfileName: "https");

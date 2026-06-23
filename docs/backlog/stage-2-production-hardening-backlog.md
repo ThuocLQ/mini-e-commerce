@@ -9,10 +9,11 @@ It tracks production-minded improvements that should be implemented as separate 
 ```text
 [ ] Kafka retry topic and DLT.
 [ ] Projection processed-event collection.
-[ ] Projection rebuild command.
+[x] Projection rebuild mode.
 [ ] OrderingService outbox publisher to Kafka.
 [ ] Contract/schema versioning for Kafka events.
 [ ] Atomic Mongo projection updates with event sequence/version.
+[x] Basic idempotent payment webhook/event handling.
 [ ] Idempotent consumers for every event handler.
 ```
 
@@ -36,7 +37,7 @@ It tracks production-minded improvements that should be implemented as separate 
 [ ] API versioning policy.
 [ ] Swagger/OpenAPI enablement for Development if still not enabled.
 [ ] OpenAPI auth documentation.
-[ ] Gateway route review.
+[x] Gateway route review started.
 [ ] Internal service contract review.
 ```
 
@@ -59,6 +60,8 @@ It tracks production-minded improvements that should be implemented as separate 
 [ ] Internal service security.
 [ ] Audit log policy.
 [ ] Secrets management beyond local development.
+[x] Payment webhook HMAC verification.
+[x] Gateway edge rate-limit/CORS/security-header baseline.
 ```
 
 ## Testing

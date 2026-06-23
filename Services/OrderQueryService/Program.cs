@@ -15,6 +15,7 @@ var app = builder.Build();
 
 await app.InitializeMongoReadModelsAsync();
 
+app.UseCorrelationId();
 app.UseApiExceptionHandling();
 app.UseHttpsRedirection();
 

@@ -12,6 +12,7 @@ builder.Services.AddApi();
 
 var app = builder.Build();
 
+app.UseCorrelationId();
 app.UseApiExceptionHandling();
 app.UseHttpsRedirection();
 

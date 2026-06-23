@@ -26,6 +26,8 @@ public static class Extensions
         builder.AddDefaultHealthChecks();
 
         builder.Services.AddServiceDiscovery();
+        builder.Services.AddHttpContextAccessor();
+        builder.Services.AddTransient<CorrelationIdDelegatingHandler>();
 
         var resilienceSettings = ReadHttpClientResilienceSettings(builder.Configuration);
 
@@ -54,6 +56,8 @@ public static class Extensions
                 options.CircuitBreaker.BreakDuration = TimeSpan.FromSeconds(
                     Math.Max(1, resilienceSettings.CircuitBreakerBreakDurationSeconds));
             });
+
+            http.AddHttpMessageHandler<CorrelationIdDelegatingHandler>();
 
             // Turn on service discovery by default
             http.AddServiceDiscovery();
@@ -185,6 +189,13 @@ public static class Extensions
                 Predicate = r => r.Tags.Contains("live")
             });
         }
+
+        return app;
+    }
+
+    public static WebApplication UseCorrelationId(this WebApplication app)
+    {
+        app.UseMiddleware<CorrelationIdMiddleware>();
 
         return app;
     }
