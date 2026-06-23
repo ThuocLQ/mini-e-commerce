@@ -12,6 +12,8 @@ public sealed class OrderProjectionEvent
     public int ItemCount { get; init; }
     public IReadOnlyList<OrderProjectionItem> Items { get; init; } = [];
     public DateTime OccurredAtUtc { get; init; }
+    public string? CorrelationId { get; init; }
+    public string? CausationId { get; init; }
 }
 
 public sealed class OrderProjectionItem

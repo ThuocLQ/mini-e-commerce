@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
+using BuildingBlocks.Contracts.Correlation;
 
 namespace Microsoft.Extensions.Hosting;
 
@@ -30,6 +31,7 @@ public sealed class CorrelationIdMiddleware
             return Task.CompletedTask;
         });
 
+        using (CorrelationContext.BeginScope(correlationId))
         using (_logger.BeginScope(new Dictionary<string, object>
                {
                    ["CorrelationId"] = correlationId

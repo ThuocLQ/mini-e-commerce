@@ -4,6 +4,7 @@ public sealed class ProjectionFailure
 {
     public Guid Id { get; init; } = Guid.NewGuid();
     public Guid? EventId { get; init; }
+    public string? CorrelationId { get; init; }
     public string Topic { get; init; } = default!;
     public int Partition { get; init; }
     public long Offset { get; init; }

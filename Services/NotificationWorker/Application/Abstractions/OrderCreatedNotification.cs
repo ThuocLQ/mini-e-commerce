@@ -7,4 +7,5 @@ public sealed record OrderCreatedNotification(
     decimal TotalAmount,
     string Currency,
     DateTime OccurredAtUtc,
-    int Version);
+    int Version,
+    string? CorrelationId);

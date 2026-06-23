@@ -6,6 +6,8 @@ public sealed class PaymentOutboxMessage
     public DateTime OccurredAtUtc { get; init; }
     public string Type { get; init; } = string.Empty;
     public string Content { get; init; } = string.Empty;
+    public string? CorrelationId { get; init; }
+    public string? CausationId { get; init; }
     public string Status { get; init; } = "Pending";
     public int RetryCount { get; init; }
     public string? Error { get; init; }

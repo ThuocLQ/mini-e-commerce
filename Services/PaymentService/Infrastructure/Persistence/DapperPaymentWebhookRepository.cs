@@ -261,9 +261,9 @@ public sealed class DapperPaymentWebhookRepository : IPaymentWebhookRepository
     {
         await transaction.Connection!.ExecuteAsync(new CommandDefinition("""
             INSERT INTO PaymentOutboxMessages (
-                Id, OccurredAtUtc, Type, Content, Status, RetryCount, Error, NextAttemptAtUtc, ProcessedAtUtc)
+                Id, OccurredAtUtc, Type, Content, CorrelationId, CausationId, Status, RetryCount, Error, NextAttemptAtUtc, ProcessedAtUtc)
             VALUES (
-                @Id, @OccurredAtUtc, @Type, @Content, @Status, @RetryCount, @Error, @NextAttemptAtUtc, @ProcessedAtUtc)
+                @Id, @OccurredAtUtc, @Type, @Content, @CorrelationId, @CausationId, @Status, @RetryCount, @Error, @NextAttemptAtUtc, @ProcessedAtUtc)
             ON CONFLICT (Id) DO NOTHING;
             """, new
         {
@@ -271,6 +271,8 @@ public sealed class DapperPaymentWebhookRepository : IPaymentWebhookRepository
             message.OccurredAtUtc,
             message.Type,
             message.Content,
+            message.CorrelationId,
+            message.CausationId,
             message.Status,
             message.RetryCount,
             message.Error,

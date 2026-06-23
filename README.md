@@ -5,7 +5,7 @@ MicroShop is a learning microservices backend built with .NET 10. The project is
 Current completed:
 
 ```text
-Day 45: Timeout / Retry / Circuit Breaker
+Day 47: Correlation ID + Trace Propagation
 ```
 
 ## Architecture Goals
@@ -247,5 +247,5 @@ No automated failure drill suite yet.
 ## Next
 
 ```text
-Day 46: Gateway Edge Security + Rate Limit
+Day 48: Metrics + Observability Local
 ```

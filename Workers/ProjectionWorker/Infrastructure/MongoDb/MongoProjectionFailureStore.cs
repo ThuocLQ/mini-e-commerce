@@ -27,6 +27,7 @@ public sealed class MongoProjectionFailureStore : IProjectionFailureStore
         {
             Id = failure.Id.ToString("D"),
             EventId = failure.EventId?.ToString("D"),
+            CorrelationId = failure.CorrelationId,
             Topic = failure.Topic,
             Partition = failure.Partition,
             Offset = failure.Offset,

@@ -14,11 +14,12 @@ public sealed class LoggingNotificationSender : INotificationSender
     public Task SendOrderCreatedAsync(OrderCreatedNotification notification, CancellationToken cancellationToken)
     {
         _logger.LogInformation(
-            "Simulating notification: Order {OrderId} was created for customer {CustomerId}. Total={TotalAmount} {Currency}.",
+            "Simulating notification: Order {OrderId} was created for customer {CustomerId}. Total={TotalAmount} {Currency}. CorrelationId={CorrelationId}",
             notification.OrderId,
             notification.CustomerId,
             notification.TotalAmount,
-            notification.Currency);
+            notification.Currency,
+            notification.CorrelationId);
 
         return Task.CompletedTask;
     }

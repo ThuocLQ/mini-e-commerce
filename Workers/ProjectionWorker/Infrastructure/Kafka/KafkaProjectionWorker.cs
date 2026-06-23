@@ -1,4 +1,5 @@
 using System.Text.Json;
+using BuildingBlocks.Contracts.Correlation;
 using Confluent.Kafka;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -174,19 +175,27 @@ public sealed class KafkaProjectionWorker : BackgroundService
 
             ValidateMessageKey(consumeResult, orderEvent);
 
-            await _projectionHandler.ApplyAsync(orderEvent, cancellationToken);
+            using (CorrelationContext.BeginScope(orderEvent.CorrelationId))
+            using (_logger.BeginScope(new Dictionary<string, object?>
+                   {
+                       ["CorrelationId"] = orderEvent.CorrelationId
+                   }))
+            {
+                await _projectionHandler.ApplyAsync(orderEvent, cancellationToken);
 
-            _logger.LogInformation(
-                "Projection event applied. Service={Service}, Topic={Topic}, Partition={Partition}, Offset={Offset}, Key={Key}, EventId={EventId}, EventType={EventType}, OrderId={OrderId}, CustomerId={CustomerId}.",
-                "ProjectionWorker",
-                consumeResult.Topic,
-                consumeResult.Partition.Value,
-                consumeResult.Offset.Value,
-                consumeResult.Message.Key,
-                orderEvent.EventId,
-                orderEvent.EventType,
-                orderEvent.OrderId,
-                orderEvent.CustomerId);
+                _logger.LogInformation(
+                    "Projection event applied. Service={Service}, Topic={Topic}, Partition={Partition}, Offset={Offset}, Key={Key}, EventId={EventId}, EventType={EventType}, OrderId={OrderId}, CustomerId={CustomerId}, CorrelationId={CorrelationId}.",
+                    "ProjectionWorker",
+                    consumeResult.Topic,
+                    consumeResult.Partition.Value,
+                    consumeResult.Offset.Value,
+                    consumeResult.Message.Key,
+                    orderEvent.EventId,
+                    orderEvent.EventType,
+                    orderEvent.OrderId,
+                    orderEvent.CustomerId,
+                    orderEvent.CorrelationId);
+            }
         }
         catch (JsonException exception)
         {
@@ -224,6 +233,7 @@ public sealed class KafkaProjectionWorker : BackgroundService
         var failure = new ProjectionFailure
         {
             EventId = orderEvent?.EventId == Guid.Empty ? null : orderEvent?.EventId,
+            CorrelationId = orderEvent?.CorrelationId,
             Topic = consumeResult.Topic,
             Partition = consumeResult.Partition.Value,
             Offset = consumeResult.Offset.Value,
@@ -236,7 +246,7 @@ public sealed class KafkaProjectionWorker : BackgroundService
         await _failureStore.SaveAsync(failure, cancellationToken);
 
         _logger.LogWarning(
-            "Projection message stored as failure. Service={Service}, Topic={Topic}, Partition={Partition}, Offset={Offset}, Key={Key}, EventId={EventId}, EventType={EventType}, OrderId={OrderId}, Reason={Reason}.",
+            "Projection message stored as failure. Service={Service}, Topic={Topic}, Partition={Partition}, Offset={Offset}, Key={Key}, EventId={EventId}, EventType={EventType}, OrderId={OrderId}, CorrelationId={CorrelationId}, Reason={Reason}.",
             "ProjectionWorker",
             consumeResult.Topic,
             consumeResult.Partition.Value,
@@ -245,6 +255,7 @@ public sealed class KafkaProjectionWorker : BackgroundService
             ToNullableGuid(orderEvent?.EventId),
             orderEvent?.EventType,
             ToNullableGuid(orderEvent?.OrderId),
+            orderEvent?.CorrelationId,
             error);
     }
 

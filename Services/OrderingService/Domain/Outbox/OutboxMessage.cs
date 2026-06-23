@@ -6,6 +6,8 @@ public sealed class OutboxMessage
     public DateTime OccurredAtUtc { get; init; }
     public string Type { get; init; } = default!;
     public string Content { get; init; } = default!;
+    public string? CorrelationId { get; init; }
+    public string? CausationId { get; init; }
     public DateTime NextAttemptAtUtc { get; set; }
     public DateTime? ProcessedAtUtc { get; set; }
     public int RetryCount { get; set; }

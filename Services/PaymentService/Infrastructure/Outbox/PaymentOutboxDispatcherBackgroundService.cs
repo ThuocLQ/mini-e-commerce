@@ -1,4 +1,5 @@
 using System.Text.Json;
+using BuildingBlocks.Contracts.Correlation;
 using BuildingBlocks.Contracts.Events.Payments;
 using Microsoft.Extensions.Options;
 using PaymentService.Application.Abstractions;
@@ -73,7 +74,10 @@ public sealed class PaymentOutboxDispatcherBackgroundService : BackgroundService
     {
         try
         {
-            await DispatchIntegrationEventAsync(sagaClient, message, cancellationToken);
+            using (CorrelationContext.BeginScope(message.CorrelationId))
+            {
+                await DispatchIntegrationEventAsync(sagaClient, message, cancellationToken);
+            }
 
             await outboxRepository.MarkAsProcessedAsync(
                 message.Id,

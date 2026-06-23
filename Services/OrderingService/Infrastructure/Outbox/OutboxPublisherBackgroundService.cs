@@ -1,4 +1,5 @@
 using System.Text.Json;
+using BuildingBlocks.Contracts.Correlation;
 using BuildingBlocks.Contracts.Events.Orders;
 using MassTransit;
 using Microsoft.Extensions.Options;
@@ -131,7 +132,21 @@ public sealed class OutboxPublisherBackgroundService : BackgroundService
                     $"Cannot deserialize outbox message {message.Id} to {nameof(OrderCreatedIntegrationEvent)}.");
             }
 
-            await publishEndpoint.Publish(integrationEvent, cancellationToken);
+            using (CorrelationContext.BeginScope(integrationEvent.CorrelationId))
+            {
+                await publishEndpoint.Publish(integrationEvent, publishContext =>
+                {
+                    if (!string.IsNullOrWhiteSpace(integrationEvent.CorrelationId))
+                    {
+                        publishContext.Headers.Set("X-Correlation-ID", integrationEvent.CorrelationId);
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(integrationEvent.CausationId))
+                    {
+                        publishContext.Headers.Set("X-Causation-ID", integrationEvent.CausationId);
+                    }
+                }, cancellationToken);
+            }
             return;
         }
 

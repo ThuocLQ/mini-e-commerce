@@ -58,7 +58,8 @@ public sealed class DapperPaymentOutboxRepository : IPaymentOutboxRepository
             FROM claim
             WHERE message.Id = claim.Id
             RETURNING message.Id, message.OccurredAtUtc, message.Type, message.Content, message.Status,
-                      message.RetryCount, message.Error, message.NextAttemptAtUtc, message.ProcessedAtUtc;
+                      message.CorrelationId, message.CausationId, message.RetryCount, message.Error,
+                      message.NextAttemptAtUtc, message.ProcessedAtUtc;
             """, new
         {
             BatchSize = batchSize,
@@ -127,9 +128,9 @@ public sealed class DapperPaymentOutboxRepository : IPaymentOutboxRepository
     {
         return connection.ExecuteAsync(new CommandDefinition("""
             INSERT INTO PaymentOutboxMessages (
-                Id, OccurredAtUtc, Type, Content, Status, RetryCount, Error, NextAttemptAtUtc, ProcessedAtUtc)
+                Id, OccurredAtUtc, Type, Content, CorrelationId, CausationId, Status, RetryCount, Error, NextAttemptAtUtc, ProcessedAtUtc)
             VALUES (
-                @Id, @OccurredAtUtc, @Type, @Content, @Status, @RetryCount, @Error, @NextAttemptAtUtc, @ProcessedAtUtc)
+                @Id, @OccurredAtUtc, @Type, @Content, @CorrelationId, @CausationId, @Status, @RetryCount, @Error, @NextAttemptAtUtc, @ProcessedAtUtc)
             ON CONFLICT (Id) DO NOTHING;
             """, parameters, transaction, cancellationToken: cancellationToken));
     }
@@ -142,6 +143,8 @@ public sealed class DapperPaymentOutboxRepository : IPaymentOutboxRepository
             message.OccurredAtUtc,
             message.Type,
             message.Content,
+            message.CorrelationId,
+            message.CausationId,
             message.Status,
             message.RetryCount,
             message.Error,
@@ -158,6 +161,8 @@ public sealed class DapperPaymentOutboxRepository : IPaymentOutboxRepository
             OccurredAtUtc = row.OccurredAtUtc,
             Type = row.Type,
             Content = row.Content,
+            CorrelationId = row.CorrelationId,
+            CausationId = row.CausationId,
             Status = row.Status,
             RetryCount = row.RetryCount,
             Error = row.Error,
@@ -176,6 +181,8 @@ public sealed class DapperPaymentOutboxRepository : IPaymentOutboxRepository
         DateTime OccurredAtUtc,
         string Type,
         string Content,
+        string? CorrelationId,
+        string? CausationId,
         string Status,
         int RetryCount,
         string? Error,

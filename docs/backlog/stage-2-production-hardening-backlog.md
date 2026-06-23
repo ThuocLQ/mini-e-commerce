@@ -20,7 +20,7 @@ It tracks production-minded improvements that should be implemented as separate 
 ## Observability
 
 ```text
-[ ] Correlation ID propagation across gateway, services, and workers.
+[x] Correlation ID propagation across gateway, services, outbox, and workers.
 [ ] OpenTelemetry export pipeline outside Aspire local defaults.
 [ ] Metrics for Kafka lag.
 [ ] Metrics for failed projections.

@@ -11,6 +11,9 @@ public sealed class ProjectionFailureDocument
     [BsonElement("eventId")]
     public string? EventId { get; init; }
 
+    [BsonElement("correlationId")]
+    public string? CorrelationId { get; init; }
+
     [BsonElement("topic")]
     public string Topic { get; init; } = default!;
 

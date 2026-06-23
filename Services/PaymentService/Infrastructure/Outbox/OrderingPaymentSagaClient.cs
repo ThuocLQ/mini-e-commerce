@@ -45,10 +45,18 @@ public sealed class OrderingPaymentSagaClient
         ApplyPaymentSagaEventRequest request,
         CancellationToken cancellationToken)
     {
-        using var response = await _httpClient.PostAsJsonAsync(
-            $"/orders/{orderId}/payment-events",
-            request,
-            cancellationToken);
+        using var httpRequest = new HttpRequestMessage(HttpMethod.Post, $"/orders/{orderId}/payment-events")
+        {
+            Content = JsonContent.Create(request)
+        };
+
+        var correlationId = BuildingBlocks.Contracts.Correlation.CorrelationContext.CorrelationId;
+        if (!string.IsNullOrWhiteSpace(correlationId))
+        {
+            httpRequest.Headers.TryAddWithoutValidation("X-Correlation-ID", correlationId);
+        }
+
+        using var response = await _httpClient.SendAsync(httpRequest, cancellationToken);
 
         if (!response.IsSuccessStatusCode)
         {
