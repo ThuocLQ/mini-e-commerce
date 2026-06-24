@@ -92,6 +92,7 @@ public static class DependencyInjection
         });
 
         services.AddHostedService<OutboxPublisherBackgroundService>();
+        services.AddHostedService<OutboxMetricsBackgroundService>();
 
         return services;
     }

@@ -1,0 +1,94 @@
+services:
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.130.0
+    container_name: microshop-otel-collector
+    command: ["--config=/etc/otelcol-contrib/config.yaml"]
+    volumes:
+      - ./docker/observability/otel-collector.yml:/etc/otelcol-contrib/config.yaml:ro
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+    networks:
+      - microshop-network
+
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    container_name: microshop-prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.enable-lifecycle"
+    volumes:
+      - ./docker/observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    depends_on:
+      - otel-collector
+      - kafka-exporter
+    networks:
+      - microshop-network
+
+  grafana:
+    image: grafana/grafana:12.0.2
+    container_name: microshop-grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./docker/observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./docker/observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+    networks:
+      - microshop-network
+
+  kafka-exporter:
+    image: danielqsj/kafka-exporter:v1.9.0
+    container_name: microshop-kafka-exporter
+    command: ["--kafka.server=kafka:29092"]
+    depends_on:
+      kafka:
+        condition: service_healthy
+    networks:
+      - microshop-network
+
+  api-gateway:
+    environment: &otel-environment
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+
+  catalogservice:
+    environment: *otel-environment
+
+  basketservice:
+    environment: *otel-environment
+
+  orderingservice:
+    environment: *otel-environment
+
+  discountservice:
+    environment: *otel-environment
+
+  identityservice:
+    environment: *otel-environment
+
+  paymentservice:
+    environment: *otel-environment
+
+  orderqueryservice:
+    environment: *otel-environment
+
+  projectionworker:
+    environment: *otel-environment
+
+  notificationworker:
+    environment: *otel-environment
+
+volumes:
+  prometheus_data:
+  grafana_data:

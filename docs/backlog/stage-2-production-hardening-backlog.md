@@ -21,12 +21,12 @@ It tracks production-minded improvements that should be implemented as separate 
 
 ```text
 [x] Correlation ID propagation across gateway, services, outbox, and workers.
-[ ] OpenTelemetry export pipeline outside Aspire local defaults.
-[ ] Metrics for Kafka lag.
-[ ] Metrics for failed projections.
-[ ] Metrics for consumer health.
+[x] OpenTelemetry export pipeline outside Aspire local defaults.
+[x] Metrics for Kafka lag.
+[x] Metrics for failed projections.
+[x] Metrics for consumer health.
 [ ] RabbitMQ queue depth/error queue monitoring.
-[ ] Grafana dashboard.
+[x] Grafana dashboard.
 [ ] Alerting intro.
 ```
 

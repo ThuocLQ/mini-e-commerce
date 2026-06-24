@@ -5,7 +5,7 @@ MicroShop is a learning microservices backend built with .NET 10. The project is
 Current completed:
 
 ```text
-Day 47: Correlation ID + Trace Propagation
+Day 48: Metrics + Observability Local
 ```
 
 ## Architecture Goals
@@ -188,6 +188,19 @@ Full local system:
 docker compose up -d --build
 ```
 
+Full system with local observability:
+
+```powershell
+docker compose -f docker-compose.yml -f compose.observability.yml up -d --build
+```
+
+Observability URLs:
+
+```text
+Grafana:    http://localhost:3000  (admin/admin)
+Prometheus: http://localhost:9090
+```
+
 Create Kafka topic:
 
 ```powershell
@@ -238,7 +251,7 @@ No Kafka retry topic/DLT yet.
 No processed-event collection yet.
 No OrderingService Kafka publisher yet.
 No schema registry yet.
-No production observability stack yet.
+Observability is local-only and has no alert routing or long-term metric retention yet.
 No full CI/CD/deployment strategy yet.
 No local-prod compose profile yet.
 No automated failure drill suite yet.
@@ -247,5 +260,5 @@ No automated failure drill suite yet.
 ## Next
 
 ```text
-Day 48: Metrics + Observability Local
+Day 49: Integration Tests + Smoke
 ```

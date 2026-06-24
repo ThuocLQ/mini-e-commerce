@@ -3,6 +3,7 @@ using BuildingBlocks.Contracts.Correlation;
 using BuildingBlocks.Contracts.Events.Orders;
 using MassTransit;
 using Microsoft.Extensions.Options;
+using MicroShop.ServiceDefaults.Diagnostics;
 using OrderingService.Application.Abstractions;
 using OrderingService.Domain.Outbox;
 
@@ -60,6 +61,11 @@ public sealed class OutboxPublisherBackgroundService : BackgroundService
             TimeSpan.FromSeconds(_options.LockSeconds),
             cancellationToken);
 
+        if (messages.Count > 0)
+        {
+            MicroShopMetrics.RecordOutboxMessage("OrderingService", "claimed", messages.Count);
+        }
+
         foreach (var message in messages)
         {
             await PublishMessageAsync(outboxRepository, publishEndpoint, message, lockId, cancellationToken);
@@ -88,6 +94,8 @@ public sealed class OutboxPublisherBackgroundService : BackgroundService
                 DateTime.UtcNow,
                 cancellationToken);
 
+            MicroShopMetrics.RecordOutboxMessage("OrderingService", "published");
+
             _logger.LogInformation(
                 "Published outbox message {OutboxMessageId} of type {OutboxMessageType}.",
                 message.Id,
@@ -103,6 +111,8 @@ public sealed class OutboxPublisherBackgroundService : BackgroundService
                 ex.Message,
                 nextAttemptAtUtc,
                 cancellationToken);
+
+            MicroShopMetrics.RecordOutboxMessage("OrderingService", "failed");
 
             _logger.LogWarning(
                 ex,

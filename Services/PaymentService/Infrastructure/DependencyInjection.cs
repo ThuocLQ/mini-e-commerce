@@ -1,4 +1,5 @@
 using PaymentService.Application.Abstractions;
+using PaymentService.Infrastructure.Observability;
 using PaymentService.Infrastructure.Outbox;
 using PaymentService.Infrastructure.Persistence;
 
@@ -15,6 +16,7 @@ public static class DependencyInjection
         services.AddScoped<IPaymentRepository, DapperPaymentRepository>();
         services.AddScoped<IPaymentWebhookRepository, DapperPaymentWebhookRepository>();
         services.AddScoped<IPaymentOutboxRepository, DapperPaymentOutboxRepository>();
+        services.AddSingleton<IPaymentMetrics, PaymentMetrics>();
 
         services
             .AddOptions<PaymentOutboxDispatcherOptions>()
@@ -43,6 +45,7 @@ public static class DependencyInjection
         });
 
         services.AddHostedService<PaymentOutboxDispatcherBackgroundService>();
+        services.AddHostedService<PaymentOutboxMetricsBackgroundService>();
 
         return services;
     }

@@ -4,6 +4,7 @@ using Confluent.Kafka;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using MicroShop.ServiceDefaults.Diagnostics;
 using ProjectionWorker.Application.Abstractions;
 using ProjectionWorker.Application.Events;
 using ProjectionWorker.Application.Projections;
@@ -182,6 +183,7 @@ public sealed class KafkaProjectionWorker : BackgroundService
                    }))
             {
                 await _projectionHandler.ApplyAsync(orderEvent, cancellationToken);
+                MicroShopMetrics.RecordProjectionEvent("applied", orderEvent.EventType);
 
                 _logger.LogInformation(
                     "Projection event applied. Service={Service}, Topic={Topic}, Partition={Partition}, Offset={Offset}, Key={Key}, EventId={EventId}, EventType={EventType}, OrderId={OrderId}, CustomerId={CustomerId}, CorrelationId={CorrelationId}.",
@@ -244,6 +246,7 @@ public sealed class KafkaProjectionWorker : BackgroundService
         };
 
         await _failureStore.SaveAsync(failure, cancellationToken);
+        MicroShopMetrics.RecordProjectionEvent("failed", orderEvent?.EventType);
 
         _logger.LogWarning(
             "Projection message stored as failure. Service={Service}, Topic={Topic}, Partition={Partition}, Offset={Offset}, Key={Key}, EventId={EventId}, EventType={EventType}, OrderId={OrderId}, CorrelationId={CorrelationId}, Reason={Reason}.",

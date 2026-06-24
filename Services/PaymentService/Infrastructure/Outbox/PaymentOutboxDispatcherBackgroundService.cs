@@ -2,6 +2,7 @@ using System.Text.Json;
 using BuildingBlocks.Contracts.Correlation;
 using BuildingBlocks.Contracts.Events.Payments;
 using Microsoft.Extensions.Options;
+using MicroShop.ServiceDefaults.Diagnostics;
 using PaymentService.Application.Abstractions;
 using PaymentService.Domain.Outbox;
 
@@ -59,6 +60,11 @@ public sealed class PaymentOutboxDispatcherBackgroundService : BackgroundService
             TimeSpan.FromSeconds(_options.LockSeconds),
             cancellationToken);
 
+        if (messages.Count > 0)
+        {
+            MicroShopMetrics.RecordOutboxMessage("PaymentService", "claimed", messages.Count);
+        }
+
         foreach (var message in messages)
         {
             await DispatchMessageAsync(outboxRepository, sagaClient, message, lockId, cancellationToken);
@@ -85,6 +91,8 @@ public sealed class PaymentOutboxDispatcherBackgroundService : BackgroundService
                 DateTime.UtcNow,
                 cancellationToken);
 
+            MicroShopMetrics.RecordOutboxMessage("PaymentService", "dispatched");
+
             _logger.LogInformation(
                 "Dispatched payment outbox message {OutboxMessageId} of type {OutboxMessageType}.",
                 message.Id,
@@ -100,6 +108,8 @@ public sealed class PaymentOutboxDispatcherBackgroundService : BackgroundService
                 ex.Message,
                 nextAttemptAtUtc,
                 cancellationToken);
+
+            MicroShopMetrics.RecordOutboxMessage("PaymentService", "failed");
 
             _logger.LogWarning(
                 ex,

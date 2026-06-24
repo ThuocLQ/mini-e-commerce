@@ -7,10 +7,14 @@ namespace PaymentService.Application.Payments.Webhooks;
 public sealed class PaymentWebhookHandler : IRequestHandler<PaymentWebhookCommand, PaymentDto?>
 {
     private readonly IPaymentWebhookRepository _repository;
+    private readonly IPaymentMetrics _metrics;
 
-    public PaymentWebhookHandler(IPaymentWebhookRepository repository)
+    public PaymentWebhookHandler(
+        IPaymentWebhookRepository repository,
+        IPaymentMetrics metrics)
     {
         _repository = repository;
+        _metrics = metrics;
     }
 
     public async Task<PaymentDto?> Handle(PaymentWebhookCommand request, CancellationToken cancellationToken)
@@ -40,6 +44,7 @@ public sealed class PaymentWebhookHandler : IRequestHandler<PaymentWebhookComman
                 DateTime.UtcNow,
                 cancellationToken);
 
+            _metrics.RecordWebhookRequest("rejected");
             throw new UnauthorizedAccessException("Webhook signature verification failed.");
         }
 
@@ -53,6 +58,13 @@ public sealed class PaymentWebhookHandler : IRequestHandler<PaymentWebhookComman
             request.SignatureStatus,
             DateTime.UtcNow,
             cancellationToken);
+
+        _metrics.RecordWebhookRequest(
+            result.IsDuplicate
+                ? "duplicate"
+                : result.Payment is null
+                    ? "not_found"
+                    : "accepted");
 
         return result.Payment is null ? null : PaymentMapper.ToDto(result.Payment);
     }
