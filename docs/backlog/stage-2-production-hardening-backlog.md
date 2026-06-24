@@ -67,12 +67,12 @@ It tracks production-minded improvements that should be implemented as separate 
 ## Testing
 
 ```text
-[ ] Unit tests for handlers.
-[ ] Integration tests with Testcontainers.
+[x] Unit tests for critical handlers.
+[x] Integration tests with Testcontainers.
 [ ] Contract tests for integration events.
-[ ] Failure scenario tests for ProjectionWorker.
+[x] Failure/replay scenario tests for ProjectionWorker.
 [ ] Gateway route tests.
-[ ] Smoke test script for Docker Compose.
+[x] Smoke test script for Docker Compose.
 ```
 
 ## Delivery

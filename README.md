@@ -5,7 +5,7 @@ MicroShop is a learning microservices backend built with .NET 10. The project is
 Current completed:
 
 ```text
-Day 48: Metrics + Observability Local
+Day 49: Integration Tests + Smoke
 ```
 
 ## Architecture Goals
@@ -201,6 +201,20 @@ Grafana:    http://localhost:3000  (admin/admin)
 Prometheus: http://localhost:9090
 ```
 
+Run the automated test suite:
+
+```powershell
+dotnet test Tests\MicroShop.IntegrationTests\MicroShop.IntegrationTests.csproj --nologo -v minimal
+```
+
+The PostgreSQL and MongoDB integration tests use Testcontainers and require Docker.
+
+Run the lightweight gateway smoke test after starting the full system:
+
+```powershell
+docker run --rm -i -e GATEWAY_BASE_URL=http://host.docker.internal:5027 grafana/k6 run - < tests/k6/gateway-smoke.js
+```
+
 Create Kafka topic:
 
 ```powershell
@@ -260,5 +274,5 @@ No automated failure drill suite yet.
 ## Next
 
 ```text
-Day 49: Integration Tests + Smoke
+Day 50: Failure Drills + Senior Demo
 ```
