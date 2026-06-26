@@ -73,6 +73,7 @@ It tracks production-minded improvements that should be implemented as separate 
 [x] Failure/replay scenario tests for ProjectionWorker.
 [ ] Gateway route tests.
 [x] Smoke test script for Docker Compose.
+[x] Production failure drill Postman collection.
 ```
 
 ## Delivery
@@ -83,4 +84,5 @@ It tracks production-minded improvements that should be implemented as separate 
 [ ] Docker image tagging strategy.
 [ ] Release tag policy.
 [ ] Environment-specific deployment notes.
+[x] Day 50 production failure drill runbook.
 ```

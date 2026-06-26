@@ -5,7 +5,7 @@ MicroShop is a learning microservices backend built with .NET 10. The project is
 Current completed:
 
 ```text
-Day 49: Integration Tests + Smoke
+Day 50: Failure Drills + Senior Demo
 ```
 
 ## Architecture Goals
@@ -248,6 +248,7 @@ Payload:
 | `docs/communication-decisions.md` | REST/gRPC/RabbitMQ/Kafka decisions |
 | `docs/operational-visibility.md` | Health/log/debug notes |
 | `docs/runbooks/microshop-local-debug-runbook.md` | Local debug runbook |
+| `docs/runbooks/production-failure-drills.md` | Day 50 production failure drill runbook |
 | `docs/adr/README.md` | ADR index and links |
 | `docs/api-surface-review.md` | API surface and OpenAPI/Swagger status |
 | `docs/demo-script-foundation.md` | Foundation demo script |
@@ -268,11 +269,11 @@ No schema registry yet.
 Observability is local-only and has no alert routing or long-term metric retention yet.
 No full CI/CD/deployment strategy yet.
 No local-prod compose profile yet.
-No automated failure drill suite yet.
+Failure drills are documented and have a Postman collection, but are not fully automated yet.
 ```
 
 ## Next
 
 ```text
-Day 50: Failure Drills + Senior Demo
+Day 51: Production Docker Runtime
 ```

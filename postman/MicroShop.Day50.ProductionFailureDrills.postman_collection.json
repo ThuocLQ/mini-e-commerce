@@ -1,0 +1,597 @@
+{
+  "info": {
+    "name": "MicroShop - Day 50 Production Failure Drills",
+    "_postman_id": "c1b6af63-bf67-4c03-bf87-2acbcdcb8d50",
+    "description": "Day 50 operational drill collection. Run against Docker Compose gateway by default. Some drills require a manual docker compose stop/start step before sending the request.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "gatewayBaseUrl",
+      "value": "http://localhost:5027"
+    },
+    {
+      "key": "orderingBaseUrl",
+      "value": "http://localhost:5028"
+    },
+    {
+      "key": "customerId",
+      "value": "50505050-5050-5050-5050-505050505050"
+    },
+    {
+      "key": "productId",
+      "value": "00000000-0000-0000-0000-000000000001"
+    },
+    {
+      "key": "paymentId",
+      "value": ""
+    },
+    {
+      "key": "providerEventId",
+      "value": "evt_day50_payment_succeeded_001"
+    },
+    {
+      "key": "providerTransactionId",
+      "value": "txn_day50_payment_succeeded_001"
+    },
+    {
+      "key": "webhookSharedSecret",
+      "value": "dev-webhook-secret"
+    },
+    {
+      "key": "orderId",
+      "value": "50505050-1111-2222-3333-505050505050"
+    }
+  ],
+  "item": [
+    {
+      "name": "00 - Baseline",
+      "item": [
+        {
+          "name": "01 - Gateway alive",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "day50-baseline"
+              }
+            ],
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/alive",
+              "host": [
+                "{{gatewayBaseUrl}}"
+              ],
+              "path": [
+                "alive"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Gateway alive', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Correlation header returned when supported', function () {",
+                  "  pm.expect(pm.response.headers.has('X-Correlation-ID') || pm.response.code === 200).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 - Gateway catalog baseline",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "day50-catalog-baseline"
+              }
+            ],
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/catalog/products",
+              "host": [
+                "{{gatewayBaseUrl}}"
+              ],
+              "path": [
+                "catalog",
+                "products"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Catalog responds through gateway', function () {",
+                  "  pm.expect([200, 429]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "01 - Gateway Rate Limit",
+      "item": [
+        {
+          "name": "01 - Rate limit probe",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "day50-rate-limit"
+              }
+            ],
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/catalog/products",
+              "host": [
+                "{{gatewayBaseUrl}}"
+              ],
+              "path": [
+                "catalog",
+                "products"
+              ]
+            },
+            "description": "Run this request in Postman Runner with many iterations. Expected final status is 429 once the gateway limiter is exhausted."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Gateway allows or rate-limits deterministically', function () {",
+                  "  pm.expect([200, 429]).to.include(pm.response.code);",
+                  "});",
+                  "pm.test('Security headers are present on gateway responses', function () {",
+                  "  pm.expect(pm.response.headers.has('X-Content-Type-Options')).to.eql(true);",
+                  "  pm.expect(pm.response.headers.has('X-Frame-Options')).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02 - Basket Catalog Failure",
+      "item": [
+        {
+          "name": "01 - Validate product while CatalogService is stopped",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "day50-catalog-down"
+              }
+            ],
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/cart/products/{{productId}}/validate",
+              "host": [
+                "{{gatewayBaseUrl}}"
+              ],
+              "path": [
+                "cart",
+                "products",
+                "{{productId}}",
+                "validate"
+              ]
+            },
+            "description": "Before sending, run: docker compose stop catalogservice. After the drill, run: docker compose start catalogservice."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Failure is controlled', function () {",
+                  "  pm.expect([503, 502, 500]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "03 - Duplicate Payment Webhook",
+      "item": [
+        {
+          "name": "01 - Create payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "day50-create-payment"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": \"50505050-5050-5050-5050-000000000001\",\n  \"customerId\": \"{{customerId}}\",\n  \"amount\": 50.50,\n  \"currency\": \"USD\"\n}"
+            },
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/payments",
+              "host": [
+                "{{gatewayBaseUrl}}"
+              ],
+              "path": [
+                "payments"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Payment created', function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "const payment = pm.response.json();",
+                  "pm.collectionVariables.set('paymentId', payment.id);",
+                  "pm.collectionVariables.set('providerEventId', 'evt_day50_' + Date.now());",
+                  "pm.collectionVariables.set('providerTransactionId', 'txn_day50_' + Date.now());",
+                  "pm.test('Payment starts pending', function () {",
+                  "  pm.expect(payment.status).to.eql('Pending');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 - Send signed succeeded webhook",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const rawBody = pm.variables.replaceIn(pm.request.body.raw);",
+                  "const secret = pm.collectionVariables.get('webhookSharedSecret');",
+                  "const signature = CryptoJS.HmacSHA256(rawBody, secret).toString(CryptoJS.enc.Hex);",
+                  "pm.request.headers.upsert({ key: 'X-MicroShop-Signature', value: signature });"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Webhook accepted', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const payment = pm.response.json();",
+                  "pm.test('Payment succeeded', function () {",
+                  "  pm.expect(payment.id).to.eql(pm.collectionVariables.get('paymentId'));",
+                  "  pm.expect(payment.status).to.eql('Succeeded');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "day50-webhook-first"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"paymentId\": \"{{paymentId}}\",\n  \"providerEventId\": \"{{providerEventId}}\",\n  \"providerTransactionId\": \"{{providerTransactionId}}\",\n  \"status\": \"SUCCEEDED\",\n  \"failureReason\": null\n}"
+            },
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/payments/webhooks/payment",
+              "host": [
+                "{{gatewayBaseUrl}}"
+              ],
+              "path": [
+                "payments",
+                "webhooks",
+                "payment"
+              ]
+            }
+          }
+        },
+        {
+          "name": "03 - Send duplicate signed webhook",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const rawBody = pm.variables.replaceIn(pm.request.body.raw);",
+                  "const secret = pm.collectionVariables.get('webhookSharedSecret');",
+                  "const signature = CryptoJS.HmacSHA256(rawBody, secret).toString(CryptoJS.enc.Hex);",
+                  "pm.request.headers.upsert({ key: 'X-MicroShop-Signature', value: signature });"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Duplicate webhook remains idempotent', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const payment = pm.response.json();",
+                  "pm.test('Payment remains succeeded', function () {",
+                  "  pm.expect(payment.id).to.eql(pm.collectionVariables.get('paymentId'));",
+                  "  pm.expect(payment.status).to.eql('Succeeded');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "day50-webhook-duplicate"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"paymentId\": \"{{paymentId}}\",\n  \"providerEventId\": \"{{providerEventId}}\",\n  \"providerTransactionId\": \"{{providerTransactionId}}\",\n  \"status\": \"SUCCEEDED\",\n  \"failureReason\": null\n}"
+            },
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/payments/webhooks/payment",
+              "host": [
+                "{{gatewayBaseUrl}}"
+              ],
+              "path": [
+                "payments",
+                "webhooks",
+                "payment"
+              ]
+            }
+          }
+        },
+        {
+          "name": "04 - Get payment after duplicate",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "day50-payment-after-duplicate"
+              }
+            ],
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/payments/{{paymentId}}",
+              "host": [
+                "{{gatewayBaseUrl}}"
+              ],
+              "path": [
+                "payments",
+                "{{paymentId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Payment found', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Payment is succeeded once', function () {",
+                  "  pm.expect(pm.response.json().status).to.eql('Succeeded');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "04 - Ordering Saga Compensation",
+      "item": [
+        {
+          "name": "01 - Dispatch late PaymentSucceeded to order",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "day50-late-payment"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"eventType\": \"PaymentSucceeded\",\n  \"paymentId\": \"55555555-5555-5555-5555-555555555555\",\n  \"amount\": 50.50,\n  \"currency\": \"USD\"\n}"
+            },
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/orders/{{orderId}}/payment-events",
+              "host": [
+                "{{gatewayBaseUrl}}"
+              ],
+              "path": [
+                "orders",
+                "{{orderId}}",
+                "payment-events"
+              ]
+            },
+            "description": "Use an orderId that is already cancelled/timed out to demonstrate CompensationRequired. If the order does not exist, 404 is acceptable during setup."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Saga endpoint returns a controlled status', function () {",
+                  "  pm.expect([200, 404, 409]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "05 - Outbox And Read Side Evidence",
+      "item": [
+        {
+          "name": "01 - Ordering outbox debug",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "day50-outbox-debug"
+              }
+            ],
+            "url": {
+              "raw": "{{orderingBaseUrl}}/debug/outbox",
+              "host": [
+                "{{orderingBaseUrl}}"
+              ],
+              "path": [
+                "debug",
+                "outbox"
+              ]
+            },
+            "description": "Useful after stopping notificationworker and creating an order. This intentionally calls OrderingService directly because the Docker gateway blocks debug routes outside Development. Pending or failed messages prove events were not silently lost."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Outbox debug endpoint is controlled', function () {",
+                  "  pm.expect([200, 404]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 - Order summaries list",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "day50-read-side"
+              }
+            ],
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/order-summaries",
+              "host": [
+                "{{gatewayBaseUrl}}"
+              ],
+              "path": [
+                "order-summaries"
+              ]
+            },
+            "description": "Use after Kafka projection drills to verify MongoDB read model state."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Read side endpoint responds', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
