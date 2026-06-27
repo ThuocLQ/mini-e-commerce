@@ -1,0 +1,364 @@
+name: microshop-local-prod
+
+x-service-runtime: &service-runtime
+  restart: unless-stopped
+  init: true
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+  networks:
+    - microshop-network
+
+x-web-service-runtime: &web-service-runtime
+  <<: *service-runtime
+  expose:
+    - "8080"
+
+x-worker-runtime: &worker-runtime
+  <<: *service-runtime
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: microshop
+      POSTGRES_PASSWORD: microshop
+      POSTGRES_DB: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U microshop -d postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+    networks:
+      - microshop-network
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+    networks:
+      - microshop-network
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: microshop
+      RABBITMQ_DEFAULT_PASS: microshop
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+    networks:
+      - microshop-network
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.6.1
+    restart: unless-stopped
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      - microshop-network
+
+  kafka:
+    image: confluentinc/cp-kafka:7.6.1
+    restart: unless-stopped
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:29092,PLAINTEXT_HOST://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-topics --bootstrap-server localhost:9092 --list >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    networks:
+      - microshop-network
+
+  mongodb:
+    image: mongo:7
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: microshop
+      MONGO_INITDB_ROOT_PASSWORD: microshop
+    volumes:
+      - mongodb_data:/data/db
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --quiet --eval 'db.adminCommand({ ping: 1 }).ok' -u microshop -p microshop --authenticationDatabase admin | grep 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+    networks:
+      - microshop-network
+
+  catalogservice:
+    <<: *web-service-runtime
+    image: microshop/catalogservice:local-prod
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        PROJECT_PATH: Services/CatalogService/CatalogService.csproj
+        PROJECT_DLL: CatalogService.dll
+    environment:
+      ASPNETCORE_ENVIRONMENT: Docker
+      ASPNETCORE_HTTP_PORTS: 8080
+      ConnectionStrings__CatalogDb: Host=postgres;Port=5432;Database=catalogdb;Username=microshop;Password=microshop
+      Jwt__Issuer: MicroShop.IdentityService
+      Jwt__Audience: MicroShop.Client
+      Jwt__SecretKey: microshop-development-secret-key-must-be-long-enough
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  basketservice:
+    <<: *web-service-runtime
+    image: microshop/basketservice:local-prod
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        PROJECT_PATH: Services/BasketService/BasketService.csproj
+        PROJECT_DLL: BasketService.dll
+    environment:
+      ASPNETCORE_ENVIRONMENT: Docker
+      ASPNETCORE_HTTP_PORTS: 8080
+      ConnectionStrings__Redis: redis:6379
+      Redis__ConnectionString: redis:6379
+      ServiceUrls__CatalogHttp: http://catalogservice:8080
+      ServiceUrls__CatalogGrpc: http://catalogservice:8080
+    depends_on:
+      redis:
+        condition: service_healthy
+      catalogservice:
+        condition: service_started
+
+  orderingservice:
+    <<: *web-service-runtime
+    image: microshop/orderingservice:local-prod
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        PROJECT_PATH: Services/OrderingService/OrderingService.csproj
+        PROJECT_DLL: OrderingService.dll
+    environment:
+      ASPNETCORE_ENVIRONMENT: Docker
+      ASPNETCORE_HTTP_PORTS: 8080
+      ConnectionStrings__OrderingDb: Host=postgres;Port=5432;Database=orderingdb;Username=microshop;Password=microshop
+      ServiceUrls__BasketHttp: http://basketservice:8080
+      OrderEvents__Currency: USD
+      RabbitMq__Host: rabbitmq
+      RabbitMq__VirtualHost: /
+      RabbitMq__UserName: microshop
+      RabbitMq__Password: microshop
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      basketservice:
+        condition: service_started
+
+  discountservice:
+    <<: *web-service-runtime
+    image: microshop/discountservice:local-prod
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        PROJECT_PATH: Services/DiscountService/DiscountService.csproj
+        PROJECT_DLL: DiscountService.dll
+    environment:
+      ASPNETCORE_ENVIRONMENT: Docker
+      ASPNETCORE_HTTP_PORTS: 8080
+      ConnectionStrings__DiscountDb: Host=postgres;Port=5432;Database=discountdb;Username=microshop;Password=microshop
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  identityservice:
+    <<: *web-service-runtime
+    image: microshop/identityservice:local-prod
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        PROJECT_PATH: Services/IdentityService/IdentityService.csproj
+        PROJECT_DLL: IdentityService.dll
+    environment:
+      ASPNETCORE_ENVIRONMENT: Docker
+      ASPNETCORE_HTTP_PORTS: 8080
+      ConnectionStrings__IdentityDb: Host=postgres;Port=5432;Database=identitydb;Username=microshop;Password=microshop
+      Jwt__Issuer: MicroShop.IdentityService
+      Jwt__Audience: MicroShop.Client
+      Jwt__SecretKey: microshop-development-secret-key-must-be-long-enough
+      Jwt__ExpirationMinutes: 120
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  paymentservice:
+    <<: *web-service-runtime
+    image: microshop/paymentservice:local-prod
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        PROJECT_PATH: Services/PaymentService/PaymentService.csproj
+        PROJECT_DLL: PaymentService.dll
+    environment:
+      ASPNETCORE_ENVIRONMENT: Docker
+      ASPNETCORE_HTTP_PORTS: 8080
+      ConnectionStrings__PaymentDb: Host=postgres;Port=5432;Database=paymentdb;Username=microshop;Password=microshop
+      ServiceUrls__OrderingHttp: http://orderingservice:8080
+      PaymentWebhooks__SignatureHeaderName: X-MicroShop-Signature
+      PaymentWebhooks__SharedSecret: dev-webhook-secret
+      PaymentWebhooks__RequireSignature: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      orderingservice:
+        condition: service_started
+
+  orderqueryservice:
+    <<: *web-service-runtime
+    image: microshop/orderqueryservice:local-prod
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        PROJECT_PATH: Services/OrderQueryService/OrderQueryService.csproj
+        PROJECT_DLL: OrderQueryService.dll
+    environment:
+      ASPNETCORE_ENVIRONMENT: Docker
+      ASPNETCORE_HTTP_PORTS: 8080
+      MongoDb__ConnectionString: mongodb://microshop:microshop@mongodb:27017/?authSource=admin
+      MongoDb__DatabaseName: MicroShop_OrderReadDb
+      MongoDb__OrderSummariesCollectionName: order_summaries
+      MongoDb__InitializeMaxRetryCount: 10
+      MongoDb__InitializeRetryDelaySeconds: 3
+    depends_on:
+      mongodb:
+        condition: service_healthy
+
+  projectionworker:
+    <<: *worker-runtime
+    image: microshop/projectionworker:local-prod
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        PROJECT_PATH: Workers/ProjectionWorker/ProjectionWorker.csproj
+        PROJECT_DLL: ProjectionWorker.dll
+    environment:
+      DOTNET_ENVIRONMENT: Docker
+      Kafka__BootstrapServers: kafka:29092
+      Kafka__Topic: microshop.order-events
+      Kafka__GroupId: projection-worker
+      Kafka__AutoOffsetReset: Earliest
+      MongoDb__ConnectionString: mongodb://microshop:microshop@mongodb:27017/?authSource=admin
+      MongoDb__DatabaseName: MicroShop_OrderReadDb
+      MongoDb__OrderSummariesCollectionName: order_summaries
+      MongoDb__ProjectionFailuresCollectionName: projection_failures
+      MongoDb__InitializeMaxRetryCount: 10
+      MongoDb__InitializeRetryDelaySeconds: 3
+    depends_on:
+      kafka:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+
+  notificationworker:
+    <<: *worker-runtime
+    image: microshop/notificationworker:local-prod
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        PROJECT_PATH: Services/NotificationWorker/NotificationWorker.csproj
+        PROJECT_DLL: NotificationWorker.dll
+    environment:
+      DOTNET_ENVIRONMENT: Docker
+      RabbitMq__Host: rabbitmq
+      RabbitMq__VirtualHost: /
+      RabbitMq__UserName: microshop
+      RabbitMq__Password: microshop
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  api-gateway:
+    <<: *web-service-runtime
+    image: microshop/api-gateway:local-prod
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        PROJECT_PATH: Services/ApiGateway/ApiGateway.csproj
+        PROJECT_DLL: ApiGateway.dll
+    environment:
+      ASPNETCORE_ENVIRONMENT: Docker
+      ASPNETCORE_HTTP_PORTS: 8080
+      Gateway__AllowedCorsOrigins__0: http://localhost:5027
+    depends_on:
+      catalogservice:
+        condition: service_started
+      basketservice:
+        condition: service_started
+      orderingservice:
+        condition: service_started
+      discountservice:
+        condition: service_started
+      identityservice:
+        condition: service_started
+      paymentservice:
+        condition: service_started
+      orderqueryservice:
+        condition: service_started
+      notificationworker:
+        condition: service_started
+    ports:
+      - "5027:8080"
+
+volumes:
+  postgres_data:
+  redis_data:
+  rabbitmq_data:
+  kafka_data:
+  mongodb_data:
+
+networks:
+  microshop-network:
+    driver: bridge

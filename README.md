@@ -194,6 +194,14 @@ Full system with local observability:
 docker compose -f docker-compose.yml -f compose.observability.yml up -d --build
 ```
 
+Local production-like runtime:
+
+```powershell
+docker compose -f compose.local-prod.yml up -d --build
+```
+
+In this mode, only `ApiGateway` is published to the host at `http://localhost:5027`. Application services and infrastructure stay on the private Docker network.
+
 Observability URLs:
 
 ```text
@@ -268,12 +276,12 @@ No OrderingService Kafka publisher yet.
 No schema registry yet.
 Observability is local-only and has no alert routing or long-term metric retention yet.
 No full CI/CD/deployment strategy yet.
-No local-prod compose profile yet.
+Local-prod Docker runtime exists, but secrets are still development placeholders.
 Failure drills are documented and have a Postman collection, but are not fully automated yet.
 ```
 
 ## Next
 
 ```text
-Day 51: Production Docker Runtime
+Day 52: Production Docker Runtime Hardening
 ```

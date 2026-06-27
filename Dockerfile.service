@@ -12,7 +12,9 @@ FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 ARG PROJECT_DLL
 WORKDIR /app
 ENV ASPNETCORE_HTTP_PORTS=8080
+ENV DOTNET_EnableDiagnostics=0
 ENV PROJECT_DLL=$PROJECT_DLL
 EXPOSE 8080
 COPY --from=build /app/publish .
+USER app
 ENTRYPOINT ["sh", "-c", "dotnet $PROJECT_DLL"]

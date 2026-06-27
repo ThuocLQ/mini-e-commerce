@@ -81,8 +81,9 @@ It tracks production-minded improvements that should be implemented as separate 
 ```text
 [ ] CI build workflow.
 [ ] CI test workflow.
-[ ] Docker image tagging strategy.
+[x] Docker image tagging strategy.
 [ ] Release tag policy.
-[ ] Environment-specific deployment notes.
+[x] Environment-specific deployment notes.
 [x] Day 50 production failure drill runbook.
+[x] Local-prod Docker Compose runtime.
 ```
