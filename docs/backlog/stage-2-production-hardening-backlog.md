@@ -86,4 +86,5 @@ It tracks production-minded improvements that should be implemented as separate 
 [x] Environment-specific deployment notes.
 [x] Day 50 production failure drill runbook.
 [x] Local-prod Docker Compose runtime.
+[x] Local-prod container health checks.
 ```

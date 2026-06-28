@@ -5,7 +5,7 @@ MicroShop is a learning microservices backend built with .NET 10. The project is
 Current completed:
 
 ```text
-Day 50: Failure Drills + Senior Demo
+Day 52: Production Docker Runtime Hardening
 ```
 
 ## Architecture Goals
@@ -201,6 +201,7 @@ docker compose -f compose.local-prod.yml up -d --build
 ```
 
 In this mode, only `ApiGateway` is published to the host at `http://localhost:5027`. Application services and infrastructure stay on the private Docker network.
+Web services expose `/alive` and `/health` inside Docker for container health checks.
 
 Observability URLs:
 
@@ -283,5 +284,5 @@ Failure drills are documented and have a Postman collection, but are not fully a
 ## Next
 
 ```text
-Day 52: Production Docker Runtime Hardening
+Day 53: Config + Secrets Hygiene
 ```

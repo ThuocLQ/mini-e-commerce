@@ -70,7 +70,7 @@ app.UseCors("GatewayCors");
 app.UseRateLimiter();
 
 app.MapDefaultEndpoints();
-if (!app.Environment.IsDevelopment())
+if (!app.Environment.IsDevelopment() && !app.Environment.IsEnvironment("Docker"))
 {
     app.MapHealthChecks("/health");
 }

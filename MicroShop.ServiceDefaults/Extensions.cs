@@ -41,7 +41,7 @@ public static class Extensions
                 options.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(
                     Math.Max(1, resilienceSettings.TotalRequestTimeoutSeconds));
 
-                options.Retry.MaxRetryAttempts = Math.Max(0, resilienceSettings.RetryMaxAttempts);
+                options.Retry.MaxRetryAttempts = Math.Max(1, resilienceSettings.RetryMaxAttempts);
                 options.Retry.Delay = TimeSpan.FromMilliseconds(
                     Math.Max(1, resilienceSettings.RetryDelayMilliseconds));
 
@@ -178,9 +178,9 @@ public static class Extensions
 
     public static WebApplication MapDefaultEndpoints(this WebApplication app)
     {
-        // Adding health checks endpoints to applications in non-development environments has security implications.
-        // See https://aka.ms/dotnet/aspire/healthchecks for details before enabling these endpoints in non-development environments.
-        if (app.Environment.IsDevelopment())
+        // Exposing health endpoints outside local/dev should be a conscious deployment choice.
+        // Docker local-prod keeps service health endpoints on the private Compose network.
+        if (ShouldMapHealthEndpoints(app))
         {
             // All health checks must pass for app to be considered ready to accept traffic after starting
             app.MapHealthChecks(HealthEndpointPath);
@@ -193,6 +193,17 @@ public static class Extensions
         }
 
         return app;
+    }
+
+    private static bool ShouldMapHealthEndpoints(WebApplication app)
+    {
+        if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Docker"))
+        {
+            return true;
+        }
+
+        return bool.TryParse(app.Configuration["ServiceDefaults:ExposeHealthEndpoints"], out var exposeHealthEndpoints)
+            && exposeHealthEndpoints;
     }
 
     public static WebApplication UseCorrelationId(this WebApplication app)
