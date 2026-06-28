@@ -35,7 +35,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: microshop
-      POSTGRES_PASSWORD: microshop
+      POSTGRES_PASSWORD: ${MICROSHOP_POSTGRES_PASSWORD:?Set MICROSHOP_POSTGRES_PASSWORD in .env.local-prod}
       POSTGRES_DB: postgres
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -69,7 +69,7 @@ services:
     restart: unless-stopped
     environment:
       RABBITMQ_DEFAULT_USER: microshop
-      RABBITMQ_DEFAULT_PASS: microshop
+      RABBITMQ_DEFAULT_PASS: ${MICROSHOP_RABBITMQ_PASSWORD:?Set MICROSHOP_RABBITMQ_PASSWORD in .env.local-prod}
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     healthcheck:
@@ -121,7 +121,7 @@ services:
     restart: unless-stopped
     environment:
       MONGO_INITDB_ROOT_USERNAME: microshop
-      MONGO_INITDB_ROOT_PASSWORD: microshop
+      MONGO_INITDB_ROOT_PASSWORD: ${MICROSHOP_MONGO_PASSWORD:?Set MICROSHOP_MONGO_PASSWORD in .env.local-prod}
     volumes:
       - mongodb_data:/data/db
     healthcheck:
@@ -145,10 +145,10 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Docker
       ASPNETCORE_HTTP_PORTS: 8080
-      ConnectionStrings__CatalogDb: Host=postgres;Port=5432;Database=catalogdb;Username=microshop;Password=microshop
+      ConnectionStrings__CatalogDb: Host=postgres;Port=5432;Database=catalogdb;Username=microshop;Password=${MICROSHOP_POSTGRES_PASSWORD:?Set MICROSHOP_POSTGRES_PASSWORD in .env.local-prod}
       Jwt__Issuer: MicroShop.IdentityService
       Jwt__Audience: MicroShop.Client
-      Jwt__SecretKey: microshop-development-secret-key-must-be-long-enough
+      Jwt__SecretKey: ${MICROSHOP_JWT_SECRET_KEY:?Set MICROSHOP_JWT_SECRET_KEY in .env.local-prod}
     depends_on:
       postgres:
         condition: service_healthy
@@ -187,13 +187,13 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Docker
       ASPNETCORE_HTTP_PORTS: 8080
-      ConnectionStrings__OrderingDb: Host=postgres;Port=5432;Database=orderingdb;Username=microshop;Password=microshop
+      ConnectionStrings__OrderingDb: Host=postgres;Port=5432;Database=orderingdb;Username=microshop;Password=${MICROSHOP_POSTGRES_PASSWORD:?Set MICROSHOP_POSTGRES_PASSWORD in .env.local-prod}
       ServiceUrls__BasketHttp: http://basketservice:8080
       OrderEvents__Currency: USD
       RabbitMq__Host: rabbitmq
       RabbitMq__VirtualHost: /
       RabbitMq__UserName: microshop
-      RabbitMq__Password: microshop
+      RabbitMq__Password: ${MICROSHOP_RABBITMQ_PASSWORD:?Set MICROSHOP_RABBITMQ_PASSWORD in .env.local-prod}
     depends_on:
       postgres:
         condition: service_healthy
@@ -214,7 +214,7 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Docker
       ASPNETCORE_HTTP_PORTS: 8080
-      ConnectionStrings__DiscountDb: Host=postgres;Port=5432;Database=discountdb;Username=microshop;Password=microshop
+      ConnectionStrings__DiscountDb: Host=postgres;Port=5432;Database=discountdb;Username=microshop;Password=${MICROSHOP_POSTGRES_PASSWORD:?Set MICROSHOP_POSTGRES_PASSWORD in .env.local-prod}
     depends_on:
       postgres:
         condition: service_healthy
@@ -231,10 +231,10 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Docker
       ASPNETCORE_HTTP_PORTS: 8080
-      ConnectionStrings__IdentityDb: Host=postgres;Port=5432;Database=identitydb;Username=microshop;Password=microshop
+      ConnectionStrings__IdentityDb: Host=postgres;Port=5432;Database=identitydb;Username=microshop;Password=${MICROSHOP_POSTGRES_PASSWORD:?Set MICROSHOP_POSTGRES_PASSWORD in .env.local-prod}
       Jwt__Issuer: MicroShop.IdentityService
       Jwt__Audience: MicroShop.Client
-      Jwt__SecretKey: microshop-development-secret-key-must-be-long-enough
+      Jwt__SecretKey: ${MICROSHOP_JWT_SECRET_KEY:?Set MICROSHOP_JWT_SECRET_KEY in .env.local-prod}
       Jwt__ExpirationMinutes: 120
     depends_on:
       postgres:
@@ -252,10 +252,10 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Docker
       ASPNETCORE_HTTP_PORTS: 8080
-      ConnectionStrings__PaymentDb: Host=postgres;Port=5432;Database=paymentdb;Username=microshop;Password=microshop
+      ConnectionStrings__PaymentDb: Host=postgres;Port=5432;Database=paymentdb;Username=microshop;Password=${MICROSHOP_POSTGRES_PASSWORD:?Set MICROSHOP_POSTGRES_PASSWORD in .env.local-prod}
       ServiceUrls__OrderingHttp: http://orderingservice:8080
       PaymentWebhooks__SignatureHeaderName: X-MicroShop-Signature
-      PaymentWebhooks__SharedSecret: dev-webhook-secret
+      PaymentWebhooks__SharedSecret: ${MICROSHOP_PAYMENT_WEBHOOK_SECRET:?Set MICROSHOP_PAYMENT_WEBHOOK_SECRET in .env.local-prod}
       PaymentWebhooks__RequireSignature: "true"
     depends_on:
       postgres:
@@ -275,7 +275,7 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Docker
       ASPNETCORE_HTTP_PORTS: 8080
-      MongoDb__ConnectionString: mongodb://microshop:microshop@mongodb:27017/?authSource=admin
+      MongoDb__ConnectionString: ${MICROSHOP_MONGODB_CONNECTION_STRING:?Set MICROSHOP_MONGODB_CONNECTION_STRING in .env.local-prod}
       MongoDb__DatabaseName: MicroShop_OrderReadDb
       MongoDb__OrderSummariesCollectionName: order_summaries
       MongoDb__InitializeMaxRetryCount: 10
@@ -299,7 +299,7 @@ services:
       Kafka__Topic: microshop.order-events
       Kafka__GroupId: projection-worker
       Kafka__AutoOffsetReset: Earliest
-      MongoDb__ConnectionString: mongodb://microshop:microshop@mongodb:27017/?authSource=admin
+      MongoDb__ConnectionString: ${MICROSHOP_MONGODB_CONNECTION_STRING:?Set MICROSHOP_MONGODB_CONNECTION_STRING in .env.local-prod}
       MongoDb__DatabaseName: MicroShop_OrderReadDb
       MongoDb__OrderSummariesCollectionName: order_summaries
       MongoDb__ProjectionFailuresCollectionName: projection_failures
@@ -325,7 +325,7 @@ services:
       RabbitMq__Host: rabbitmq
       RabbitMq__VirtualHost: /
       RabbitMq__UserName: microshop
-      RabbitMq__Password: microshop
+      RabbitMq__Password: ${MICROSHOP_RABBITMQ_PASSWORD:?Set MICROSHOP_RABBITMQ_PASSWORD in .env.local-prod}
     depends_on:
       rabbitmq:
         condition: service_healthy

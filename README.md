@@ -5,7 +5,7 @@ MicroShop is a learning microservices backend built with .NET 10. The project is
 Current completed:
 
 ```text
-Day 52: Production Docker Runtime Hardening
+Day 53: Config + Secrets Hygiene
 ```
 
 ## Architecture Goals
@@ -197,11 +197,14 @@ docker compose -f docker-compose.yml -f compose.observability.yml up -d --build
 Local production-like runtime:
 
 ```powershell
-docker compose -f compose.local-prod.yml up -d --build
+Copy-Item .env.example .env.local-prod
+# Edit .env.local-prod and replace every CHANGEME value.
+docker compose --env-file .env.local-prod -f compose.local-prod.yml up -d --build
 ```
 
 In this mode, only `ApiGateway` is published to the host at `http://localhost:5027`. Application services and infrastructure stay on the private Docker network.
 Web services expose `/alive` and `/health` inside Docker for container health checks.
+The `.env.local-prod` file is ignored by Git and is the local home for production-like secrets.
 
 Observability URLs:
 
@@ -277,12 +280,12 @@ No OrderingService Kafka publisher yet.
 No schema registry yet.
 Observability is local-only and has no alert routing or long-term metric retention yet.
 No full CI/CD/deployment strategy yet.
-Local-prod Docker runtime exists, but secrets are still development placeholders.
+Local-prod secrets are externalized to `.env.local-prod`; the dev compose still uses learning-friendly defaults.
 Failure drills are documented and have a Postman collection, but are not fully automated yet.
 ```
 
 ## Next
 
 ```text
-Day 53: Config + Secrets Hygiene
+Day 54: Reverse Proxy + Health + Shutdown
 ```

@@ -59,7 +59,7 @@ It tracks production-minded improvements that should be implemented as separate 
 [ ] SSO/OIDC decision note.
 [ ] Internal service security.
 [ ] Audit log policy.
-[ ] Secrets management beyond local development.
+[x] Local-prod secrets moved out of committed compose file.
 [x] Payment webhook HMAC verification.
 [x] Gateway edge rate-limit/CORS/security-header baseline.
 ```
