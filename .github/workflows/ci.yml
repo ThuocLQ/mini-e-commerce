@@ -54,6 +54,8 @@ jobs:
           $scripts = @(
             "scripts/local-prod-backup.ps1",
             "scripts/local-prod-restore.ps1",
+            "scripts/local-prod-smoke.ps1",
+            "scripts/local-prod-up.ps1",
             "scripts/test-kafka-lesson25.ps1"
           )
 
@@ -71,7 +73,20 @@ jobs:
 
       - name: Build representative Docker images
         run: |
-          docker compose --env-file .env.example -f compose.local-prod.yml build \
-            api-gateway \
-            orderingservice \
-            projectionworker
+          docker build \
+            -f Dockerfile.service \
+            --build-arg PROJECT_PATH=Services/ApiGateway/ApiGateway.csproj \
+            --build-arg PROJECT_DLL=ApiGateway.dll \
+            -t microshop/api-gateway:ci .
+
+          docker build \
+            -f Dockerfile.service \
+            --build-arg PROJECT_PATH=Services/OrderingService/OrderingService.csproj \
+            --build-arg PROJECT_DLL=OrderingService.dll \
+            -t microshop/orderingservice:ci .
+
+          docker build \
+            -f Dockerfile.service \
+            --build-arg PROJECT_PATH=Workers/ProjectionWorker/ProjectionWorker.csproj \
+            --build-arg PROJECT_DLL=ProjectionWorker.dll \
+            -t microshop/projectionworker:ci .
