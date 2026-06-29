@@ -5,7 +5,7 @@ MicroShop is a learning microservices backend built with .NET 10. The project is
 Current completed:
 
 ```text
-Day 57: CI/CD
+Day 58: Local PROD Release Candidate Scripts
 ```
 
 ## Architecture Goals
@@ -199,12 +199,18 @@ Local production-like runtime:
 ```powershell
 Copy-Item .env.example .env.local-prod
 # Edit .env.local-prod and replace every CHANGEME value.
-docker compose --env-file .env.local-prod -f compose.local-prod.yml up -d --build
+.\scripts\local-prod-up.ps1 -Build
 ```
 
 In this mode, only the local Caddy reverse proxy is published to the host at `http://localhost:5027`. `ApiGateway`, application services, and infrastructure stay on the private Docker network.
 Web services expose `/alive` for process liveness and `/health` for dependency readiness. Local-prod container health checks use `/health`, while Caddy still checks the edge path through `/alive`.
 The `.env.local-prod` file is ignored by Git and is the local home for production-like secrets.
+
+Run the local-prod smoke test again after the stack is up:
+
+```powershell
+.\scripts\local-prod-smoke.ps1
+```
 
 Create a local-prod PostgreSQL and MongoDB backup:
 

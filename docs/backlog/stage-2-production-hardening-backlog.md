@@ -93,4 +93,6 @@ It tracks production-minded improvements that should be implemented as separate 
 [x] Dependency readiness checks for local-prod health endpoints.
 [x] Local-prod reverse proxy edge.
 [x] Local-prod stop grace periods.
+[x] Local-prod one-command startup script.
+[x] Local-prod gateway smoke script.
 ```

@@ -162,7 +162,7 @@ services:
     volumes:
       - mongodb_data:/data/db
     healthcheck:
-      test: ["CMD-SHELL", "mongosh --quiet --eval 'db.adminCommand({ ping: 1 }).ok' -u microshop -p microshop --authenticationDatabase admin | grep 1"]
+      test: ["CMD-SHELL", "mongosh --quiet --eval 'db.adminCommand({ ping: 1 }).ok' -u microshop -p \"$$MONGO_INITDB_ROOT_PASSWORD\" --authenticationDatabase admin | grep 1"]
       interval: 10s
       timeout: 5s
       retries: 20
