@@ -17,6 +17,7 @@ public static class DependencyInjection
         services.AddScoped<IPaymentWebhookRepository, DapperPaymentWebhookRepository>();
         services.AddScoped<IPaymentOutboxRepository, DapperPaymentOutboxRepository>();
         services.AddSingleton<IPaymentMetrics, PaymentMetrics>();
+        services.AddPostgresReadinessCheck(configuration, "PaymentDb");
 
         services
             .AddOptions<PaymentOutboxDispatcherOptions>()

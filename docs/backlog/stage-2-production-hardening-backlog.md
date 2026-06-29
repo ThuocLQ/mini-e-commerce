@@ -87,6 +87,7 @@ It tracks production-minded improvements that should be implemented as separate 
 [x] Day 50 production failure drill runbook.
 [x] Local-prod Docker Compose runtime.
 [x] Local-prod container health checks.
+[x] Dependency readiness checks for local-prod health endpoints.
 [x] Local-prod reverse proxy edge.
 [x] Local-prod stop grace periods.
 ```

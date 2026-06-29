@@ -43,6 +43,7 @@ public static class DependencyInjection
         services.AddScoped<IUserRepository, DapperUserRepository>();
         services.AddSingleton<IPasswordHasher, Pbkdf2PasswordHasher>();
         services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
+        services.AddPostgresReadinessCheck(configuration, "IdentityDb");
 
         services
             .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)

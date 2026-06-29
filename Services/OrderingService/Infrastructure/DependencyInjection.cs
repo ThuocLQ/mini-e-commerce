@@ -23,6 +23,8 @@ public static class DependencyInjection
         services.AddScoped<IOrderRepository, DapperOrderRepository>();
         services.AddScoped<IOrderPaymentSagaRepository, DapperOrderPaymentSagaRepository>();
         services.AddScoped<IOutboxRepository, DapperOutboxRepository>();
+        services.AddPostgresReadinessCheck(configuration, "OrderingDb");
+        services.AddRabbitMqReadinessCheck(configuration);
 
         var basketBaseUrl = configuration["ServiceUrls:BasketHttp"]
                             ?? throw new InvalidOperationException("ServiceUrls:BasketHttp is missing.");

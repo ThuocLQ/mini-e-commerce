@@ -12,6 +12,7 @@ public static class DependencyInjection
         services.AddSingleton<IDbConnectionFactory, NpgsqlConnectionFactory>();
         services.AddSingleton<IDatabaseInitializer, PostgresDatabaseInitializer>();
         services.AddScoped<IDiscountRepository, DapperDiscountRepository>();
+        services.AddPostgresReadinessCheck(configuration, "DiscountDb");
 
         return services;
     }
