@@ -45,7 +45,8 @@ It tracks production-minded improvements that should be implemented as separate 
 
 ```text
 [ ] PostgreSQL migration review.
-[ ] Backup/restore mindset.
+[x] Local-prod PostgreSQL backup/restore scripts.
+[x] Local-prod MongoDB backup/restore scripts.
 [ ] Read model rebuild strategy.
 [ ] Database index review.
 [ ] Connection pool and timeout review.

@@ -21,6 +21,7 @@ TestResults/
 # Local tool/cache folders
 .dotnet/
 .verify-build/
+backups/
 
 # Local environment and secret files
 .env
