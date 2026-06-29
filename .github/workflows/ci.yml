@@ -1,0 +1,77 @@
+name: MicroShop CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: microshop-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test:
+    name: Build and test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore
+        run: dotnet restore MicroShop.sln --nologo
+
+      - name: Build
+        run: dotnet build MicroShop.sln --no-restore --nologo -v minimal
+
+      - name: Test
+        run: dotnet test Tests/MicroShop.IntegrationTests/MicroShop.IntegrationTests.csproj --no-build --nologo -v minimal
+
+  runtime-validation:
+    name: Runtime validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate PowerShell scripts
+        shell: pwsh
+        run: |
+          $scripts = @(
+            "scripts/local-prod-backup.ps1",
+            "scripts/local-prod-restore.ps1",
+            "scripts/test-kafka-lesson25.ps1"
+          )
+
+          foreach ($script in $scripts) {
+            $errors = $null
+            [System.Management.Automation.PSParser]::Tokenize((Get-Content $script -Raw), [ref]$errors) | Out-Null
+            if ($errors) {
+              $errors | Format-List
+              throw "PowerShell parser errors found in $script."
+            }
+          }
+
+      - name: Validate local-prod compose
+        run: docker compose --env-file .env.example -f compose.local-prod.yml config --quiet
+
+      - name: Build representative Docker images
+        run: |
+          docker compose --env-file .env.example -f compose.local-prod.yml build \
+            api-gateway \
+            orderingservice \
+            projectionworker

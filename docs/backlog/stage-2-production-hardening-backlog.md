@@ -80,8 +80,10 @@ It tracks production-minded improvements that should be implemented as separate 
 ## Delivery
 
 ```text
-[ ] CI build workflow.
-[ ] CI test workflow.
+[x] CI build workflow.
+[x] CI test workflow.
+[x] CI local-prod compose validation.
+[x] CI representative Docker image build.
 [x] Docker image tagging strategy.
 [ ] Release tag policy.
 [x] Environment-specific deployment notes.

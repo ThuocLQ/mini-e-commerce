@@ -5,7 +5,7 @@ MicroShop is a learning microservices backend built with .NET 10. The project is
 Current completed:
 
 ```text
-Day 56: Persistence + Backup/Restore
+Day 57: CI/CD
 ```
 
 ## Architecture Goals
@@ -235,6 +235,14 @@ dotnet test Tests\MicroShop.IntegrationTests\MicroShop.IntegrationTests.csproj -
 
 The PostgreSQL and MongoDB integration tests use Testcontainers and require Docker.
 
+CI runs on GitHub Actions:
+
+```text
+.github/workflows/ci.yml
+```
+
+It restores, builds, runs integration tests, validates PowerShell scripts, validates local-prod compose, and builds representative Docker images.
+
 Run the lightweight gateway smoke test after starting the full system:
 
 ```powershell
@@ -301,5 +309,5 @@ Failure drills are documented and have a Postman collection, but are not fully a
 ## Next
 
 ```text
-Day 57: CI/CD
+Day 58: Local PROD Release Candidate
 ```
