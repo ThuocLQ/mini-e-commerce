@@ -1,0 +1,12 @@
+:8080 {
+	encode zstd gzip
+
+	header {
+		-X-Powered-By
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "no-referrer"
+	}
+
+	reverse_proxy api-gateway:8080
+}

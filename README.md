@@ -5,7 +5,7 @@ MicroShop is a learning microservices backend built with .NET 10. The project is
 Current completed:
 
 ```text
-Day 53: Config + Secrets Hygiene
+Day 54: Reverse Proxy + Health + Shutdown
 ```
 
 ## Architecture Goals
@@ -202,8 +202,8 @@ Copy-Item .env.example .env.local-prod
 docker compose --env-file .env.local-prod -f compose.local-prod.yml up -d --build
 ```
 
-In this mode, only `ApiGateway` is published to the host at `http://localhost:5027`. Application services and infrastructure stay on the private Docker network.
-Web services expose `/alive` and `/health` inside Docker for container health checks.
+In this mode, only the local Caddy reverse proxy is published to the host at `http://localhost:5027`. `ApiGateway`, application services, and infrastructure stay on the private Docker network.
+Web services expose `/alive` and `/health` inside Docker for container health checks, and containers have explicit stop grace periods for cleaner shutdown.
 The `.env.local-prod` file is ignored by Git and is the local home for production-like secrets.
 
 Observability URLs:
@@ -287,5 +287,5 @@ Failure drills are documented and have a Postman collection, but are not fully a
 ## Next
 
 ```text
-Day 54: Reverse Proxy + Health + Shutdown
+Day 55: Local Runtime Health Hardening
 ```
