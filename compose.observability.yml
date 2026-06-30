@@ -2,10 +2,13 @@ services:
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.130.0
     container_name: microshop-otel-collector
+    restart: unless-stopped
+    stop_grace_period: 20s
     command: ["--config=/etc/otelcol-contrib/config.yaml"]
     volumes:
       - ./docker/observability/otel-collector.yml:/etc/otelcol-contrib/config.yaml:ro
     ports:
+      - "13133:13133"
       - "4317:4317"
       - "4318:4318"
     networks:
@@ -14,6 +17,8 @@ services:
   prometheus:
     image: prom/prometheus:v3.5.0
     container_name: microshop-prometheus
+    restart: unless-stopped
+    stop_grace_period: 20s
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
       - "--storage.tsdb.path=/prometheus"
@@ -24,14 +29,18 @@ services:
     ports:
       - "9090:9090"
     depends_on:
-      - otel-collector
-      - kafka-exporter
+      otel-collector:
+        condition: service_started
+      kafka-exporter:
+        condition: service_started
     networks:
       - microshop-network
 
   grafana:
     image: grafana/grafana:12.0.2
     container_name: microshop-grafana
+    restart: unless-stopped
+    stop_grace_period: 20s
     environment:
       GF_SECURITY_ADMIN_USER: admin
       GF_SECURITY_ADMIN_PASSWORD: admin
@@ -43,13 +52,16 @@ services:
     ports:
       - "3000:3000"
     depends_on:
-      - prometheus
+      prometheus:
+        condition: service_started
     networks:
       - microshop-network
 
   kafka-exporter:
     image: danielqsj/kafka-exporter:v1.9.0
     container_name: microshop-kafka-exporter
+    restart: unless-stopped
+    stop_grace_period: 20s
     command: ["--kafka.server=kafka:29092"]
     depends_on:
       kafka:

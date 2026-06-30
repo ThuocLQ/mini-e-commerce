@@ -27,6 +27,7 @@ It tracks production-minded improvements that should be implemented as separate 
 [x] Metrics for consumer health.
 [ ] RabbitMQ queue depth/error queue monitoring.
 [x] Grafana dashboard.
+[x] Local-prod observability smoke script.
 [ ] Alerting intro.
 ```
 
@@ -95,4 +96,5 @@ It tracks production-minded improvements that should be implemented as separate 
 [x] Local-prod stop grace periods.
 [x] Local-prod one-command startup script.
 [x] Local-prod gateway smoke script.
+[x] Local-prod observability startup script.
 ```

@@ -5,7 +5,7 @@ MicroShop is a learning microservices backend built with .NET 10. The project is
 Current completed:
 
 ```text
-Day 58: Local PROD Release Candidate Scripts
+Day 59: Local PROD Observability Release Candidate
 ```
 
 ## Architecture Goals
@@ -210,6 +210,27 @@ Run the local-prod smoke test again after the stack is up:
 
 ```powershell
 .\scripts\local-prod-smoke.ps1
+```
+
+Local production-like runtime with observability:
+
+```powershell
+.\scripts\local-prod-observability-up.ps1 -Build
+```
+
+Observability endpoints:
+
+```text
+Gateway: http://localhost:5027
+OpenTelemetry Collector health: http://localhost:13133
+Prometheus: http://localhost:9090
+Grafana: http://localhost:3000
+```
+
+Run the local-prod observability smoke test again after the stack is up:
+
+```powershell
+.\scripts\local-prod-observability-smoke.ps1
 ```
 
 Create a local-prod PostgreSQL and MongoDB backup:

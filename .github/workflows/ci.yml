@@ -54,6 +54,8 @@ jobs:
           $scripts = @(
             "scripts/local-prod-backup.ps1",
             "scripts/local-prod-restore.ps1",
+            "scripts/local-prod-observability-smoke.ps1",
+            "scripts/local-prod-observability-up.ps1",
             "scripts/local-prod-smoke.ps1",
             "scripts/local-prod-up.ps1",
             "scripts/test-kafka-lesson25.ps1"
@@ -70,6 +72,9 @@ jobs:
 
       - name: Validate local-prod compose
         run: docker compose --env-file .env.example -f compose.local-prod.yml config --quiet
+
+      - name: Validate local-prod observability compose
+        run: docker compose --env-file .env.example -f compose.local-prod.yml -f compose.observability.yml config --quiet
 
       - name: Build representative Docker images
         run: |
