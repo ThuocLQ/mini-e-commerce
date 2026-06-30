@@ -97,4 +97,5 @@ It tracks production-minded improvements that should be implemented as separate 
 [x] Local-prod one-command startup script.
 [x] Local-prod gateway smoke script.
 [x] Local-prod observability startup script.
+[x] Local-prod release candidate verification script.
 ```

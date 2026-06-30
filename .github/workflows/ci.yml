@@ -56,6 +56,7 @@ jobs:
             "scripts/local-prod-restore.ps1",
             "scripts/local-prod-observability-smoke.ps1",
             "scripts/local-prod-observability-up.ps1",
+            "scripts/local-prod-rc-verify.ps1",
             "scripts/local-prod-smoke.ps1",
             "scripts/local-prod-up.ps1",
             "scripts/test-kafka-lesson25.ps1"

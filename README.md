@@ -5,7 +5,7 @@ MicroShop is a learning microservices backend built with .NET 10. The project is
 Current completed:
 
 ```text
-Day 59: Local PROD Observability Release Candidate
+Day 60: Local PROD Release Candidate
 ```
 
 ## Architecture Goals
@@ -231,6 +231,18 @@ Run the local-prod observability smoke test again after the stack is up:
 
 ```powershell
 .\scripts\local-prod-observability-smoke.ps1
+```
+
+Run the local production release candidate verification:
+
+```powershell
+.\scripts\local-prod-rc-verify.ps1 -WithObservability -BuildImages -CreateBackup
+```
+
+When the Docker daemon is not available and you only want static checks:
+
+```powershell
+.\scripts\local-prod-rc-verify.ps1 -SkipDockerUp -SkipDotnetTests
 ```
 
 Create a local-prod PostgreSQL and MongoDB backup:
