@@ -43,7 +43,25 @@ public static class SecurityMiddlewareExtensions
                 return;
             }
 
+            if (options.BlockInternalRoutesOutsideDevelopment &&
+                !context.RequestServices.GetRequiredService<IHostEnvironment>().IsDevelopment() &&
+                IsInternalRoute(context.Request.Path))
+            {
+                context.Response.StatusCode = StatusCodes.Status404NotFound;
+                context.Response.ContentType = MediaTypeNames.Application.Json;
+                await context.Response.WriteAsJsonAsync(new
+                {
+                    error = "Internal routes are not available through the public gateway in this environment."
+                });
+                return;
+            }
+
             await next();
         });
+    }
+
+    private static bool IsInternalRoute(PathString path)
+    {
+        return path.Value?.EndsWith("/payment-result", StringComparison.OrdinalIgnoreCase) == true;
     }
 }

@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-init
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "microshop.labels" . | nindent 4 }}
+data:
+  001-create-databases.sql: |
+    CREATE DATABASE catalogdb;
+    CREATE DATABASE orderingdb;
+    CREATE DATABASE discountdb;
+    CREATE DATABASE identitydb;
+    CREATE DATABASE paymentdb;

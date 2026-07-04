@@ -1,0 +1,230 @@
+global:
+  imageRegistry: ghcr.io/thuoclq
+  imageTag: main
+  pullPolicy: IfNotPresent
+  storageClassName: local-path
+  imagePullSecrets: []
+
+defaultResources:
+  requests:
+    cpu: 50m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+observability:
+  enabled: true
+  grafana:
+    adminUser: admin
+    adminPassword: admin
+    storage: 2Gi
+  prometheus:
+    storage: 5Gi
+  kafkaExporter:
+    enabled: true
+
+secrets:
+  name: microshop-secrets
+
+ingress:
+  enabled: true
+  className: traefik
+  host: api.example.com
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  tls:
+    enabled: true
+    secretName: microshop-api-tls
+
+apps:
+  api-gateway:
+    kind: web
+    image:
+      repository: microshop-api-gateway
+    secretEnv:
+      MICROSHOP_JWT_SECRET_KEY: jwt-secret-key
+    env:
+      ASPNETCORE_ENVIRONMENT: Kubernetes
+      ASPNETCORE_HTTP_PORTS: "8080"
+      ServiceDefaults__ExposeHealthEndpoints: "true"
+      ServiceDefaults__ValidateProductionConfiguration: "true"
+      ServiceDefaults__RequiredConfigurationKeys__0: Jwt:SecretKey
+      Gateway__AllowedCorsOrigins__0: https://api.example.com
+      Jwt__Issuer: MicroShop.IdentityService
+      Jwt__Audience: MicroShop.Client
+      Jwt__SecretKey: $(MICROSHOP_JWT_SECRET_KEY)
+      ReverseProxy__Clusters__catalog-cluster__Destinations__catalog-destination__Address: http://catalogservice:8080/
+      ReverseProxy__Clusters__basket-cluster__Destinations__basket-destination__Address: http://basketservice:8080/
+      ReverseProxy__Clusters__ordering-cluster__Destinations__ordering-destination__Address: http://orderingservice:8080/
+      ReverseProxy__Clusters__order-query-cluster__Destinations__order-query-destination__Address: http://orderqueryservice:8080/
+      ReverseProxy__Clusters__discount-cluster__Destinations__discount-destination__Address: http://discountservice:8080/
+      ReverseProxy__Clusters__identity-cluster__Destinations__identity-destination__Address: http://identityservice:8080/
+      ReverseProxy__Clusters__payment-cluster__Destinations__payment-destination__Address: http://paymentservice:8080/
+      ReverseProxy__Routes__basket-route__AuthorizationPolicy: authenticated
+      ReverseProxy__Routes__ordering-route__AuthorizationPolicy: authenticated
+      ReverseProxy__Routes__payment-route__AuthorizationPolicy: authenticated
+  catalogservice:
+    kind: web
+    image:
+      repository: microshop-catalogservice
+    secretEnv:
+      MICROSHOP_POSTGRES_PASSWORD: postgres-password
+      MICROSHOP_JWT_SECRET_KEY: jwt-secret-key
+    env:
+      ASPNETCORE_ENVIRONMENT: Kubernetes
+      ASPNETCORE_HTTP_PORTS: "8080"
+      ServiceDefaults__ExposeHealthEndpoints: "true"
+      ServiceDefaults__ValidateProductionConfiguration: "true"
+      ServiceDefaults__RequiredConfigurationKeys__0: ConnectionStrings:CatalogDb
+      ServiceDefaults__RequiredConfigurationKeys__1: Jwt:SecretKey
+      ConnectionStrings__CatalogDb: Host=postgres;Port=5432;Database=catalogdb;Username=microshop;Password=$(MICROSHOP_POSTGRES_PASSWORD)
+      Jwt__Issuer: MicroShop.IdentityService
+      Jwt__Audience: MicroShop.Client
+      Jwt__SecretKey: $(MICROSHOP_JWT_SECRET_KEY)
+  basketservice:
+    kind: web
+    image:
+      repository: microshop-basketservice
+    env:
+      ASPNETCORE_ENVIRONMENT: Kubernetes
+      ASPNETCORE_HTTP_PORTS: "8080"
+      ServiceDefaults__ExposeHealthEndpoints: "true"
+      ServiceDefaults__ValidateProductionConfiguration: "true"
+      ServiceDefaults__RequiredConfigurationKeys__0: ConnectionStrings:Redis
+      ConnectionStrings__Redis: redis:6379
+      Redis__ConnectionString: redis:6379
+      ServiceUrls__CatalogHttp: http://catalogservice:8080
+      ServiceUrls__CatalogGrpc: http://catalogservice:8080
+  orderingservice:
+    kind: web
+    image:
+      repository: microshop-orderingservice
+    secretEnv:
+      MICROSHOP_POSTGRES_PASSWORD: postgres-password
+      MICROSHOP_RABBITMQ_PASSWORD: rabbitmq-password
+    env:
+      ASPNETCORE_ENVIRONMENT: Kubernetes
+      ASPNETCORE_HTTP_PORTS: "8080"
+      ServiceDefaults__ExposeHealthEndpoints: "true"
+      ServiceDefaults__ValidateProductionConfiguration: "true"
+      ServiceDefaults__RequiredConfigurationKeys__0: ConnectionStrings:OrderingDb
+      ServiceDefaults__RequiredConfigurationKeys__1: RabbitMq:Password
+      ConnectionStrings__OrderingDb: Host=postgres;Port=5432;Database=orderingdb;Username=microshop;Password=$(MICROSHOP_POSTGRES_PASSWORD)
+      ServiceUrls__BasketHttp: http://basketservice:8080
+      RabbitMq__Host: rabbitmq
+      RabbitMq__VirtualHost: /
+      RabbitMq__UserName: microshop
+      RabbitMq__Password: $(MICROSHOP_RABBITMQ_PASSWORD)
+  discountservice:
+    kind: web
+    image:
+      repository: microshop-discountservice
+    secretEnv:
+      MICROSHOP_POSTGRES_PASSWORD: postgres-password
+    env:
+      ASPNETCORE_ENVIRONMENT: Kubernetes
+      ASPNETCORE_HTTP_PORTS: "8080"
+      ServiceDefaults__ExposeHealthEndpoints: "true"
+      ServiceDefaults__ValidateProductionConfiguration: "true"
+      ServiceDefaults__RequiredConfigurationKeys__0: ConnectionStrings:DiscountDb
+      ConnectionStrings__DiscountDb: Host=postgres;Port=5432;Database=discountdb;Username=microshop;Password=$(MICROSHOP_POSTGRES_PASSWORD)
+  identityservice:
+    kind: web
+    image:
+      repository: microshop-identityservice
+    secretEnv:
+      MICROSHOP_POSTGRES_PASSWORD: postgres-password
+      MICROSHOP_JWT_SECRET_KEY: jwt-secret-key
+    env:
+      ASPNETCORE_ENVIRONMENT: Kubernetes
+      ASPNETCORE_HTTP_PORTS: "8080"
+      ServiceDefaults__ExposeHealthEndpoints: "true"
+      ServiceDefaults__ValidateProductionConfiguration: "true"
+      ServiceDefaults__RequiredConfigurationKeys__0: ConnectionStrings:IdentityDb
+      ServiceDefaults__RequiredConfigurationKeys__1: Jwt:SecretKey
+      ConnectionStrings__IdentityDb: Host=postgres;Port=5432;Database=identitydb;Username=microshop;Password=$(MICROSHOP_POSTGRES_PASSWORD)
+      Jwt__Issuer: MicroShop.IdentityService
+      Jwt__Audience: MicroShop.Client
+      Jwt__SecretKey: $(MICROSHOP_JWT_SECRET_KEY)
+      Jwt__ExpirationMinutes: "120"
+  paymentservice:
+    kind: web
+    image:
+      repository: microshop-paymentservice
+    secretEnv:
+      MICROSHOP_POSTGRES_PASSWORD: postgres-password
+      MICROSHOP_PAYMENT_WEBHOOK_SECRET: payment-webhook-secret
+    env:
+      ASPNETCORE_ENVIRONMENT: Kubernetes
+      ASPNETCORE_HTTP_PORTS: "8080"
+      ServiceDefaults__ExposeHealthEndpoints: "true"
+      ServiceDefaults__ValidateProductionConfiguration: "true"
+      ServiceDefaults__RequiredConfigurationKeys__0: ConnectionStrings:PaymentDb
+      ServiceDefaults__RequiredConfigurationKeys__1: PaymentWebhooks:SharedSecret
+      ConnectionStrings__PaymentDb: Host=postgres;Port=5432;Database=paymentdb;Username=microshop;Password=$(MICROSHOP_POSTGRES_PASSWORD)
+      ServiceUrls__OrderingHttp: http://orderingservice:8080
+      PaymentWebhooks__SignatureHeaderName: X-MicroShop-Signature
+      PaymentWebhooks__SharedSecret: $(MICROSHOP_PAYMENT_WEBHOOK_SECRET)
+      PaymentWebhooks__RequireSignature: "true"
+  orderqueryservice:
+    kind: web
+    image:
+      repository: microshop-orderqueryservice
+    secretEnv:
+      MICROSHOP_MONGO_PASSWORD: mongo-password
+    env:
+      ASPNETCORE_ENVIRONMENT: Kubernetes
+      ASPNETCORE_HTTP_PORTS: "8080"
+      ServiceDefaults__ExposeHealthEndpoints: "true"
+      ServiceDefaults__ValidateProductionConfiguration: "true"
+      ServiceDefaults__RequiredConfigurationKeys__0: MongoDb:ConnectionString
+      MongoDb__ConnectionString: mongodb://microshop:$(MICROSHOP_MONGO_PASSWORD)@mongodb:27017/?authSource=admin
+      MongoDb__DatabaseName: MicroShop_OrderReadDb
+      MongoDb__OrderSummariesCollectionName: order_summaries
+  projectionworker:
+    kind: worker
+    image:
+      repository: microshop-projectionworker
+    secretEnv:
+      MICROSHOP_MONGO_PASSWORD: mongo-password
+    env:
+      DOTNET_ENVIRONMENT: Kubernetes
+      ServiceDefaults__ValidateProductionConfiguration: "true"
+      ServiceDefaults__RequiredConfigurationKeys__0: Kafka:BootstrapServers
+      ServiceDefaults__RequiredConfigurationKeys__1: MongoDb:ConnectionString
+      Kafka__BootstrapServers: kafka:29092
+      Kafka__Topic: microshop.order-events
+      Kafka__GroupId: projection-worker
+      MongoDb__ConnectionString: mongodb://microshop:$(MICROSHOP_MONGO_PASSWORD)@mongodb:27017/?authSource=admin
+      MongoDb__DatabaseName: MicroShop_OrderReadDb
+      MongoDb__OrderSummariesCollectionName: order_summaries
+      MongoDb__ProjectionFailuresCollectionName: projection_failures
+  notificationworker:
+    kind: worker
+    image:
+      repository: microshop-notificationworker
+    secretEnv:
+      MICROSHOP_RABBITMQ_PASSWORD: rabbitmq-password
+    env:
+      DOTNET_ENVIRONMENT: Kubernetes
+      ServiceDefaults__ValidateProductionConfiguration: "true"
+      ServiceDefaults__RequiredConfigurationKeys__0: RabbitMq:Password
+      RabbitMq__Host: rabbitmq
+      RabbitMq__VirtualHost: /
+      RabbitMq__UserName: microshop
+      RabbitMq__Password: $(MICROSHOP_RABBITMQ_PASSWORD)
+
+infra:
+  postgres:
+    storage: 10Gi
+  redis:
+    storage: 2Gi
+  rabbitmq:
+    storage: 5Gi
+  mongodb:
+    storage: 10Gi
+  zookeeper:
+    storage: 2Gi
+  kafka:
+    storage: 10Gi

@@ -27,6 +27,8 @@ backups/
 .env
 .env.local
 .env.local-prod
+.env.k3s
+.env.prod
 .env.*.local
 
 # OS files

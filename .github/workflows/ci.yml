@@ -10,6 +10,7 @@ on:
 
 permissions:
   contents: read
+  packages: write
 
 concurrency:
   group: microshop-ci-${{ github.workflow }}-${{ github.ref }}
@@ -52,6 +53,12 @@ jobs:
         shell: pwsh
         run: |
           $scripts = @(
+            "scripts/k3s-backup.ps1",
+            "scripts/k3s-create-secrets.ps1",
+            "scripts/k3s-install-cert-manager.ps1",
+            "scripts/k3s-observability-smoke.ps1",
+            "scripts/k3s-smoke.ps1",
+            "scripts/k3s-validate.ps1",
             "scripts/local-prod-backup.ps1",
             "scripts/local-prod-restore.ps1",
             "scripts/local-prod-observability-smoke.ps1",
@@ -77,6 +84,14 @@ jobs:
       - name: Validate local-prod observability compose
         run: docker compose --env-file .env.example -f compose.local-prod.yml -f compose.observability.yml config --quiet
 
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+
+      - name: Validate K3s Helm chart
+        run: |
+          helm lint deploy/k3s/microshop --namespace microshop
+          helm template microshop deploy/k3s/microshop --namespace microshop --set global.imageTag=ci >/tmp/microshop-k3s.yaml
+
       - name: Build representative Docker images
         run: |
           docker build \
@@ -96,3 +111,73 @@ jobs:
             --build-arg PROJECT_PATH=Workers/ProjectionWorker/ProjectionWorker.csproj \
             --build-arg PROJECT_DLL=ProjectionWorker.dll \
             -t microshop/projectionworker:ci .
+
+  docker-images:
+    name: Build service images
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    needs:
+      - build-test
+      - runtime-validation
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: microshop-api-gateway
+            project: Services/ApiGateway/ApiGateway.csproj
+            dll: ApiGateway.dll
+          - image: microshop-catalogservice
+            project: Services/CatalogService/CatalogService.csproj
+            dll: CatalogService.dll
+          - image: microshop-basketservice
+            project: Services/BasketService/BasketService.csproj
+            dll: BasketService.dll
+          - image: microshop-orderingservice
+            project: Services/OrderingService/OrderingService.csproj
+            dll: OrderingService.dll
+          - image: microshop-discountservice
+            project: Services/DiscountService/DiscountService.csproj
+            dll: DiscountService.dll
+          - image: microshop-identityservice
+            project: Services/IdentityService/IdentityService.csproj
+            dll: IdentityService.dll
+          - image: microshop-paymentservice
+            project: Services/PaymentService/PaymentService.csproj
+            dll: PaymentService.dll
+          - image: microshop-orderqueryservice
+            project: Services/OrderQueryService/OrderQueryService.csproj
+            dll: OrderQueryService.dll
+          - image: microshop-notificationworker
+            project: Services/NotificationWorker/NotificationWorker.csproj
+            dll: NotificationWorker.dll
+          - image: microshop-projectionworker
+            project: Workers/ProjectionWorker/ProjectionWorker.csproj
+            dll: ProjectionWorker.dll
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        if: github.event_name == 'push'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and optionally push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.service
+          push: ${{ github.event_name == 'push' }}
+          build-args: |
+            PROJECT_PATH=${{ matrix.project }}
+            PROJECT_DLL=${{ matrix.dll }}
+          tags: |
+            ghcr.io/thuoclq/${{ matrix.image }}:main
+            ghcr.io/thuoclq/${{ matrix.image }}:main-${{ github.sha }}

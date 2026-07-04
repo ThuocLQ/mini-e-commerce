@@ -38,8 +38,12 @@ It tracks production-minded improvements that should be implemented as separate 
 [ ] API versioning policy.
 [ ] Swagger/OpenAPI enablement for Development if still not enabled.
 [ ] OpenAPI auth documentation.
+[x] Development OpenAPI JSON endpoint baseline.
 [x] Gateway route review started.
 [ ] Internal service contract review.
+[x] Production configuration fail-fast baseline.
+[x] Public gateway internal route guard baseline.
+[x] Gateway JWT validation baseline for K3s protected routes.
 ```
 
 ## Data And Persistence
@@ -85,6 +89,8 @@ It tracks production-minded improvements that should be implemented as separate 
 [x] CI test workflow.
 [x] CI local-prod compose validation.
 [x] CI representative Docker image build.
+[x] GHCR image build/push workflow.
+[x] K3s Helm chart validation in CI.
 [x] Docker image tagging strategy.
 [ ] Release tag policy.
 [x] Environment-specific deployment notes.
@@ -98,4 +104,13 @@ It tracks production-minded improvements that should be implemented as separate 
 [x] Local-prod gateway smoke script.
 [x] Local-prod observability startup script.
 [x] Local-prod release candidate verification script.
+[x] K3s single-node deployment baseline.
+[x] K3s secret creation script.
+[x] K3s smoke script.
+[x] K3s backup script.
+[x] K3s local validation script.
+[x] K3s cert-manager install script.
+[x] K3s Ingress TLS issuer annotation baseline.
+[x] K3s observability deployment baseline.
+[x] K3s observability smoke script.
 ```

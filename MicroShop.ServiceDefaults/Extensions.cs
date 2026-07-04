@@ -22,7 +22,10 @@ public static class Extensions
 
     public static TBuilder AddServiceDefaults<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder
     {
+        builder.ValidateProductionConfiguration();
+
         builder.ConfigureOpenTelemetry();
+        builder.AddDevelopmentOpenApi();
 
         builder.AddDefaultHealthChecks();
 
@@ -71,6 +74,80 @@ public static class Extensions
         // });
 
         return builder;
+    }
+
+    private static TBuilder AddDevelopmentOpenApi<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder
+    {
+        if (builder.Environment.IsDevelopment())
+        {
+            builder.Services.AddOpenApi();
+        }
+
+        return builder;
+    }
+
+    private static void ValidateProductionConfiguration<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder
+    {
+        if (!ShouldValidateProductionConfiguration(builder))
+        {
+            return;
+        }
+
+        var missingKeys = new List<string>();
+        var placeholderKeys = new List<string>();
+
+        foreach (var key in builder.Configuration.GetSection("ServiceDefaults:RequiredConfigurationKeys").GetChildren())
+        {
+            var configurationKey = key.Value;
+
+            if (string.IsNullOrWhiteSpace(configurationKey))
+            {
+                continue;
+            }
+
+            var value = builder.Configuration[configurationKey];
+
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                missingKeys.Add(configurationKey);
+                continue;
+            }
+
+            if (value.Contains("CHANGEME", StringComparison.OrdinalIgnoreCase))
+            {
+                placeholderKeys.Add(configurationKey);
+            }
+        }
+
+        if (missingKeys.Count == 0 && placeholderKeys.Count == 0)
+        {
+            return;
+        }
+
+        var message = "Production configuration validation failed.";
+
+        if (missingKeys.Count > 0)
+        {
+            message += $" Missing keys: {string.Join(", ", missingKeys)}.";
+        }
+
+        if (placeholderKeys.Count > 0)
+        {
+            message += $" Placeholder keys: {string.Join(", ", placeholderKeys)}.";
+        }
+
+        throw new InvalidOperationException(message);
+    }
+
+    private static bool ShouldValidateProductionConfiguration<TBuilder>(TBuilder builder) where TBuilder : IHostApplicationBuilder
+    {
+        if (bool.TryParse(builder.Configuration["ServiceDefaults:ValidateProductionConfiguration"], out var enabled) && enabled)
+        {
+            return true;
+        }
+
+        return builder.Environment.IsProduction() ||
+               builder.Environment.IsEnvironment("Kubernetes");
     }
 
     private static HttpClientResilienceSettings ReadHttpClientResilienceSettings(IConfiguration configuration)
@@ -190,6 +267,11 @@ public static class Extensions
             {
                 Predicate = r => r.Tags.Contains("live")
             });
+        }
+
+        if (app.Environment.IsDevelopment())
+        {
+            app.MapOpenApi();
         }
 
         return app;

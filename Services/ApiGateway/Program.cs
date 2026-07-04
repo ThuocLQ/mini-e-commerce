@@ -1,5 +1,8 @@
+using System.Text;
 using System.Threading.RateLimiting;
 using ApiGateway;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -58,6 +61,35 @@ builder.Services.AddRateLimiter(options =>
 });
 
 builder.Services
+    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        var issuer = builder.Configuration["Jwt:Issuer"];
+        var audience = builder.Configuration["Jwt:Audience"];
+        var secretKey = builder.Configuration["Jwt:SecretKey"];
+
+        if (!string.IsNullOrWhiteSpace(secretKey))
+        {
+            options.TokenValidationParameters = new TokenValidationParameters
+            {
+                ValidateIssuer = !string.IsNullOrWhiteSpace(issuer),
+                ValidIssuer = issuer,
+                ValidateAudience = !string.IsNullOrWhiteSpace(audience),
+                ValidAudience = audience,
+                ValidateIssuerSigningKey = true,
+                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey)),
+                ValidateLifetime = true,
+                ClockSkew = TimeSpan.FromMinutes(1)
+            };
+        }
+    });
+
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("authenticated", policy => policy.RequireAuthenticatedUser());
+});
+
+builder.Services
     .AddReverseProxy()
     .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));
 
@@ -68,6 +100,8 @@ app.UseSecurityHeaders();
 app.UseDebugRouteGuard(gatewayOptions);
 app.UseCors("GatewayCors");
 app.UseRateLimiter();
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapDefaultEndpoints();
 if (!app.Environment.IsDevelopment() && !app.Environment.IsEnvironment("Docker"))

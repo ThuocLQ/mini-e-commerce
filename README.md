@@ -280,6 +280,54 @@ CI runs on GitHub Actions:
 .github/workflows/ci.yml
 ```
 
+K3s/VPS deployment baseline:
+
+```powershell
+Copy-Item .env.k3s.example .env.k3s
+# Edit .env.k3s and replace every CHANGEME value.
+.\scripts\k3s-create-secrets.ps1
+.\scripts\k3s-install-cert-manager.ps1 -Email you@example.com
+helm upgrade --install microshop .\deploy\k3s\microshop --namespace microshop --create-namespace --set ingress.host=api.your-domain.com --set global.imageTag=main
+.\scripts\k3s-smoke.ps1 -GatewayBaseUrl https://api.your-domain.com
+```
+
+K3s observability is deployed inside the cluster by the same Helm chart. It includes OpenTelemetry Collector, Prometheus, Grafana, and Kafka exporter. Keep these services internal; use port-forward for local inspection:
+
+```powershell
+kubectl port-forward -n microshop svc/grafana 3000:3000
+kubectl port-forward -n microshop svc/prometheus 9090:9090
+```
+
+Smoke test observability from inside the cluster:
+
+```powershell
+.\scripts\k3s-observability-smoke.ps1
+```
+
+Validate K3s deployment assets locally:
+
+```powershell
+.\scripts\k3s-validate.ps1
+```
+
+If Helm is not installed yet:
+
+```powershell
+.\scripts\k3s-validate.ps1 -SkipHelm
+```
+
+Development OpenAPI documents are available per service at:
+
+```text
+/openapi/v1.json
+```
+
+K3s backup:
+
+```powershell
+.\scripts\k3s-backup.ps1
+```
+
 It restores, builds, runs integration tests, validates PowerShell scripts, validates local-prod compose, and builds representative Docker images.
 
 Run the lightweight gateway smoke test after starting the full system:
@@ -340,7 +388,7 @@ No processed-event collection yet.
 No OrderingService Kafka publisher yet.
 No schema registry yet.
 Observability is local-only and has no alert routing or long-term metric retention yet.
-No full CI/CD/deployment strategy yet.
+K3s deployment baseline exists, but automated VPS deploy/rollback is not complete yet.
 Local-prod secrets are externalized to `.env.local-prod`; the dev compose still uses learning-friendly defaults.
 Failure drills are documented and have a Postman collection, but are not fully automated yet.
 ```
@@ -348,5 +396,5 @@ Failure drills are documented and have a Postman collection, but are not fully a
 ## Next
 
 ```text
-Day 58: Local PROD Release Candidate
+K3s observability and deployment pipeline hardening
 ```
