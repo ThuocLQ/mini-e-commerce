@@ -1,0 +1,94 @@
+name: Deploy MicroShop K3s
+
+on:
+  workflow_dispatch:
+    inputs:
+      domain:
+        description: Public API domain, for example api.example.com
+        required: true
+        type: string
+      imageTag:
+        description: Image tag to deploy
+        required: true
+        default: main
+        type: string
+      namespace:
+        description: Kubernetes namespace
+        required: true
+        default: microshop
+        type: string
+      releaseName:
+        description: Helm release name
+        required: true
+        default: microshop
+        type: string
+      skipSmoke:
+        description: Skip gateway smoke test
+        required: true
+        default: false
+        type: boolean
+      skipObservabilitySmoke:
+        description: Skip observability smoke test
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: microshop-k3s-deploy-${{ inputs.namespace }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to K3s
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Configure kubeconfig
+        shell: bash
+        run: |
+          mkdir -p "$HOME/.kube"
+          echo "${{ secrets.KUBE_CONFIG_B64 }}" | base64 -d > "$HOME/.kube/config"
+          chmod 600 "$HOME/.kube/config"
+          kubectl config current-context
+
+      - name: Validate chart
+        shell: bash
+        run: |
+          helm lint deploy/k3s/microshop --namespace "${{ inputs.namespace }}"
+          helm template microshop deploy/k3s/microshop \
+            --namespace "${{ inputs.namespace }}" \
+            --set global.imageTag="${{ inputs.imageTag }}" \
+            --set ingress.host="${{ inputs.domain }}" >/tmp/microshop-k3s.yaml
+
+      - name: Deploy
+        shell: pwsh
+        run: |
+          $arguments = @(
+            "-Namespace", "${{ inputs.namespace }}",
+            "-ReleaseName", "${{ inputs.releaseName }}",
+            "-Domain", "${{ inputs.domain }}",
+            "-ImageTag", "${{ inputs.imageTag }}"
+          )
+
+          if ("${{ inputs.skipSmoke }}" -eq "true") {
+            $arguments += "-SkipSmoke"
+          }
+
+          if ("${{ inputs.skipObservabilitySmoke }}" -eq "true") {
+            $arguments += "-SkipObservabilitySmoke"
+          }
+
+          ./scripts/k3s-deploy.ps1 @arguments

@@ -304,6 +304,25 @@ Smoke test observability from inside the cluster:
 .\scripts\k3s-observability-smoke.ps1
 ```
 
+Manual K3s deploy from a machine with `kubectl` and `helm`:
+
+```powershell
+.\scripts\k3s-deploy.ps1 -Domain api.your-domain.com -ImageTag main
+```
+
+GitHub Actions can deploy through `.github/workflows/deploy-k3s.yml`. Required repository secret:
+
+```text
+KUBE_CONFIG_B64
+```
+
+For private GHCR images, create an image pull secret in the cluster and pass it to deploy:
+
+```powershell
+.\scripts\k3s-create-ghcr-pull-secret.ps1 -UserName your-github-user -Token your-ghcr-token
+.\scripts\k3s-deploy.ps1 -Domain api.your-domain.com -ImageTag main -ImagePullSecretName ghcr-pull-secret
+```
+
 Validate K3s deployment assets locally:
 
 ```powershell
@@ -388,7 +407,7 @@ No processed-event collection yet.
 No OrderingService Kafka publisher yet.
 No schema registry yet.
 Observability is local-only and has no alert routing or long-term metric retention yet.
-K3s deployment baseline exists, but automated VPS deploy/rollback is not complete yet.
+K3s deployment baseline exists with manual GitHub Actions deploy, but full production release governance is not complete yet.
 Local-prod secrets are externalized to `.env.local-prod`; the dev compose still uses learning-friendly defaults.
 Failure drills are documented and have a Postman collection, but are not fully automated yet.
 ```

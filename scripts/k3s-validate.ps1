@@ -11,6 +11,8 @@ $ErrorActionPreference = "Stop"
 $scripts = @(
     "scripts/k3s-backup.ps1",
     "scripts/k3s-create-secrets.ps1",
+    "scripts/k3s-create-ghcr-pull-secret.ps1",
+    "scripts/k3s-deploy.ps1",
     "scripts/k3s-install-cert-manager.ps1",
     "scripts/k3s-observability-smoke.ps1",
     "scripts/k3s-smoke.ps1",

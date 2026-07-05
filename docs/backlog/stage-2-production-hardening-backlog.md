@@ -113,4 +113,7 @@ It tracks production-minded improvements that should be implemented as separate 
 [x] K3s Ingress TLS issuer annotation baseline.
 [x] K3s observability deployment baseline.
 [x] K3s observability smoke script.
+[x] K3s manual deploy workflow.
+[x] K3s deploy script with smoke and rollback.
+[x] GHCR image pull secret helper script.
 ```
