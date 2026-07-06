@@ -54,6 +54,7 @@ foreach ($deployment in $deployments) {
 Invoke-ClusterHttpCheck -Name "OtelCollector" -Url "http://otel-collector:13133/"
 Invoke-ClusterHttpCheck -Name "PrometheusReady" -Url "http://prometheus:9090/-/ready"
 Invoke-ClusterHttpCheck -Name "PrometheusQuery" -Url "http://prometheus:9090/api/v1/query?query=up"
+Invoke-ClusterHttpCheck -Name "PrometheusRules" -Url "http://prometheus:9090/api/v1/rules?type=alert"
 Invoke-ClusterHttpCheck -Name "GrafanaHealth" -Url "http://grafana:3000/api/health"
 
 Write-Host "MicroShop K3s observability smoke passed."

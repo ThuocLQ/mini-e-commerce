@@ -130,6 +130,10 @@ data:
     global:
       scrape_interval: 15s
       evaluation_interval: 15s
+    {{- if .Values.observability.alerts.enabled }}
+    rule_files:
+      - /etc/prometheus/rules/*.yml
+    {{- end }}
     scrape_configs:
       - job_name: otel-collector
         static_configs:
@@ -142,6 +146,73 @@ data:
         static_configs:
           - targets: ["kafka-exporter:9308"]
       {{- end }}
+{{- if .Values.observability.alerts.enabled }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-alert-rules
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "microshop.labels" . | nindent 4 }}
+data:
+  microshop-alerts.yml: |
+    groups:
+      - name: microshop.platform
+        rules:
+          - alert: MicroShopOtelCollectorDown
+            expr: up{job="otel-collector"} == 0
+            for: 2m
+            labels:
+              severity: critical
+            annotations:
+              summary: OpenTelemetry Collector is not scrapeable.
+              description: Prometheus cannot scrape the OpenTelemetry Collector metrics endpoint.
+          - alert: MicroShopKafkaExporterDown
+            expr: up{job="kafka-exporter"} == 0
+            for: 2m
+            labels:
+              severity: warning
+            annotations:
+              summary: Kafka exporter is not scrapeable.
+              description: Prometheus cannot scrape Kafka exporter metrics, so consumer lag visibility is degraded.
+      - name: microshop.application
+        rules:
+          - alert: MicroShopHttpServerErrorsHigh
+            expr: sum(increase(http_server_request_duration_seconds_count{http_response_status_code=~"5.."}[5m])) > {{ .Values.observability.alerts.httpServerErrorRateThreshold }}
+            for: 2m
+            labels:
+              severity: warning
+            annotations:
+              summary: HTTP 5xx responses increased.
+              description: One or more MicroShop APIs returned too many 5xx responses in the last five minutes.
+          - alert: MicroShopOutboxFailuresDetected
+            expr: sum(increase(microshop_outbox_failed_total[5m])) >= {{ .Values.observability.alerts.outboxFailedThreshold }}
+            for: 1m
+            labels:
+              severity: warning
+            annotations:
+              summary: Outbox failures detected.
+              description: At least one outbox publisher reported failed messages.
+          - alert: MicroShopProjectionFailuresDetected
+            expr: sum(increase(microshop_projection_failures_total[5m])) >= {{ .Values.observability.alerts.projectionFailureThreshold }}
+            for: 1m
+            labels:
+              severity: warning
+            annotations:
+              summary: Projection failures detected.
+              description: ProjectionWorker recorded failed or unsupported Kafka messages.
+      - name: microshop.kafka
+        rules:
+          - alert: MicroShopProjectionWorkerLagHigh
+            expr: max(kafka_consumergroup_lag{consumergroup="projection-worker"}) > {{ .Values.observability.alerts.kafkaConsumerLagThreshold }}
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: ProjectionWorker Kafka lag is high.
+              description: ProjectionWorker is behind the microshop.order-events topic beyond the configured threshold.
+{{- end }}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -174,6 +245,10 @@ spec:
           volumeMounts:
             - name: config
               mountPath: /etc/prometheus
+            {{- if .Values.observability.alerts.enabled }}
+            - name: alert-rules
+              mountPath: /etc/prometheus/rules
+            {{- end }}
             - name: data
               mountPath: /prometheus
           readinessProbe:
@@ -186,6 +261,11 @@ spec:
         - name: config
           configMap:
             name: prometheus-config
+        {{- if .Values.observability.alerts.enabled }}
+        - name: alert-rules
+          configMap:
+            name: prometheus-alert-rules
+        {{- end }}
         - name: data
           persistentVolumeClaim:
             claimName: prometheus-data

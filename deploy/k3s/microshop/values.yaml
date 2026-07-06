@@ -21,6 +21,12 @@ observability:
     storage: 2Gi
   prometheus:
     storage: 5Gi
+  alerts:
+    enabled: true
+    kafkaConsumerLagThreshold: 100
+    httpServerErrorRateThreshold: 5
+    outboxFailedThreshold: 1
+    projectionFailureThreshold: 1
   kafkaExporter:
     enabled: true
 

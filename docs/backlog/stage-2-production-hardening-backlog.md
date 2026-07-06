@@ -28,7 +28,7 @@ It tracks production-minded improvements that should be implemented as separate 
 [ ] RabbitMQ queue depth/error queue monitoring.
 [x] Grafana dashboard.
 [x] Local-prod observability smoke script.
-[ ] Alerting intro.
+[x] Alerting intro.
 ```
 
 ## API And Architecture

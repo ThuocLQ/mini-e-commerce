@@ -291,7 +291,7 @@ helm upgrade --install microshop .\deploy\k3s\microshop --namespace microshop --
 .\scripts\k3s-smoke.ps1 -GatewayBaseUrl https://api.your-domain.com
 ```
 
-K3s observability is deployed inside the cluster by the same Helm chart. It includes OpenTelemetry Collector, Prometheus, Grafana, and Kafka exporter. Keep these services internal; use port-forward for local inspection:
+K3s observability is deployed inside the cluster by the same Helm chart. It includes OpenTelemetry Collector, Prometheus, Grafana, Kafka exporter, and starter Prometheus alert rules. Keep these services internal; use port-forward for local inspection:
 
 ```powershell
 kubectl port-forward -n microshop svc/grafana 3000:3000
@@ -303,6 +303,8 @@ Smoke test observability from inside the cluster:
 ```powershell
 .\scripts\k3s-observability-smoke.ps1
 ```
+
+Starter alert rules are rendered into Prometheus by the Helm chart and cover collector/exporter availability, HTTP 5xx growth, outbox failures, projection failures, and ProjectionWorker Kafka lag. This is alert-rule groundwork only; Alertmanager routing and real notification channels are still a later production step.
 
 Manual K3s deploy from a machine with `kubectl` and `helm`:
 
@@ -406,7 +408,7 @@ No Kafka retry topic/DLT yet.
 No processed-event collection yet.
 No OrderingService Kafka publisher yet.
 No schema registry yet.
-Observability is local-only and has no alert routing or long-term metric retention yet.
+Observability has starter Prometheus alert rules, but no Alertmanager routing or long-term metric retention yet.
 K3s deployment baseline exists with manual GitHub Actions deploy, but full production release governance is not complete yet.
 Local-prod secrets are externalized to `.env.local-prod`; the dev compose still uses learning-friendly defaults.
 Failure drills are documented and have a Postman collection, but are not fully automated yet.
