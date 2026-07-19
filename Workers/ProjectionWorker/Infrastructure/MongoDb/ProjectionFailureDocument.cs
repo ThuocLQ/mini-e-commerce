@@ -32,6 +32,15 @@ public sealed class ProjectionFailureDocument
     [BsonElement("error")]
     public string Error { get; init; } = default!;
 
+    [BsonElement("failureKind")]
+    public string FailureKind { get; init; } = default!;
+
+    [BsonElement("retryCount")]
+    public int RetryCount { get; init; }
+
+    [BsonElement("deadLetterTopic")]
+    public string DeadLetterTopic { get; init; } = default!;
+
     [BsonElement("occurredAtUtc")]
     public DateTime? OccurredAtUtc { get; init; }
 

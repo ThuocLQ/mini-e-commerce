@@ -7,8 +7,8 @@ It tracks production-minded improvements that should be implemented as separate 
 ## Event-Driven Reliability
 
 ```text
-[ ] Kafka retry topic and DLT.
-[ ] Projection processed-event collection.
+[x] Kafka retry topic and DLT.
+[x] Projection processed-event collection.
 [x] Projection rebuild mode.
 [ ] OrderingService outbox publisher to Kafka.
 [ ] Contract/schema versioning for Kafka events.

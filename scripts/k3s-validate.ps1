@@ -25,7 +25,8 @@ $scripts = @(
     "scripts/local-prod-rc-verify.ps1",
     "scripts/local-prod-smoke.ps1",
     "scripts/local-prod-up.ps1",
-    "scripts/test-kafka-lesson25.ps1"
+    "scripts/test-kafka-lesson25.ps1",
+    "scripts/test-projection-reliability.ps1"
 )
 
 foreach ($script in $scripts) {

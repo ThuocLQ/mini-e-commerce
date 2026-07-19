@@ -98,5 +98,27 @@ public sealed class MongoProjectionInitializer : IMongoProjectionInitializer
                     })
             ],
             cancellationToken);
+
+        var processedEvents = database.GetCollection<ProcessedProjectionEventDocument>(
+            _options.ProcessedEventsCollectionName);
+
+        await processedEvents.Indexes.CreateManyAsync(
+            [
+                new CreateIndexModel<ProcessedProjectionEventDocument>(
+                    Builders<ProcessedProjectionEventDocument>.IndexKeys
+                        .Ascending(x => x.OrderId)
+                        .Descending(x => x.OccurredAtUtc),
+                    new CreateIndexOptions
+                    {
+                        Name = "IX_processed_projection_events_orderId_occurredAtUtc_desc"
+                    }),
+                new CreateIndexModel<ProcessedProjectionEventDocument>(
+                    Builders<ProcessedProjectionEventDocument>.IndexKeys.Descending(x => x.ProcessedAtUtc),
+                    new CreateIndexOptions
+                    {
+                        Name = "IX_processed_projection_events_processedAtUtc_desc"
+                    })
+            ],
+            cancellationToken);
     }
 }

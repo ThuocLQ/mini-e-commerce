@@ -1,44 +1,33 @@
-using System.Text.Json;
-using BuildingBlocks.Contracts.Correlation;
 using Confluent.Kafka;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using MicroShop.ServiceDefaults.Diagnostics;
-using ProjectionWorker.Application.Abstractions;
-using ProjectionWorker.Application.Events;
-using ProjectionWorker.Application.Projections;
 using ProjectionWorker.Infrastructure.MongoDb;
 
 namespace ProjectionWorker.Infrastructure.Kafka;
 
 public sealed class KafkaProjectionWorker : BackgroundService
 {
-    private static readonly JsonSerializerOptions JsonSerializerOptions = new()
-    {
-        PropertyNameCaseInsensitive = true
-    };
-
     private readonly KafkaOptions _options;
     private readonly MongoDbOptions _mongoOptions;
-    private readonly OrderProjectionHandler _projectionHandler;
-    private readonly IProjectionFailureStore _failureStore;
     private readonly IMongoProjectionInitializer _mongoProjectionInitializer;
+    private readonly KafkaProjectionMessageProcessor _messageProcessor;
+    private readonly KafkaProjectionFailureRouter _failureRouter;
     private readonly ILogger<KafkaProjectionWorker> _logger;
 
     public KafkaProjectionWorker(
         IOptions<KafkaOptions> options,
         IOptions<MongoDbOptions> mongoOptions,
-        OrderProjectionHandler projectionHandler,
-        IProjectionFailureStore failureStore,
         IMongoProjectionInitializer mongoProjectionInitializer,
+        KafkaProjectionMessageProcessor messageProcessor,
+        KafkaProjectionFailureRouter failureRouter,
         ILogger<KafkaProjectionWorker> logger)
     {
         _options = options.Value;
         _mongoOptions = mongoOptions.Value;
-        _projectionHandler = projectionHandler;
-        _failureStore = failureStore;
         _mongoProjectionInitializer = mongoProjectionInitializer;
+        _messageProcessor = messageProcessor;
+        _failureRouter = failureRouter;
         _logger = logger;
     }
 
@@ -47,22 +36,22 @@ public sealed class KafkaProjectionWorker : BackgroundService
         await _mongoProjectionInitializer.InitializeAsync(stoppingToken);
 
         using var consumer = BuildConsumer();
-        consumer.Subscribe(_options.Topic);
+        var subscribedTopics = _mongoOptions.RebuildModeEnabled
+            ? new[] { _options.Topic }
+            : new[] { _options.Topic, _options.RetryTopic };
+        consumer.Subscribe(subscribedTopics);
 
         _logger.LogInformation(
-            "ProjectionWorker subscribed to Kafka topic {Topic} with group {GroupId}. RebuildMode={RebuildMode}, TargetCollection={TargetCollection}.",
-            _options.Topic,
+            "ProjectionWorker subscribed to Kafka topics {Topics} with group {GroupId}. RetryTopic={RetryTopic}, DeadLetterTopic={DeadLetterTopic}, MaxRetryAttempts={MaxRetryAttempts}, RebuildMode={RebuildMode}, TargetCollection={TargetCollection}.",
+            string.Join(", ", subscribedTopics),
             _options.GroupId,
+            _options.RetryTopic,
+            _options.DeadLetterTopic,
+            _options.MaxRetryAttempts,
             _mongoOptions.RebuildModeEnabled,
             _mongoOptions.EffectiveOrderSummariesCollectionName);
 
-        if (_mongoOptions.RebuildModeEnabled
-            && string.Equals(_options.GroupId, "projection-worker", StringComparison.OrdinalIgnoreCase))
-        {
-            _logger.LogWarning(
-                "Projection rebuild mode is enabled with the default consumer group {GroupId}. Use a dedicated rebuild group id to replay without moving the live projection group offset.",
-                _options.GroupId);
-        }
+        WarnAboutDefaultRebuildGroup();
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -71,18 +60,18 @@ public sealed class KafkaProjectionWorker : BackgroundService
             try
             {
                 consumeResult = consumer.Consume(stoppingToken);
+                await WaitForRetryWindowAsync(consumeResult, stoppingToken);
 
-                await ProcessAsync(consumeResult, stoppingToken);
+                var result = await _messageProcessor.ProcessAsync(consumeResult, stoppingToken);
+                if (result.Outcome == ProjectionProcessingOutcome.PermanentFailure)
+                {
+                    await _failureRouter.RoutePermanentFailureAsync(
+                        consumeResult,
+                        result,
+                        stoppingToken);
+                }
 
-                consumer.Commit(consumeResult);
-
-                _logger.LogInformation(
-                    "Projection Kafka offset committed. Service={Service}, Topic={Topic}, Partition={Partition}, Offset={Offset}, Key={Key}.",
-                    "ProjectionWorker",
-                    consumeResult.Topic,
-                    consumeResult.Partition.Value,
-                    consumeResult.Offset.Value,
-                    consumeResult.Message.Key);
+                Commit(consumer, consumeResult, result.Outcome.ToString());
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -90,28 +79,30 @@ public sealed class KafkaProjectionWorker : BackgroundService
             }
             catch (ConsumeException exception)
             {
-                _logger.LogError(exception, "Kafka consume failed.");
+                _logger.LogError(exception, "Kafka consume failed. Retrying consumer poll.");
+                await DelayAfterConsumerErrorAsync(stoppingToken);
             }
             catch (KafkaException exception)
             {
-                _logger.LogError(exception, "Kafka commit failed. The message may be replayed.");
+                _logger.LogError(
+                    exception,
+                    "Kafka publish or commit failed. Source offset was not acknowledged and may be replayed.");
+                await DelayAfterConsumerErrorAsync(stoppingToken);
             }
-            catch (Exception exception)
+            catch (Exception exception) when (!stoppingToken.IsCancellationRequested)
             {
                 if (consumeResult is null)
                 {
                     _logger.LogError(exception, "ProjectionWorker failed before receiving a Kafka message.");
+                    await DelayAfterConsumerErrorAsync(stoppingToken);
                     continue;
                 }
 
-                _logger.LogError(
+                await RouteTransientFailureSafelyAsync(
+                    consumer,
+                    consumeResult,
                     exception,
-                    "Projection MongoDB apply failed. Service={Service}, Topic={Topic}, Partition={Partition}, Offset={Offset}, Key={Key}. Offset was not committed.",
-                    "ProjectionWorker",
-                    consumeResult.Topic,
-                    consumeResult.Partition.Value,
-                    consumeResult.Offset.Value,
-                    consumeResult.Message.Key);
+                    stoppingToken);
             }
         }
 
@@ -120,160 +111,131 @@ public sealed class KafkaProjectionWorker : BackgroundService
 
     private IConsumer<string, string> BuildConsumer()
     {
+        var maxPollIntervalSeconds = Math.Max(
+            300,
+            _options.MaxRetryDelaySeconds + 60);
         var config = new ConsumerConfig
         {
             BootstrapServers = _options.BootstrapServers,
             GroupId = _options.GroupId,
             EnableAutoCommit = false,
             AutoOffsetReset = ResolveAutoOffsetReset(_options.AutoOffsetReset),
-            AllowAutoCreateTopics = false
+            AllowAutoCreateTopics = false,
+            MaxPollIntervalMs = checked(maxPollIntervalSeconds * 1000)
         };
 
         return new ConsumerBuilder<string, string>(config)
             .SetPartitionsAssignedHandler((_, partitions) =>
             {
                 _logger.LogInformation(
-                    "ProjectionWorker Kafka partitions assigned. Service={Service}, Topic={Topic}, Partitions={Partitions}.",
+                    "ProjectionWorker Kafka partitions assigned. Service={Service}, Partitions={Partitions}.",
                     "ProjectionWorker",
-                    _options.Topic,
                     FormatTopicPartitions(partitions));
             })
             .SetPartitionsRevokedHandler((_, partitions) =>
             {
                 _logger.LogWarning(
-                    "ProjectionWorker Kafka partitions revoked during rebalance. Service={Service}, Topic={Topic}, Partitions={Partitions}.",
+                    "ProjectionWorker Kafka partitions revoked during rebalance. Service={Service}, Partitions={Partitions}.",
                     "ProjectionWorker",
-                    _options.Topic,
                     FormatTopicPartitionOffsets(partitions));
             })
             .SetPartitionsLostHandler((_, partitions) =>
             {
                 _logger.LogWarning(
-                    "ProjectionWorker Kafka partitions lost during rebalance. Service={Service}, Topic={Topic}, Partitions={Partitions}. Uncommitted messages may be replayed.",
+                    "ProjectionWorker Kafka partitions lost during rebalance. Service={Service}, Partitions={Partitions}. Uncommitted messages may be replayed.",
                     "ProjectionWorker",
-                    _options.Topic,
                     FormatTopicPartitionOffsets(partitions));
             })
             .Build();
     }
 
-    private async Task ProcessAsync(
+    private async Task RouteTransientFailureSafelyAsync(
+        IConsumer<string, string> consumer,
         ConsumeResult<string, string> consumeResult,
+        Exception exception,
         CancellationToken cancellationToken)
     {
-        OrderProjectionEvent? orderEvent = null;
-
         try
         {
-            orderEvent = JsonSerializer.Deserialize<OrderProjectionEvent>(
-                consumeResult.Message.Value,
-                JsonSerializerOptions);
-
-            if (orderEvent is null)
-            {
-                throw new InvalidOperationException("Kafka message body is empty.");
-            }
-
-            ValidateMessageKey(consumeResult, orderEvent);
-
-            using (CorrelationContext.BeginScope(orderEvent.CorrelationId))
-            using (_logger.BeginScope(new Dictionary<string, object?>
-                   {
-                       ["CorrelationId"] = orderEvent.CorrelationId
-                   }))
-            {
-                await _projectionHandler.ApplyAsync(orderEvent, cancellationToken);
-                MicroShopMetrics.RecordProjectionEvent("applied", orderEvent.EventType);
-
-                _logger.LogInformation(
-                    "Projection event applied. Service={Service}, Topic={Topic}, Partition={Partition}, Offset={Offset}, Key={Key}, EventId={EventId}, EventType={EventType}, OrderId={OrderId}, CustomerId={CustomerId}, CorrelationId={CorrelationId}.",
-                    "ProjectionWorker",
-                    consumeResult.Topic,
-                    consumeResult.Partition.Value,
-                    consumeResult.Offset.Value,
-                    consumeResult.Message.Key,
-                    orderEvent.EventId,
-                    orderEvent.EventType,
-                    orderEvent.OrderId,
-                    orderEvent.CustomerId,
-                    orderEvent.CorrelationId);
-            }
+            var route = await _failureRouter.RouteTransientFailureAsync(
+                consumeResult,
+                exception,
+                cancellationToken);
+            Commit(consumer, consumeResult, route);
         }
-        catch (JsonException exception)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            await SaveFailureAsync(consumeResult, orderEvent, exception.Message, cancellationToken);
+            return;
         }
-        catch (ArgumentException exception)
+        catch (Exception routingException)
         {
-            await SaveFailureAsync(consumeResult, orderEvent, exception.Message, cancellationToken);
-        }
-        catch (InvalidOperationException exception)
-        {
-            await SaveFailureAsync(consumeResult, orderEvent, exception.Message, cancellationToken);
+            _logger.LogError(
+                routingException,
+                "Projection retry/DLT routing failed. Topic={Topic}, Partition={Partition}, Offset={Offset}. Source offset was not committed.",
+                consumeResult.Topic,
+                consumeResult.Partition.Value,
+                consumeResult.Offset.Value);
+            await DelayAfterConsumerErrorAsync(cancellationToken);
         }
     }
 
-    private static void ValidateMessageKey(
+    private async Task WaitForRetryWindowAsync(
         ConsumeResult<string, string> consumeResult,
-        OrderProjectionEvent orderEvent)
-    {
-        var expectedKey = orderEvent.OrderId.ToString("D");
-
-        if (orderEvent.OrderId != Guid.Empty
-            && !string.Equals(consumeResult.Message.Key, expectedKey, StringComparison.OrdinalIgnoreCase))
-        {
-            throw new ArgumentException($"Kafka message key must match orderId '{expectedKey}'.");
-        }
-    }
-
-    private async Task SaveFailureAsync(
-        ConsumeResult<string, string> consumeResult,
-        OrderProjectionEvent? orderEvent,
-        string error,
         CancellationToken cancellationToken)
     {
-        var failure = new ProjectionFailure
+        if (!string.Equals(consumeResult.Topic, _options.RetryTopic, StringComparison.Ordinal))
         {
-            EventId = orderEvent?.EventId == Guid.Empty ? null : orderEvent?.EventId,
-            CorrelationId = orderEvent?.CorrelationId,
-            Topic = consumeResult.Topic,
-            Partition = consumeResult.Partition.Value,
-            Offset = consumeResult.Offset.Value,
-            Key = consumeResult.Message.Key,
-            RawValue = consumeResult.Message.Value,
-            Error = error,
-            OccurredAtUtc = ToNullableUtc(orderEvent?.OccurredAtUtc)
-        };
+            return;
+        }
 
-        await _failureStore.SaveAsync(failure, cancellationToken);
-        MicroShopMetrics.RecordProjectionEvent("failed", orderEvent?.EventType);
+        var notBeforeUtc = KafkaProjectionHeaders.ReadNotBeforeUtc(consumeResult.Message.Headers);
+        if (notBeforeUtc is null)
+        {
+            return;
+        }
 
-        _logger.LogWarning(
-            "Projection message stored as failure. Service={Service}, Topic={Topic}, Partition={Partition}, Offset={Offset}, Key={Key}, EventId={EventId}, EventType={EventType}, OrderId={OrderId}, CorrelationId={CorrelationId}, Reason={Reason}.",
-            "ProjectionWorker",
+        var remaining = notBeforeUtc.Value - DateTime.UtcNow;
+        if (remaining <= TimeSpan.Zero)
+        {
+            return;
+        }
+
+        var boundedDelay = TimeSpan.FromSeconds(
+            Math.Min(remaining.TotalSeconds, _options.MaxRetryDelaySeconds));
+        await Task.Delay(boundedDelay, cancellationToken);
+    }
+
+    private void Commit(
+        IConsumer<string, string> consumer,
+        ConsumeResult<string, string> consumeResult,
+        string outcome)
+    {
+        consumer.Commit(consumeResult);
+        _logger.LogInformation(
+            "Projection Kafka offset committed. Topic={Topic}, Partition={Partition}, Offset={Offset}, Key={Key}, Outcome={Outcome}.",
             consumeResult.Topic,
             consumeResult.Partition.Value,
             consumeResult.Offset.Value,
             consumeResult.Message.Key,
-            ToNullableGuid(orderEvent?.EventId),
-            orderEvent?.EventType,
-            ToNullableGuid(orderEvent?.OrderId),
-            orderEvent?.CorrelationId,
-            error);
+            outcome);
     }
 
-    private static Guid? ToNullableGuid(Guid? value)
+    private async Task DelayAfterConsumerErrorAsync(CancellationToken cancellationToken)
     {
-        return value is null || value.Value == Guid.Empty
-            ? null
-            : value.Value;
+        await Task.Delay(
+            TimeSpan.FromSeconds(_options.ConsumerErrorDelaySeconds),
+            cancellationToken);
     }
 
-    private static DateTime? ToNullableUtc(DateTime? value)
+    private void WarnAboutDefaultRebuildGroup()
     {
-        return value is null || value.Value == default
-            ? null
-            : value.Value;
+        if (_mongoOptions.RebuildModeEnabled
+            && string.Equals(_options.GroupId, "projection-worker", StringComparison.OrdinalIgnoreCase))
+        {
+            _logger.LogWarning(
+                "Projection rebuild mode is enabled with the default consumer group {GroupId}. Use a dedicated rebuild group id to avoid moving the live projection offset.",
+                _options.GroupId);
+        }
     }
 
     private static AutoOffsetReset ResolveAutoOffsetReset(string value)

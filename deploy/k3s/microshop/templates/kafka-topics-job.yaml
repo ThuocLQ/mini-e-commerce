@@ -1,0 +1,34 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kafka-topics-init
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: kafka-topics-init
+    {{- include "microshop.labels" . | nindent 4 }}
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-weight: "0"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 10
+  activeDeadlineSeconds: 300
+  ttlSecondsAfterFinished: 300
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: kafka-topics-init
+        {{- include "microshop.labels" . | nindent 8 }}
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: kafka-topics-init
+          image: confluentinc/cp-kafka:7.6.1
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              until kafka-topics --bootstrap-server kafka:29092 --list >/dev/null 2>&1; do sleep 3; done
+              kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic {{ index .Values.apps.projectionworker.env "Kafka__Topic" | quote }} --partitions 3 --replication-factor 1
+              kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic {{ index .Values.apps.projectionworker.env "Kafka__RetryTopic" | quote }} --partitions 3 --replication-factor 1
+              kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic {{ index .Values.apps.projectionworker.env "Kafka__DeadLetterTopic" | quote }} --partitions 3 --replication-factor 1

@@ -152,6 +152,20 @@ services:
     networks:
       - microshop-network
 
+  kafka-init:
+    image: confluentinc/cp-kafka:7.6.1
+    restart: "no"
+    depends_on:
+      kafka:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-ec"]
+    command: >-
+      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic microshop.order-events --partitions 3 --replication-factor 1;
+      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic microshop.order-events.retry --partitions 3 --replication-factor 1;
+      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic microshop.order-events.dlt --partitions 3 --replication-factor 1
+    networks:
+      - microshop-network
+
   mongodb:
     image: mongo:7
     restart: unless-stopped
@@ -334,17 +348,20 @@ services:
       DOTNET_ENVIRONMENT: Docker
       Kafka__BootstrapServers: kafka:29092
       Kafka__Topic: microshop.order-events
+      Kafka__RetryTopic: microshop.order-events.retry
+      Kafka__DeadLetterTopic: microshop.order-events.dlt
       Kafka__GroupId: projection-worker
       Kafka__AutoOffsetReset: Earliest
       MongoDb__ConnectionString: ${MICROSHOP_MONGODB_CONNECTION_STRING:?Set MICROSHOP_MONGODB_CONNECTION_STRING in .env.local-prod}
       MongoDb__DatabaseName: MicroShop_OrderReadDb
       MongoDb__OrderSummariesCollectionName: order_summaries
       MongoDb__ProjectionFailuresCollectionName: projection_failures
+      MongoDb__ProcessedEventsCollectionName: processed_projection_events
       MongoDb__InitializeMaxRetryCount: 10
       MongoDb__InitializeRetryDelaySeconds: 3
     depends_on:
-      kafka:
-        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
       mongodb:
         condition: service_healthy
 

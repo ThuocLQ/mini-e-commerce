@@ -10,6 +10,7 @@ public sealed class MongoDbOptions
     public bool RebuildModeEnabled { get; init; }
     public string RebuildOrderSummariesCollectionName { get; init; } = "order_summaries_rebuild";
     public string ProjectionFailuresCollectionName { get; init; } = "projection_failures";
+    public string ProcessedEventsCollectionName { get; init; } = "processed_projection_events";
     public int InitializeMaxRetryCount { get; init; } = 10;
     public int InitializeRetryDelaySeconds { get; init; } = 3;
 

@@ -21,7 +21,7 @@ public sealed class OrderProjectionHandler
         await _repository.ApplyAsync(orderEvent, cancellationToken);
     }
 
-    private static void Validate(OrderProjectionEvent orderEvent)
+    public static void Validate(OrderProjectionEvent orderEvent)
     {
         if (orderEvent.EventId == Guid.Empty)
         {

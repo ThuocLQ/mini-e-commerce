@@ -11,6 +11,9 @@ public sealed class ProjectionFailure
     public string? Key { get; init; }
     public string RawValue { get; init; } = default!;
     public string Error { get; init; } = default!;
+    public string FailureKind { get; init; } = default!;
+    public int RetryCount { get; init; }
+    public string DeadLetterTopic { get; init; } = default!;
     public DateTime? OccurredAtUtc { get; init; }
     public DateTime CreatedAtUtc { get; init; } = DateTime.UtcNow;
 }

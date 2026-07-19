@@ -201,11 +201,17 @@ apps:
       ServiceDefaults__RequiredConfigurationKeys__1: MongoDb:ConnectionString
       Kafka__BootstrapServers: kafka:29092
       Kafka__Topic: microshop.order-events
+      Kafka__RetryTopic: microshop.order-events.retry
+      Kafka__DeadLetterTopic: microshop.order-events.dlt
       Kafka__GroupId: projection-worker
+      Kafka__MaxRetryAttempts: "3"
+      Kafka__InitialRetryDelaySeconds: "5"
+      Kafka__MaxRetryDelaySeconds: "60"
       MongoDb__ConnectionString: mongodb://microshop:$(MICROSHOP_MONGO_PASSWORD)@mongodb:27017/?authSource=admin
       MongoDb__DatabaseName: MicroShop_OrderReadDb
       MongoDb__OrderSummariesCollectionName: order_summaries
       MongoDb__ProjectionFailuresCollectionName: projection_failures
+      MongoDb__ProcessedEventsCollectionName: processed_projection_events
   notificationworker:
     kind: worker
     image:

@@ -167,6 +167,9 @@ RabbitMQ is used for workflow/task messages.
 Kafka CLI demo producer
 -> Kafka topic microshop.order-events
 -> ProjectionWorker
+   -> transient failure: microshop.order-events.retry (bounded exponential backoff)
+   -> permanent/exhausted failure: microshop.order-events.dlt
+   -> processed_projection_events (EventId deduplication)
 -> MongoDB MicroShop_OrderReadDb.order_summaries
 -> OrderQueryService
 -> ApiGateway
@@ -180,6 +183,12 @@ Lite projection demo:
 
 ```powershell
 docker compose up -d --build zookeeper kafka mongodb orderqueryservice projectionworker
+```
+
+Projection retry/DLT and duplicate-event smoke test:
+
+```powershell
+.\scripts\test-projection-reliability.ps1
 ```
 
 Full local system:
@@ -407,10 +416,9 @@ This is a learning project, not a production-ready platform.
 Known limitations:
 
 ```text
-No Kafka retry topic/DLT yet.
-No processed-event collection yet.
 No OrderingService Kafka publisher yet.
 No schema registry yet.
+Projection apply and processed-event marker are not yet one atomic MongoDB transaction; safe replay currently relies on idempotent upsert.
 Observability has starter Prometheus alert rules, but no Alertmanager routing or long-term metric retention yet.
 K3s deployment baseline exists with manual GitHub Actions deploy, but full production release governance is not complete yet.
 Local-prod secrets are externalized to `.env.local-prod`; the dev compose still uses learning-friendly defaults.
@@ -420,5 +428,5 @@ Failure drills are documented and have a Postman collection, but are not fully a
 ## Next
 
 ```text
-K3s observability and deployment pipeline hardening
+OrderingService Kafka outbox publisher and event contract versioning
 ```

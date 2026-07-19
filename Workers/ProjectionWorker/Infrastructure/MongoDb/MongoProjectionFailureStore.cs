@@ -34,6 +34,9 @@ public sealed class MongoProjectionFailureStore : IProjectionFailureStore
             Key = failure.Key,
             RawValue = failure.RawValue,
             Error = failure.Error,
+            FailureKind = failure.FailureKind,
+            RetryCount = failure.RetryCount,
+            DeadLetterTopic = failure.DeadLetterTopic,
             OccurredAtUtc = failure.OccurredAtUtc,
             CreatedAtUtc = failure.CreatedAtUtc
         };
