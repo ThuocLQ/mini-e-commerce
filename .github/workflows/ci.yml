@@ -59,6 +59,7 @@ jobs:
             "scripts/k3s-deploy.ps1",
             "scripts/k3s-install-cert-manager.ps1",
             "scripts/k3s-observability-smoke.ps1",
+            "scripts/k3s-restore.ps1",
             "scripts/k3s-smoke.ps1",
             "scripts/k3s-validate.ps1",
             "scripts/local-prod-backup.ps1",

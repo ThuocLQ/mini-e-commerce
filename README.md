@@ -343,13 +343,16 @@ Development OpenAPI documents are available per service at:
 /openapi/v1.json
 ```
 
-K3s backup:
+K3s backup and restore:
 
 ```powershell
 .\scripts\k3s-backup.ps1
+.\scripts\k3s-restore.ps1 -BackupPath .\backups\k3s\yyyyMMdd-HHmmss
 ```
 
-It restores, builds, runs integration tests, validates PowerShell scripts, validates local-prod compose, and builds representative Docker images.
+The backup is scoped to the five service-owned PostgreSQL databases and `MicroShop_OrderReadDb` in MongoDB. Restore validates the versioned manifest and SHA-256 checksums, scales only MicroShop API/worker deployments to zero, restores the databases, then returns each deployment to its previous replica count. Restore is destructive and asks for `RESTORE` confirmation unless `-Force` is passed.
+
+The CI workflow restores dependencies, builds, runs integration tests, validates PowerShell scripts and local-prod compose, and builds service images.
 
 Run the lightweight gateway smoke test after starting the full system:
 

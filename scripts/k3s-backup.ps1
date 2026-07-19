@@ -2,10 +2,15 @@
 param(
     [string]$Namespace = "microshop",
     [string]$BackupRoot = "backups/k3s",
+    [string]$MongoDatabase = "MicroShop_OrderReadDb",
     [string]$Timestamp = (Get-Date -Format "yyyyMMdd-HHmmss")
 )
 
 $ErrorActionPreference = "Stop"
+
+if ($MongoDatabase -notmatch '^[A-Za-z0-9_-]+$') {
+    throw "MongoDB database name '$MongoDatabase' contains unsupported characters."
+}
 
 $databases = @(
     "catalogdb",
@@ -38,7 +43,7 @@ foreach ($database in $databases) {
 
 $mongoRemotePath = "/tmp/microshop-mongodb.archive.gz"
 $mongoLocalPath = Join-Path $backupDirectory "mongodb.archive.gz"
-$mongoDumpCommand = "mongodump --archive=`"$mongoRemotePath`" --gzip --username `"`$MONGO_INITDB_ROOT_USERNAME`" --password `"`$MONGO_INITDB_ROOT_PASSWORD`" --authenticationDatabase admin"
+$mongoDumpCommand = "mongodump --archive=`"$mongoRemotePath`" --gzip --db `"$MongoDatabase`" --username `"`$MONGO_INITDB_ROOT_USERNAME`" --password `"`$MONGO_INITDB_ROOT_PASSWORD`" --authenticationDatabase admin"
 
 kubectl exec -n $Namespace statefulset/mongodb -- sh -c $mongoDumpCommand
 if ($LASTEXITCODE -ne 0) {
@@ -52,11 +57,22 @@ if ($LASTEXITCODE -ne 0) {
 
 kubectl exec -n $Namespace statefulset/mongodb -- rm -f $mongoRemotePath
 
+$checksums = [ordered]@{}
+foreach ($database in $databases) {
+    $fileName = "$database.dump"
+    $checksums[$fileName] = (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $backupDirectory $fileName)).Hash.ToLowerInvariant()
+}
+
+$checksums["mongodb.archive.gz"] = (Get-FileHash -Algorithm SHA256 -LiteralPath $mongoLocalPath).Hash.ToLowerInvariant()
+
 $manifest = [ordered]@{
+    formatVersion = 1
     createdAtUtc = (Get-Date).ToUniversalTime().ToString("O")
     namespace = $Namespace
     postgresDatabases = $databases
+    mongoDatabase = $MongoDatabase
     mongoArchive = "mongodb.archive.gz"
+    checksums = $checksums
 }
 
 $manifest | ConvertTo-Json -Depth 4 | Set-Content -Path (Join-Path $backupDirectory "manifest.json") -Encoding UTF8

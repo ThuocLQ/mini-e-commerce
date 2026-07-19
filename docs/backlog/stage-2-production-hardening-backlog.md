@@ -52,6 +52,7 @@ It tracks production-minded improvements that should be implemented as separate 
 [ ] PostgreSQL migration review.
 [x] Local-prod PostgreSQL backup/restore scripts.
 [x] Local-prod MongoDB backup/restore scripts.
+[x] K3s PostgreSQL/MongoDB backup and restore scripts.
 [ ] Read model rebuild strategy.
 [ ] Database index review.
 [ ] Connection pool and timeout review.
@@ -108,6 +109,7 @@ It tracks production-minded improvements that should be implemented as separate 
 [x] K3s secret creation script.
 [x] K3s smoke script.
 [x] K3s backup script.
+[x] K3s restore script with application quiescing.
 [x] K3s local validation script.
 [x] K3s cert-manager install script.
 [x] K3s Ingress TLS issuer annotation baseline.
