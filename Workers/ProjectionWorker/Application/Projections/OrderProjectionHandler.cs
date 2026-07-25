@@ -28,6 +28,16 @@ public sealed class OrderProjectionHandler
             throw new ArgumentException("EventId is required.");
         }
 
+        if (orderEvent.EventVersion != 1)
+        {
+            throw new ArgumentException($"Unsupported projection event version '{orderEvent.EventVersion}'.");
+        }
+
+        if (orderEvent.Sequence <= 0)
+        {
+            throw new ArgumentException("Sequence must be greater than zero.");
+        }
+
         if (!OrderProjectionEventTypes.IsSupported(orderEvent.EventType))
         {
             throw new ArgumentException($"Unsupported order event type '{orderEvent.EventType}'.");

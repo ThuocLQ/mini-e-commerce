@@ -1,4 +1,5 @@
 using Dapper;
+using Microsoft.Extensions.Options;
 using MicroShop.ServiceDefaults.Diagnostics;
 using OrderingService.Infrastructure.Persistence;
 
@@ -8,13 +9,16 @@ public sealed class OutboxMetricsBackgroundService : BackgroundService
 {
     private readonly IDbConnectionFactory _connectionFactory;
     private readonly ILogger<OutboxMetricsBackgroundService> _logger;
+    private readonly OutboxPublisherOptions _options;
 
     public OutboxMetricsBackgroundService(
         IDbConnectionFactory connectionFactory,
-        ILogger<OutboxMetricsBackgroundService> logger)
+        ILogger<OutboxMetricsBackgroundService> logger,
+        IOptions<OutboxPublisherOptions> options)
     {
         _connectionFactory = connectionFactory;
         _logger = logger;
+        _options = options.Value;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -36,10 +40,16 @@ public sealed class OutboxMetricsBackgroundService : BackgroundService
             using var connection = _connectionFactory.CreateConnection();
             var counts = await connection.QuerySingleAsync<OutboxCounts>(new CommandDefinition("""
                 SELECT
-                    COUNT(*) FILTER (WHERE Status IN ('Pending', 'Processing')) AS Pending,
-                    COUNT(*) FILTER (WHERE Status = 'Failed') AS Failed
+                    COUNT(*) FILTER (
+                        WHERE ProcessedAtUtc IS NULL
+                          AND RetryCount < @MaxRetryCount
+                    ) AS Pending,
+                    COUNT(*) FILTER (
+                        WHERE ProcessedAtUtc IS NULL
+                          AND RetryCount >= @MaxRetryCount
+                    ) AS Failed
                 FROM OutboxMessages;
-                """, cancellationToken: cancellationToken));
+                """, new { _options.MaxRetryCount }, cancellationToken: cancellationToken));
 
             MicroShopMetrics.SetOutboxSnapshot("OrderingService", counts.Pending, counts.Failed);
         }

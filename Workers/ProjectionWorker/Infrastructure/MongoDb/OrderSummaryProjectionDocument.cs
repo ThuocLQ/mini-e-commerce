@@ -56,6 +56,9 @@ public sealed class OrderSummaryProjectionDocument
     [BsonElement("lastProjectedEventOccurredAtUtc")]
     public DateTime? LastProjectedEventOccurredAtUtc { get; init; }
 
+    [BsonElement("lastProjectedEventSequence")]
+    public long? LastProjectedEventSequence { get; init; }
+
     [BsonElement("lastProjectedAtUtc")]
     public DateTime? LastProjectedAtUtc { get; init; }
 }

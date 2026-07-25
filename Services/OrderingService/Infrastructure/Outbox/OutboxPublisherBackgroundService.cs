@@ -1,11 +1,13 @@
 using System.Text.Json;
 using BuildingBlocks.Contracts.Correlation;
 using BuildingBlocks.Contracts.Events.Orders;
+using Confluent.Kafka;
 using MassTransit;
 using Microsoft.Extensions.Options;
 using MicroShop.ServiceDefaults.Diagnostics;
 using OrderingService.Application.Abstractions;
 using OrderingService.Domain.Outbox;
+using OrderingService.Infrastructure.Messaging;
 
 namespace OrderingService.Infrastructure.Outbox;
 
@@ -16,15 +18,25 @@ public sealed class OutboxPublisherBackgroundService : BackgroundService
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<OutboxPublisherBackgroundService> _logger;
     private readonly OutboxPublisherOptions _options;
+    private readonly KafkaOutboxOptions _kafkaOptions;
+    private readonly IProducer<string, string> _kafkaProducer;
 
     public OutboxPublisherBackgroundService(
         IServiceScopeFactory scopeFactory,
         ILogger<OutboxPublisherBackgroundService> logger,
-        IOptions<OutboxPublisherOptions> options)
+        IOptions<OutboxPublisherOptions> options,
+        IOptions<KafkaOutboxOptions> kafkaOptions)
     {
         _scopeFactory = scopeFactory;
         _logger = logger;
         _options = options.Value;
+        _kafkaOptions = kafkaOptions.Value;
+        _kafkaProducer = new ProducerBuilder<string, string>(new ProducerConfig
+        {
+            BootstrapServers = _kafkaOptions.BootstrapServers,
+            EnableIdempotence = true,
+            Acks = Acks.All
+        }).Build();
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -123,11 +135,22 @@ public sealed class OutboxPublisherBackgroundService : BackgroundService
         }
     }
 
-    private static async Task PublishIntegrationEventAsync(
+    private async Task PublishIntegrationEventAsync(
         IPublishEndpoint publishEndpoint,
         OutboxMessage message,
         CancellationToken cancellationToken)
     {
+        if (string.Equals(message.Transport, OutboxTransport.Kafka, StringComparison.Ordinal))
+        {
+            await PublishKafkaAsync(message, cancellationToken);
+            return;
+        }
+
+        if (!string.Equals(message.Transport, OutboxTransport.RabbitMq, StringComparison.Ordinal))
+        {
+            throw new NotSupportedException($"Unsupported outbox transport: {message.Transport}");
+        }
+
         var orderCreatedTypeName = typeof(OrderCreatedIntegrationEvent).FullName;
 
         if (message.Type is nameof(OrderCreatedIntegrationEvent) || message.Type == orderCreatedTypeName)
@@ -163,6 +186,41 @@ public sealed class OutboxPublisherBackgroundService : BackgroundService
         throw new NotSupportedException($"Unsupported outbox message type: {message.Type}");
     }
 
+    private async Task PublishKafkaAsync(OutboxMessage message, CancellationToken cancellationToken)
+    {
+        // The payload is a versioned contract envelope. The aggregate id is the Kafka key,
+        // preserving in-partition order for all transitions of one order.
+        var orderId = GetOrderIdFromSubject(message.Content);
+        await _kafkaProducer.ProduceAsync(
+            _kafkaOptions.Topic,
+            new Message<string, string>
+            {
+                Key = orderId,
+                Value = message.Content,
+                Headers = new Confluent.Kafka.Headers
+                {
+                    { "event-type", System.Text.Encoding.UTF8.GetBytes(message.Type) },
+                    { "correlation-id", System.Text.Encoding.UTF8.GetBytes(message.CorrelationId ?? string.Empty) },
+                    { "causation-id", System.Text.Encoding.UTF8.GetBytes(message.CausationId ?? string.Empty) }
+                }
+            },
+            cancellationToken);
+    }
+
+    private static string GetOrderIdFromSubject(string content)
+    {
+        using var document = JsonDocument.Parse(content);
+        if (!document.RootElement.TryGetProperty("subject", out var subject)
+            || subject.GetString() is not { } value
+            || !value.StartsWith("orders/", StringComparison.Ordinal)
+            || !Guid.TryParse(value["orders/".Length..], out var orderId))
+        {
+            throw new InvalidOperationException("Kafka outbox message has an invalid order subject.");
+        }
+
+        return orderId.ToString("D");
+    }
+
     private DateTime CalculateNextAttemptAtUtc(int retryCount)
     {
         var delaySeconds = Math.Min(
@@ -170,5 +228,12 @@ public sealed class OutboxPublisherBackgroundService : BackgroundService
             _options.RetryDelaySeconds * Math.Max(1, retryCount));
 
         return DateTime.UtcNow.AddSeconds(delaySeconds);
+    }
+
+    public override void Dispose()
+    {
+        _kafkaProducer.Flush(TimeSpan.FromSeconds(10));
+        _kafkaProducer.Dispose();
+        base.Dispose();
     }
 }

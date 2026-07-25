@@ -70,6 +70,7 @@ jobs:
             "scripts/local-prod-smoke.ps1",
             "scripts/local-prod-up.ps1",
             "scripts/test-kafka-lesson25.ps1",
+            "scripts/test-order-outbox-kafka.ps1",
             "scripts/test-projection-reliability.ps1"
           )
 

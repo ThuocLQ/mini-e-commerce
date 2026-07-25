@@ -70,6 +70,13 @@ public static class DependencyInjection
             .Validate(options => options.MaxRetryDelaySeconds >= options.RetryDelaySeconds, "OutboxPublisher:MaxRetryDelaySeconds must be greater than or equal to RetryDelaySeconds.")
             .ValidateOnStart();
 
+        services
+            .AddOptions<KafkaOutboxOptions>()
+            .Bind(configuration.GetSection(KafkaOutboxOptions.SectionName))
+            .Validate(options => !string.IsNullOrWhiteSpace(options.BootstrapServers), "KafkaOutbox:BootstrapServers is required.")
+            .Validate(options => !string.IsNullOrWhiteSpace(options.Topic), "KafkaOutbox:Topic is required.")
+            .ValidateOnStart();
+
         services.AddMassTransit(busRegistrationConfigurator =>
         {
             busRegistrationConfigurator.UsingRabbitMq((context, busFactoryConfigurator) =>

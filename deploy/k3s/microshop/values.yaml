@@ -113,6 +113,8 @@ apps:
       ASPNETCORE_ENVIRONMENT: Kubernetes
       ASPNETCORE_HTTP_PORTS: "8080"
       ServiceDefaults__ExposeHealthEndpoints: "true"
+      KafkaOutbox__BootstrapServers: kafka:29092
+      KafkaOutbox__Topic: microshop.order-events
       ServiceDefaults__ValidateProductionConfiguration: "true"
       ServiceDefaults__RequiredConfigurationKeys__0: ConnectionStrings:OrderingDb
       ServiceDefaults__RequiredConfigurationKeys__1: RabbitMq:Password
@@ -224,6 +226,7 @@ apps:
       ServiceDefaults__RequiredConfigurationKeys__0: RabbitMq:Password
       RabbitMq__Host: rabbitmq
       RabbitMq__VirtualHost: /
+      ConnectionStrings__Redis: redis:6379
       RabbitMq__UserName: microshop
       RabbitMq__Password: $(MICROSHOP_RABBITMQ_PASSWORD)
 

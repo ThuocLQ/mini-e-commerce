@@ -17,10 +17,30 @@ public static class OutboxMessageFactory
             Id = integrationEvent.EventId,
             OccurredAtUtc = integrationEvent.OccurredAtUtc,
             Type = typeof(TEvent).FullName ?? typeof(TEvent).Name,
+            Transport = OutboxTransport.RabbitMq,
             Content = JsonSerializer.Serialize(AttachCorrelation(integrationEvent), JsonOptions),
             CorrelationId = Normalize(integrationEvent.CorrelationId) ?? CorrelationContext.CorrelationId,
             CausationId = Normalize(integrationEvent.CausationId),
             NextAttemptAtUtc = integrationEvent.OccurredAtUtc
+        };
+    }
+
+    public static OutboxMessage CreateKafka<TData>(MicroShopEventEnvelope<TData> envelope)
+    {
+        return new OutboxMessage
+        {
+            Id = envelope.EventId,
+            OccurredAtUtc = envelope.OccurredAtUtc,
+            Type = envelope.EventType,
+            Transport = OutboxTransport.Kafka,
+            Content = JsonSerializer.Serialize(envelope with
+            {
+                CorrelationId = Normalize(envelope.CorrelationId) ?? CorrelationContext.CorrelationId,
+                CausationId = Normalize(envelope.CausationId)
+            }, JsonOptions),
+            CorrelationId = Normalize(envelope.CorrelationId) ?? CorrelationContext.CorrelationId,
+            CausationId = Normalize(envelope.CausationId),
+            NextAttemptAtUtc = envelope.OccurredAtUtc
         };
     }
 

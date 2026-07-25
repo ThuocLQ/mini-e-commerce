@@ -61,11 +61,15 @@ if (runFull || runOrderFlow)
         .WaitFor(orderingDb)
         .WaitFor(rabbit)
         .WaitFor(basket)
-        .WithEnvironment("ServiceUrls__BasketHttp", "https+http://BasketService");
+        .WithEnvironment("ServiceUrls__BasketHttp", "https+http://BasketService")
+        .WithEnvironment("KafkaOutbox__BootstrapServers", "localhost:9092")
+        .WithEnvironment("KafkaOutbox__Topic", "microshop.order-events");
 
     builder.AddProject<Projects.NotificationWorker>("NotificationWorker")
         .WithReference(rabbit)
-        .WaitFor(rabbit);
+        .WithReference(redis)
+        .WaitFor(rabbit)
+        .WaitFor(redis);
 
     orderQuery = builder.AddProject<Projects.OrderQueryService>("OrderQueryService", launchProfileName: "https")
         .WithEnvironment("MongoDb__ConnectionString", "mongodb://microshop:microshop@localhost:27017/?authSource=admin")

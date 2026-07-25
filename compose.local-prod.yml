@@ -245,10 +245,14 @@ services:
       RabbitMq__VirtualHost: /
       RabbitMq__UserName: microshop
       RabbitMq__Password: ${MICROSHOP_RABBITMQ_PASSWORD:?Set MICROSHOP_RABBITMQ_PASSWORD in .env.local-prod}
+      KafkaOutbox__BootstrapServers: kafka:29092
+      KafkaOutbox__Topic: microshop.order-events
     depends_on:
       postgres:
         condition: service_healthy
       rabbitmq:
+        condition: service_healthy
+      kafka:
         condition: service_healthy
       basketservice:
         condition: service_healthy
@@ -380,8 +384,11 @@ services:
       RabbitMq__VirtualHost: /
       RabbitMq__UserName: microshop
       RabbitMq__Password: ${MICROSHOP_RABBITMQ_PASSWORD:?Set MICROSHOP_RABBITMQ_PASSWORD in .env.local-prod}
+      ConnectionStrings__Redis: redis:6379
     depends_on:
       rabbitmq:
+        condition: service_healthy
+      redis:
         condition: service_healthy
 
   api-gateway:

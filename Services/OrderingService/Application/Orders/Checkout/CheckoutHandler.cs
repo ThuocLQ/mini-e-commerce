@@ -90,9 +90,12 @@ public class CheckoutHandler : IRequestHandler<CheckoutCommand, OrderDto>
             {
                 var persistedOrder = await _orderRepository.CreateAsync(order, transaction, cancellationToken);
                 var orderCreatedEvent = OrderIntegrationEventFactory.CreateOrderCreated(persistedOrder, _eventOptions.Currency);
-                var outboxMessage = OutboxMessageFactory.Create(orderCreatedEvent);
+                var notificationOutboxMessage = OutboxMessageFactory.Create(orderCreatedEvent);
+                var projectionEvent = OrderIntegrationEventFactory.CreateOrderProjectionCreated(persistedOrder, _eventOptions.Currency);
+                var projectionOutboxMessage = OutboxMessageFactory.CreateKafka(projectionEvent);
 
-                await _outboxRepository.AddAsync(outboxMessage, transaction, cancellationToken);
+                await _outboxRepository.AddAsync(notificationOutboxMessage, transaction, cancellationToken);
+                await _outboxRepository.AddAsync(projectionOutboxMessage, transaction, cancellationToken);
 
                 return persistedOrder;
             }, cancellationToken);

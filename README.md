@@ -5,7 +5,7 @@ MicroShop is a learning microservices backend built with .NET 10. The project is
 Current completed:
 
 ```text
-Day 60: Local PROD Release Candidate
+Day 72: Production deployment hardening baseline
 ```
 
 ## Architecture Goals
@@ -31,7 +31,7 @@ operational visibility basics
 | `ApiGateway` | YARP reverse proxy and public entrypoint |
 | `CatalogService` | Product catalog APIs and gRPC product lookup |
 | `BasketService` | Basket state, Redis-backed |
-| `OrderingService` | Order write side, checkout, outbox basics |
+| `OrderingService` | Order write side, checkout, transactional outbox to RabbitMQ and Kafka |
 | `DiscountService` | Coupon lookup and discount calculation |
 | `IdentityService` | Authentication/JWT foundation |
 | `PaymentService` | Payment creation, webhook reliability, payment outbox, saga dispatch |

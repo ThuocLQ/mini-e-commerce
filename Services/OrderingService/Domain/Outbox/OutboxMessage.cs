@@ -5,6 +5,7 @@ public sealed class OutboxMessage
     public Guid Id { get; init; }
     public DateTime OccurredAtUtc { get; init; }
     public string Type { get; init; } = default!;
+    public string Transport { get; init; } = OutboxTransport.RabbitMq;
     public string Content { get; init; } = default!;
     public string? CorrelationId { get; init; }
     public string? CausationId { get; init; }

@@ -10,11 +10,11 @@ It tracks production-minded improvements that should be implemented as separate 
 [x] Kafka retry topic and DLT.
 [x] Projection processed-event collection.
 [x] Projection rebuild mode.
-[ ] OrderingService outbox publisher to Kafka.
-[ ] Contract/schema versioning for Kafka events.
-[ ] Atomic Mongo projection updates with event sequence/version.
+[x] OrderingService outbox publisher to Kafka.
+[x] Contract/schema versioning for Kafka events.
+[x] Atomic Mongo projection updates with event sequence/version.
 [x] Basic idempotent payment webhook/event handling.
-[ ] Idempotent consumers for every event handler.
+[x] Durable idempotency for the current NotificationWorker consumer.
 ```
 
 ## Observability
@@ -76,7 +76,7 @@ It tracks production-minded improvements that should be implemented as separate 
 ```text
 [x] Unit tests for critical handlers.
 [x] Integration tests with Testcontainers.
-[ ] Contract tests for integration events.
+[x] Contract tests for order projection integration events.
 [x] Failure/replay scenario tests for ProjectionWorker.
 [ ] Gateway route tests.
 [x] Smoke test script for Docker Compose.

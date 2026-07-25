@@ -3,6 +3,8 @@ namespace ProjectionWorker.Application.Events;
 public sealed class OrderProjectionEvent
 {
     public Guid EventId { get; init; }
+    public int EventVersion { get; init; } = 1;
+    public long Sequence { get; init; }
     public string EventType { get; init; } = default!;
     public Guid OrderId { get; init; }
     public Guid CustomerId { get; init; }

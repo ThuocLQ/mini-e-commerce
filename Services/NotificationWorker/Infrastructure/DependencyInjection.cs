@@ -6,6 +6,7 @@ using NotificationWorker.Application.Abstractions;
 using NotificationWorker.Infrastructure.Idempotency;
 using NotificationWorker.Infrastructure.Messaging;
 using NotificationWorker.Infrastructure.Notifications;
+using StackExchange.Redis;
 
 namespace NotificationWorker.Infrastructure;
 
@@ -40,7 +41,11 @@ public static class DependencyInjection
             .Validate(options => options.IntervalSeconds > 0, "Messaging:Retry:IntervalSeconds must be greater than zero.")
             .ValidateOnStart();
 
-        services.AddSingleton<IProcessedEventStore, InMemoryProcessedEventStore>();
+        var redisConnectionString = configuration.GetConnectionString("Redis")
+            ?? throw new InvalidOperationException("Connection string 'Redis' is missing.");
+
+        services.AddSingleton<IConnectionMultiplexer>(_ => ConnectionMultiplexer.Connect(redisConnectionString));
+        services.AddSingleton<IProcessedEventStore, RedisProcessedEventStore>();
         services.AddScoped<INotificationSender, LoggingNotificationSender>();
 
         services.AddMassTransit(busRegistrationConfigurator =>

@@ -35,6 +35,7 @@ public sealed class ProjectionReplayTests
         {
             EventId = Guid.NewGuid(),
             EventType = OrderProjectionEventTypes.OrderCreated,
+            Sequence = 1,
             OrderId = Guid.NewGuid(),
             CustomerId = Guid.NewGuid(),
             CustomerName = "Replay Customer",

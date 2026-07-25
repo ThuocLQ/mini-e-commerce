@@ -25,10 +25,10 @@ public sealed class MongoOrderSummaryProjectionRepository : IOrderSummaryProject
         CancellationToken cancellationToken = default)
     {
         var id = orderEvent.OrderId.ToString("D");
-        var filter = Builders<OrderSummaryProjectionDocument>.Filter.Eq(x => x.Id, id);
+        var idFilter = Builders<OrderSummaryProjectionDocument>.Filter.Eq(x => x.Id, id);
 
         var existing = await _collection
-            .Find(filter)
+            .Find(idFilter)
             .FirstOrDefaultAsync(cancellationToken);
 
         if (IsOlderThanCurrentProjection(orderEvent, existing))
@@ -44,19 +44,33 @@ public sealed class MongoOrderSummaryProjectionRepository : IOrderSummaryProject
             _ => throw new ArgumentException($"Unsupported order event type '{orderEvent.EventType}'.")
         };
 
-        await _collection.ReplaceOneAsync(
-            filter,
-            document,
-            new ReplaceOptions { IsUpsert = true },
-            cancellationToken);
+        var versionFilter = Builders<OrderSummaryProjectionDocument>.Filter.Or(
+            Builders<OrderSummaryProjectionDocument>.Filter.Exists(x => x.LastProjectedEventSequence, false),
+            Builders<OrderSummaryProjectionDocument>.Filter.Lt(x => x.LastProjectedEventSequence, orderEvent.Sequence));
+
+        try
+        {
+            await _collection.ReplaceOneAsync(
+                Builders<OrderSummaryProjectionDocument>.Filter.And(idFilter, versionFilter),
+                document,
+                new ReplaceOptions { IsUpsert = existing is null },
+                cancellationToken);
+        }
+        catch (MongoWriteException exception) when (exception.WriteError.Category == ServerErrorCategory.DuplicateKey)
+        {
+            // A competing delivery inserted the same aggregate first. Its sequence is at least
+            // as recent as this event, so this delivery can safely be acknowledged.
+        }
     }
 
     private static bool IsOlderThanCurrentProjection(
         OrderProjectionEvent orderEvent,
         OrderSummaryProjectionDocument? existing)
     {
-        return existing?.LastProjectedEventOccurredAtUtc is { } lastProjectedAt
-            && orderEvent.OccurredAtUtc < lastProjectedAt;
+        return existing?.LastProjectedEventSequence is { } lastSequence
+            ? orderEvent.Sequence <= lastSequence
+            : existing?.LastProjectedEventOccurredAtUtc is { } lastProjectedAt
+              && orderEvent.OccurredAtUtc <= lastProjectedAt;
     }
 
     private static OrderSummaryProjectionDocument ApplyOrderCreated(
@@ -134,6 +148,7 @@ public sealed class MongoOrderSummaryProjectionRepository : IOrderSummaryProject
             LastProjectedEventId = orderEvent.EventId.ToString("D"),
             LastProjectedEventType = orderEvent.EventType,
             LastProjectedEventOccurredAtUtc = orderEvent.OccurredAtUtc,
+            LastProjectedEventSequence = orderEvent.Sequence,
             LastProjectedAtUtc = DateTime.UtcNow
         };
     }
