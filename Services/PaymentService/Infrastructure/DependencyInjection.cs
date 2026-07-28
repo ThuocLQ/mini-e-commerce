@@ -1,4 +1,5 @@
 using PaymentService.Application.Abstractions;
+using PaymentService.Application.Payments.Webhooks;
 using PaymentService.Infrastructure.Observability;
 using PaymentService.Infrastructure.Outbox;
 using PaymentService.Infrastructure.Persistence;
@@ -9,7 +10,8 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(
         this IServiceCollection services,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        IHostEnvironment environment)
     {
         services.AddSingleton<IDbConnectionFactory, NpgsqlConnectionFactory>();
         services.AddSingleton<IDatabaseInitializer, PostgresDatabaseInitializer>();
@@ -18,6 +20,20 @@ public static class DependencyInjection
         services.AddScoped<IPaymentOutboxRepository, DapperPaymentOutboxRepository>();
         services.AddSingleton<IPaymentMetrics, PaymentMetrics>();
         services.AddPostgresReadinessCheck(configuration, "PaymentDb");
+
+        services
+            .AddOptions<PaymentWebhookOptions>()
+            .Bind(configuration.GetSection(PaymentWebhookOptions.SectionName))
+            .Validate(
+                options => !string.IsNullOrWhiteSpace(options.SignatureHeaderName),
+                "PaymentWebhooks:SignatureHeaderName is required.")
+            .Validate(
+                options => !options.RequireSignature || !string.IsNullOrWhiteSpace(options.SharedSecret),
+                "PaymentWebhooks:SharedSecret is required when signatures are enabled.")
+            .Validate(
+                options => environment.IsDevelopment() || IsProductionWebhookSecret(options.SharedSecret),
+                "PaymentWebhooks:SharedSecret must be supplied through a production secret source and must not use a development placeholder.")
+            .ValidateOnStart();
 
         services
             .AddOptions<PaymentOutboxDispatcherOptions>()
@@ -49,5 +65,17 @@ public static class DependencyInjection
         services.AddHostedService<PaymentOutboxMetricsBackgroundService>();
 
         return services;
+    }
+
+    private static bool IsProductionWebhookSecret(string? secret)
+    {
+        if (string.IsNullOrWhiteSpace(secret) || secret.Length < 32)
+        {
+            return false;
+        }
+
+        return !secret.StartsWith("SET_BY_", StringComparison.OrdinalIgnoreCase)
+               && !secret.Contains("dev-webhook-secret", StringComparison.OrdinalIgnoreCase)
+               && !secret.Contains("CHANGEME", StringComparison.OrdinalIgnoreCase);
     }
 }

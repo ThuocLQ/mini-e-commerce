@@ -20,11 +20,11 @@ public sealed class OrderCreatedNotificationHandler
 
     public async Task HandleAsync(OrderCreatedNotification notification, CancellationToken cancellationToken)
     {
-        var startResult = await _processedEventStore.TryStartProcessingAsync(
+        var acquisition = await _processedEventStore.TryStartProcessingAsync(
             notification.EventId,
             cancellationToken);
 
-        if (startResult == ProcessedEventStartResult.AlreadyProcessed)
+        if (acquisition.Result == ProcessedEventStartResult.AlreadyProcessed)
         {
             _logger.LogInformation(
                 "Skipping duplicate OrderCreatedIntegrationEvent. EventId={EventId}, OrderId={OrderId}",
@@ -34,24 +34,39 @@ public sealed class OrderCreatedNotificationHandler
             return;
         }
 
-        if (startResult == ProcessedEventStartResult.AlreadyProcessing)
+        if (acquisition.Result == ProcessedEventStartResult.AlreadyProcessing)
         {
-            _logger.LogInformation(
-                "Skipping concurrent OrderCreatedIntegrationEvent delivery. EventId={EventId}, OrderId={OrderId}",
+            _logger.LogWarning(
+                "Deferring concurrent OrderCreatedIntegrationEvent delivery until its processing lease is released. EventId={EventId}, OrderId={OrderId}",
                 notification.EventId,
                 notification.OrderId);
 
-            return;
+            throw new NotificationProcessingInProgressException(notification.EventId);
         }
+
+        var leaseToken = acquisition.LeaseToken
+            ?? throw new InvalidOperationException("A started notification event must include a processing lease token.");
 
         try
         {
             await _notificationSender.SendOrderCreatedAsync(notification, cancellationToken);
-            await _processedEventStore.MarkAsProcessedAsync(notification.EventId, cancellationToken);
+            var markedProcessed = await _processedEventStore.MarkAsProcessedAsync(
+                notification.EventId,
+                leaseToken,
+                cancellationToken);
+
+            if (!markedProcessed)
+            {
+                throw new InvalidOperationException(
+                    $"Notification processing lease was lost before event {notification.EventId:D} could be completed.");
+            }
         }
         catch
         {
-            await _processedEventStore.MarkAsFailedAsync(notification.EventId, cancellationToken);
+            await _processedEventStore.MarkAsFailedAsync(
+                notification.EventId,
+                leaseToken,
+                cancellationToken);
             throw;
         }
     }

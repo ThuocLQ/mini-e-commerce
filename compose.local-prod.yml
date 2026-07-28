@@ -404,6 +404,9 @@ services:
       ASPNETCORE_ENVIRONMENT: Docker
       ASPNETCORE_HTTP_PORTS: 8080
       Gateway__AllowedCorsOrigins__0: http://localhost:5027
+      Jwt__Issuer: MicroShop.IdentityService
+      Jwt__Audience: MicroShop.Client
+      Jwt__SecretKey: ${MICROSHOP_JWT_SECRET_KEY:?Set MICROSHOP_JWT_SECRET_KEY in .env.local-prod}
     depends_on:
       catalogservice:
         condition: service_healthy

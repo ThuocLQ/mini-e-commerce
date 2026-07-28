@@ -62,6 +62,9 @@ public static class SecurityMiddlewareExtensions
 
     private static bool IsInternalRoute(PathString path)
     {
-        return path.Value?.EndsWith("/payment-result", StringComparison.OrdinalIgnoreCase) == true;
+        var value = path.Value;
+
+        return value?.EndsWith("/payment-result", StringComparison.OrdinalIgnoreCase) == true
+               || value?.EndsWith("/payment-events", StringComparison.OrdinalIgnoreCase) == true;
     }
 }

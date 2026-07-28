@@ -14,6 +14,12 @@ var gatewayOptions = builder.Configuration
     .Get<GatewayOptions>()
     ?? new GatewayOptions();
 
+var jwtSecretKey = builder.Configuration["Jwt:SecretKey"];
+if (!builder.Environment.IsDevelopment() && string.IsNullOrWhiteSpace(jwtSecretKey))
+{
+    throw new InvalidOperationException("Jwt:SecretKey is required outside Development because protected gateway routes are enabled.");
+}
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("GatewayCors", policy =>
@@ -66,7 +72,7 @@ builder.Services
     {
         var issuer = builder.Configuration["Jwt:Issuer"];
         var audience = builder.Configuration["Jwt:Audience"];
-        var secretKey = builder.Configuration["Jwt:SecretKey"];
+        var secretKey = jwtSecretKey;
 
         if (!string.IsNullOrWhiteSpace(secretKey))
         {
@@ -137,14 +143,5 @@ static string GetRateLimitCategory(PathString path)
 
 static string GetClientKey(HttpContext context)
 {
-    if (context.Request.Headers.TryGetValue("X-Forwarded-For", out var forwardedFor))
-    {
-        var firstForwardedIp = forwardedFor.ToString().Split(',', StringSplitOptions.TrimEntries)[0];
-        if (!string.IsNullOrWhiteSpace(firstForwardedIp))
-        {
-            return firstForwardedIp;
-        }
-    }
-
     return context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
 }

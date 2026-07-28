@@ -1,49 +1,84 @@
-using System.Collections.Concurrent;
 using NotificationWorker.Application.Abstractions;
 
 namespace NotificationWorker.Infrastructure.Idempotency;
 
 public sealed class InMemoryProcessedEventStore : IProcessedEventStore
 {
-    private readonly ConcurrentDictionary<Guid, ProcessedEventStatus> _events = new();
+    private static readonly TimeSpan ProcessingTtl = TimeSpan.FromMinutes(10);
+    private readonly object _sync = new();
+    private readonly Dictionary<Guid, ProcessedEventEntry> _events = [];
 
-    public Task<ProcessedEventStartResult> TryStartProcessingAsync(
+    public Task<ProcessedEventLeaseAcquisition> TryStartProcessingAsync(
         Guid eventId,
         CancellationToken cancellationToken = default)
     {
-        var added = _events.TryAdd(eventId, ProcessedEventStatus.Processing);
-        if (added)
+        lock (_sync)
         {
-            return Task.FromResult(ProcessedEventStartResult.Started);
+            if (!_events.TryGetValue(eventId, out var entry)
+                || (entry.Status == ProcessedEventStatus.Processing && entry.LeaseExpiresAtUtc <= DateTimeOffset.UtcNow))
+            {
+                var leaseToken = CreateLeaseToken();
+                _events[eventId] = new ProcessedEventEntry(
+                    ProcessedEventStatus.Processing,
+                    leaseToken,
+                    DateTimeOffset.UtcNow.Add(ProcessingTtl));
+
+                return Task.FromResult(new ProcessedEventLeaseAcquisition(
+                    ProcessedEventStartResult.Started,
+                    leaseToken));
+            }
+
+            return Task.FromResult(new ProcessedEventLeaseAcquisition(
+                entry.Status == ProcessedEventStatus.Processed
+                    ? ProcessedEventStartResult.AlreadyProcessed
+                    : ProcessedEventStartResult.AlreadyProcessing));
         }
-
-        var status = _events[eventId];
-        var result = status == ProcessedEventStatus.Processed
-            ? ProcessedEventStartResult.AlreadyProcessed
-            : ProcessedEventStartResult.AlreadyProcessing;
-
-        return Task.FromResult(result);
     }
 
-    public Task MarkAsProcessedAsync(
+    public Task<bool> MarkAsProcessedAsync(
         Guid eventId,
+        string leaseToken,
         CancellationToken cancellationToken = default)
     {
-        _events.AddOrUpdate(
-            eventId,
-            ProcessedEventStatus.Processed,
-            (_, _) => ProcessedEventStatus.Processed);
+        lock (_sync)
+        {
+            if (!_events.TryGetValue(eventId, out var entry)
+                || entry.Status != ProcessedEventStatus.Processing
+                || entry.LeaseToken != leaseToken)
+            {
+                return Task.FromResult(false);
+            }
 
-        return Task.CompletedTask;
+            _events[eventId] = new ProcessedEventEntry(ProcessedEventStatus.Processed, null, null);
+            return Task.FromResult(true);
+        }
     }
 
-    public Task MarkAsFailedAsync(
+    public Task<bool> MarkAsFailedAsync(
         Guid eventId,
+        string leaseToken,
         CancellationToken cancellationToken = default)
     {
-        _events.TryRemove(eventId, out _);
-        return Task.CompletedTask;
+        lock (_sync)
+        {
+            if (!_events.TryGetValue(eventId, out var entry)
+                || entry.Status != ProcessedEventStatus.Processing
+                || entry.LeaseToken != leaseToken)
+            {
+                return Task.FromResult(false);
+            }
+
+            _events.Remove(eventId);
+            return Task.FromResult(true);
+        }
     }
+
+    private static string CreateLeaseToken() => $"processing:{Guid.NewGuid():N}";
+
+    private sealed record ProcessedEventEntry(
+        ProcessedEventStatus Status,
+        string? LeaseToken,
+        DateTimeOffset? LeaseExpiresAtUtc);
 
     private enum ProcessedEventStatus
     {

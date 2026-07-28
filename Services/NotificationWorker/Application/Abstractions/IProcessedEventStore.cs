@@ -2,18 +2,24 @@ namespace NotificationWorker.Application.Abstractions;
 
 public interface IProcessedEventStore
 {
-    Task<ProcessedEventStartResult> TryStartProcessingAsync(
+    Task<ProcessedEventLeaseAcquisition> TryStartProcessingAsync(
         Guid eventId,
         CancellationToken cancellationToken = default);
 
-    Task MarkAsProcessedAsync(
+    Task<bool> MarkAsProcessedAsync(
         Guid eventId,
+        string leaseToken,
         CancellationToken cancellationToken = default);
 
-    Task MarkAsFailedAsync(
+    Task<bool> MarkAsFailedAsync(
         Guid eventId,
+        string leaseToken,
         CancellationToken cancellationToken = default);
 }
+
+public sealed record ProcessedEventLeaseAcquisition(
+    ProcessedEventStartResult Result,
+    string? LeaseToken = null);
 
 public enum ProcessedEventStartResult
 {

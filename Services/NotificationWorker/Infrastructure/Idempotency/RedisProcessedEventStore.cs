@@ -1,14 +1,27 @@
-using StackExchange.Redis;
 using NotificationWorker.Application.Abstractions;
+using StackExchange.Redis;
 
 namespace NotificationWorker.Infrastructure.Idempotency;
 
 public sealed class RedisProcessedEventStore : IProcessedEventStore
 {
-    private const string Processing = "processing";
     private const string Processed = "processed";
     private static readonly TimeSpan ProcessingTtl = TimeSpan.FromMinutes(10);
     private static readonly TimeSpan ProcessedTtl = TimeSpan.FromDays(30);
+    private const string MarkProcessedScript = """
+        if redis.call('GET', KEYS[1]) == ARGV[1] then
+            redis.call('SET', KEYS[1], ARGV[2], 'EX', ARGV[3])
+            return 1
+        end
+        return 0
+        """;
+    private const string ReleaseLeaseScript = """
+        if redis.call('GET', KEYS[1]) == ARGV[1] then
+            redis.call('DEL', KEYS[1])
+            return 1
+        end
+        return 0
+        """;
 
     private readonly IDatabase _database;
 
@@ -17,29 +30,52 @@ public sealed class RedisProcessedEventStore : IProcessedEventStore
         _database = connectionMultiplexer.GetDatabase();
     }
 
-    public async Task<ProcessedEventStartResult> TryStartProcessingAsync(Guid eventId, CancellationToken cancellationToken = default)
+    public async Task<ProcessedEventLeaseAcquisition> TryStartProcessingAsync(
+        Guid eventId,
+        CancellationToken cancellationToken = default)
     {
         var key = GetKey(eventId);
-        if (await _database.StringSetAsync(key, Processing, ProcessingTtl, When.NotExists))
+        var leaseToken = CreateLeaseToken();
+
+        if (await _database.StringSetAsync(key, leaseToken, ProcessingTtl, When.NotExists))
         {
-            return ProcessedEventStartResult.Started;
+            return new ProcessedEventLeaseAcquisition(ProcessedEventStartResult.Started, leaseToken);
         }
 
         var status = await _database.StringGetAsync(key);
-        return status == Processed
-            ? ProcessedEventStartResult.AlreadyProcessed
-            : ProcessedEventStartResult.AlreadyProcessing;
+        return new ProcessedEventLeaseAcquisition(
+            status == Processed
+                ? ProcessedEventStartResult.AlreadyProcessed
+                : ProcessedEventStartResult.AlreadyProcessing);
     }
 
-    public Task MarkAsProcessedAsync(Guid eventId, CancellationToken cancellationToken = default)
+    public async Task<bool> MarkAsProcessedAsync(
+        Guid eventId,
+        string leaseToken,
+        CancellationToken cancellationToken = default)
     {
-        return _database.StringSetAsync(GetKey(eventId), Processed, ProcessedTtl);
+        var result = await _database.ScriptEvaluateAsync(
+            MarkProcessedScript,
+            [GetKey(eventId)],
+            [leaseToken, Processed, (long)ProcessedTtl.TotalSeconds]);
+
+        return (int)result == 1;
     }
 
-    public Task MarkAsFailedAsync(Guid eventId, CancellationToken cancellationToken = default)
+    public async Task<bool> MarkAsFailedAsync(
+        Guid eventId,
+        string leaseToken,
+        CancellationToken cancellationToken = default)
     {
-        return _database.KeyDeleteAsync(GetKey(eventId));
+        var result = await _database.ScriptEvaluateAsync(
+            ReleaseLeaseScript,
+            [GetKey(eventId)],
+            [leaseToken]);
+
+        return (int)result == 1;
     }
 
     private static RedisKey GetKey(Guid eventId) => $"notification-worker:processed-events:{eventId:D}";
+
+    private static string CreateLeaseToken() => $"processing:{Guid.NewGuid():N}";
 }

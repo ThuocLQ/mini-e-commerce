@@ -32,6 +32,9 @@ public sealed class DapperPaymentWebhookRepository : IPaymentWebhookRepository
         connection.Open();
         using var transaction = connection.BeginTransaction();
 
+        var normalizedProviderEventId = providerEventId.Trim();
+        var normalizedProviderTransactionId = providerTransactionId.Trim();
+
         var inserted = await connection.ExecuteAsync(new CommandDefinition("""
             INSERT INTO WebhookLogs (
                 Id,
@@ -61,9 +64,9 @@ public sealed class DapperPaymentWebhookRepository : IPaymentWebhookRepository
             """, new
         {
             Id = Guid.NewGuid(),
-            ProviderEventId = providerEventId,
+            ProviderEventId = normalizedProviderEventId,
             PaymentId = paymentId,
-            ProviderTransactionId = providerTransactionId.Trim(),
+            ProviderTransactionId = normalizedProviderTransactionId,
             EventType = status.ToString(),
             PayloadHash = payloadHash,
             SignatureStatus = signatureStatus,
@@ -72,9 +75,19 @@ public sealed class DapperPaymentWebhookRepository : IPaymentWebhookRepository
 
         if (inserted == 0)
         {
-            var existingPayment = await GetPaymentAsync(paymentId, transaction, cancellationToken);
+            var existingWebhook = await GetWebhookLogAsync(normalizedProviderEventId, transaction, cancellationToken)
+                ?? throw new InvalidOperationException($"Webhook log '{normalizedProviderEventId}' disappeared after a duplicate conflict.");
+
             transaction.Commit();
-            return new PaymentWebhookApplyResult(existingPayment, true, providerEventId, status);
+
+            if (!Matches(existingWebhook, paymentId, normalizedProviderTransactionId, status, payloadHash, signatureStatus))
+            {
+                await RecordConflictAsync(existingWebhook, paymentId, normalizedProviderTransactionId, status, payloadHash, signatureStatus, cancellationToken);
+                throw new PaymentWebhookIntegrityException(normalizedProviderEventId);
+            }
+
+            var existingPayment = await GetPaymentAsync(existingWebhook.PaymentId, cancellationToken);
+            return new PaymentWebhookApplyResult(existingPayment, true, normalizedProviderEventId, status);
         }
 
         var payment = await GetPaymentForUpdateAsync(paymentId, transaction, cancellationToken);
@@ -82,21 +95,21 @@ public sealed class DapperPaymentWebhookRepository : IPaymentWebhookRepository
         if (payment is null)
         {
             await MarkWebhookFailedAsync(
-                providerEventId,
+                normalizedProviderEventId,
                 "Payment was not found.",
                 DateTime.UtcNow,
                 transaction,
                 cancellationToken);
 
             transaction.Commit();
-            return new PaymentWebhookApplyResult(null, false, providerEventId, status);
+            return new PaymentWebhookApplyResult(null, false, normalizedProviderEventId, status);
         }
 
         try
         {
             if (status == PaymentStatus.Succeeded)
             {
-                payment.MarkSucceeded(providerTransactionId, DateTime.UtcNow);
+                payment.MarkSucceeded(normalizedProviderTransactionId, DateTime.UtcNow);
             }
             else
             {
@@ -104,22 +117,15 @@ public sealed class DapperPaymentWebhookRepository : IPaymentWebhookRepository
             }
 
             await UpdatePaymentAsync(payment, transaction, cancellationToken);
-            await AddOutboxMessageAsync(payment, status, providerEventId, transaction, cancellationToken);
-            await MarkWebhookProcessedAsync(providerEventId, DateTime.UtcNow, transaction, cancellationToken);
+            await AddOutboxMessageAsync(payment, status, normalizedProviderEventId, transaction, cancellationToken);
+            await MarkWebhookProcessedAsync(normalizedProviderEventId, DateTime.UtcNow, transaction, cancellationToken);
 
             transaction.Commit();
-            return new PaymentWebhookApplyResult(payment, false, providerEventId, status);
+            return new PaymentWebhookApplyResult(payment, false, normalizedProviderEventId, status);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch
         {
-            await MarkWebhookFailedAsync(
-                providerEventId,
-                ex.Message,
-                DateTime.UtcNow,
-                transaction,
-                cancellationToken);
-
-            transaction.Commit();
+            transaction.Rollback();
             throw;
         }
     }
@@ -178,18 +184,88 @@ public sealed class DapperPaymentWebhookRepository : IPaymentWebhookRepository
         }, cancellationToken: cancellationToken));
     }
 
-    private static async Task<Payment?> GetPaymentAsync(
+    private async Task<Payment?> GetPaymentAsync(
         Guid paymentId,
-        System.Data.IDbTransaction transaction,
         CancellationToken cancellationToken)
     {
-        var row = await transaction.Connection!.QuerySingleOrDefaultAsync<PaymentRow>(new CommandDefinition("""
+        using var connection = _connectionFactory.CreateConnection();
+
+        var row = await connection.QuerySingleOrDefaultAsync<PaymentRow>(new CommandDefinition("""
             SELECT Id, OrderId, CustomerId, Amount, Currency, Status, ProviderTransactionId, FailureReason, CreatedAtUtc, CompletedAtUtc
             FROM Payments
             WHERE Id = @PaymentId;
-            """, new { PaymentId = paymentId }, transaction, cancellationToken: cancellationToken));
+            """, new { PaymentId = paymentId }, cancellationToken: cancellationToken));
 
         return row is null ? null : MapPayment(row);
+    }
+
+    private static async Task<WebhookLogRow?> GetWebhookLogAsync(
+        string providerEventId,
+        System.Data.IDbTransaction transaction,
+        CancellationToken cancellationToken)
+    {
+        return await transaction.Connection!.QuerySingleOrDefaultAsync<WebhookLogRow>(new CommandDefinition("""
+            SELECT ProviderEventId, PaymentId, ProviderTransactionId, EventType, PayloadHash, SignatureStatus
+            FROM WebhookLogs
+            WHERE ProviderEventId = @ProviderEventId;
+            """, new { ProviderEventId = providerEventId }, transaction, cancellationToken: cancellationToken));
+    }
+
+    private async Task RecordConflictAsync(
+        WebhookLogRow existing,
+        Guid paymentId,
+        string providerTransactionId,
+        PaymentStatus status,
+        string payloadHash,
+        string signatureStatus,
+        CancellationToken cancellationToken)
+    {
+        using var connection = _connectionFactory.CreateConnection();
+
+        await connection.ExecuteAsync(new CommandDefinition("""
+            INSERT INTO WebhookEventConflicts (
+                Id, ProviderEventId, ExistingPaymentId, IncomingPaymentId,
+                ExistingProviderTransactionId, IncomingProviderTransactionId,
+                ExistingEventType, IncomingEventType,
+                ExistingPayloadHash, IncomingPayloadHash,
+                ExistingSignatureStatus, IncomingSignatureStatus, DetectedAtUtc)
+            VALUES (
+                @Id, @ProviderEventId, @ExistingPaymentId, @IncomingPaymentId,
+                @ExistingProviderTransactionId, @IncomingProviderTransactionId,
+                @ExistingEventType, @IncomingEventType,
+                @ExistingPayloadHash, @IncomingPayloadHash,
+                @ExistingSignatureStatus, @IncomingSignatureStatus, @DetectedAtUtc);
+            """, new
+        {
+            Id = Guid.NewGuid(),
+            existing.ProviderEventId,
+            ExistingPaymentId = existing.PaymentId,
+            IncomingPaymentId = paymentId,
+            ExistingProviderTransactionId = existing.ProviderTransactionId,
+            IncomingProviderTransactionId = providerTransactionId.Trim(),
+            ExistingEventType = existing.EventType,
+            IncomingEventType = status.ToString(),
+            ExistingPayloadHash = existing.PayloadHash,
+            IncomingPayloadHash = payloadHash,
+            ExistingSignatureStatus = existing.SignatureStatus,
+            IncomingSignatureStatus = signatureStatus,
+            DetectedAtUtc = DateTime.UtcNow
+        }, cancellationToken: cancellationToken));
+    }
+
+    private static bool Matches(
+        WebhookLogRow existing,
+        Guid paymentId,
+        string providerTransactionId,
+        PaymentStatus status,
+        string payloadHash,
+        string signatureStatus)
+    {
+        return existing.PaymentId == paymentId
+            && string.Equals(existing.ProviderTransactionId, providerTransactionId.Trim(), StringComparison.Ordinal)
+            && string.Equals(existing.EventType, status.ToString(), StringComparison.Ordinal)
+            && string.Equals(existing.PayloadHash, payloadHash, StringComparison.Ordinal)
+            && string.Equals(existing.SignatureStatus, signatureStatus, StringComparison.OrdinalIgnoreCase);
     }
 
     private static async Task<Payment?> GetPaymentForUpdateAsync(
@@ -364,4 +440,12 @@ public sealed class DapperPaymentWebhookRepository : IPaymentWebhookRepository
         string? FailureReason,
         DateTime CreatedAtUtc,
         DateTime? CompletedAtUtc);
+
+    private sealed record WebhookLogRow(
+        string ProviderEventId,
+        Guid PaymentId,
+        string ProviderTransactionId,
+        string EventType,
+        string? PayloadHash,
+        string? SignatureStatus);
 }

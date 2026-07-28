@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Diagnostics;
 using PaymentService.API.Endpoints;
+using PaymentService.Application.Payments.Webhooks;
 
 namespace PaymentService.API;
 
@@ -28,6 +29,15 @@ public static class DependencyInjection
             errorApp.Run(async context =>
             {
                 var exception = context.Features.Get<IExceptionHandlerFeature>()?.Error;
+
+                if (exception is PaymentWebhookIntegrityException)
+                {
+                    await Results.Conflict(new
+                    {
+                        error = exception.Message
+                    }).ExecuteAsync(context);
+                    return;
+                }
 
                 if (exception is ArgumentException or InvalidOperationException)
                 {
