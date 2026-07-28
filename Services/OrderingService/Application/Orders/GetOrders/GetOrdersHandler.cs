@@ -14,7 +14,7 @@ public sealed class GetOrdersHandler : IRequestHandler<GetOrdersQuery, IReadOnly
 
     public async Task<IReadOnlyList<OrderDto>> Handle(GetOrdersQuery request, CancellationToken cancellationToken)
     {
-        var orders = await _repository.GetAllAsync(cancellationToken);
+        var orders = await _repository.GetByCustomerAsync(request.CustomerId, cancellationToken);
 
         return orders
             .Select(OrderMapper.ToDto)

@@ -2,4 +2,4 @@ using MediatR;
 
 namespace OrderingService.Application.Orders.GetOrders;
 
-public sealed record GetOrdersQuery : IRequest<IReadOnlyList<OrderDto>>;
+public sealed record GetOrdersQuery(Guid CustomerId) : IRequest<IReadOnlyList<OrderDto>>;

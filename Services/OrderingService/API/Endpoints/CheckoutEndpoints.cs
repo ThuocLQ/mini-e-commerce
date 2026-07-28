@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using OrderingService.Application.Orders.Checkout;
+using System.Security.Claims;
 
 namespace OrderingService.API.Endpoints;
 
@@ -9,11 +10,13 @@ public static class CheckoutEndpoints
     public static IEndpointRouteBuilder MapCheckoutEndpoints(this IEndpointRouteBuilder app)
     {
         app.MapPost("/orders/checkout", CheckoutAsync)
-            .WithTags("Checkout");
+            .WithTags("Checkout")
+            .RequireAuthorization("authenticated");
 
         app.MapPost("/checkout", CheckoutAsync)
             .WithTags("Checkout")
-            .ExcludeFromDescription();
+            .ExcludeFromDescription()
+            .RequireAuthorization("authenticated");
 
         return app;
     }
@@ -21,14 +24,25 @@ public static class CheckoutEndpoints
     private static async Task<IResult> CheckoutAsync(
         CheckoutRequest request,
         [FromHeader(Name = "Idempotency-Key")] string? idempotencyKey,
+        ClaimsPrincipal user,
         ISender sender,
         CancellationToken cancellationToken)
     {
+        if (!TryGetAuthenticatedCustomerId(user, out var customerId) || customerId != request.CustomerId)
+        {
+            return Results.Forbid();
+        }
+
         var result = await sender.Send(
             new CheckoutCommand(request.CustomerId, idempotencyKey ?? request.IdempotencyKey),
             cancellationToken);
 
         return Results.Created($"/orders/{result.Id}", result);
+    }
+
+    private static bool TryGetAuthenticatedCustomerId(ClaimsPrincipal user, out Guid customerId)
+    {
+        return Guid.TryParse(user.FindFirst(ClaimTypes.NameIdentifier)?.Value, out customerId);
     }
 
     private sealed record CheckoutRequest(Guid CustomerId, string? IdempotencyKey);

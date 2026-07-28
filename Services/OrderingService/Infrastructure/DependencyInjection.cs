@@ -33,7 +33,8 @@ public static class DependencyInjection
         {
             client.BaseAddress = new Uri(basketBaseUrl);
             client.Timeout = TimeSpan.FromSeconds(5);
-        });
+        })
+        .AddHttpMessageHandler<AccessTokenDelegatingHandler>();
         
         services
             .AddOptions<OrderEventOptions>()

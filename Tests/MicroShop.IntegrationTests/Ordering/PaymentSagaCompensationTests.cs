@@ -68,6 +68,12 @@ public sealed class PaymentSagaCompensationTests
         public Task<IReadOnlyList<Order>> GetAllAsync(CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<Order>>([order]);
 
+        public Task<IReadOnlyList<Order>> GetByCustomerAsync(
+            Guid customerId,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<Order>>(
+                customerId == order.CustomerId ? [order] : []);
+
         public Task<Order?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
             Task.FromResult<Order?>(id == order.Id ? order : null);
 

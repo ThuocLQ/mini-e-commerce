@@ -11,6 +11,7 @@ using BasketService.Application.Baskets.UpdateBasketItemQuantity;
 using BasketService.Application.Baskets.ValidateCatalogProduct;
 using BasketService.Application.Catalog;
 using MediatR;
+using System.Security.Claims;
 
 namespace BasketService.API.Endpoints;
 
@@ -18,14 +19,37 @@ public static class BasketEndpoints
 {
     public static IEndpointRouteBuilder MapBasketEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/basket/{userId}", async (string userId, ISender sender, CancellationToken cancellationToken) =>
+        var group = app.MapGroup("")
+            .RequireAuthorization("authenticated");
+
+        group.AddEndpointFilter(async (context, next) =>
+        {
+            var requestedUserId = context.HttpContext.Request.RouteValues["userId"]?.ToString();
+            if (requestedUserId is null)
+            {
+                return await next(context);
+            }
+
+            var authenticatedUserId = context.HttpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (!Guid.TryParse(requestedUserId, out var requestedId) ||
+                !Guid.TryParse(authenticatedUserId, out var authenticatedId))
+            {
+                return Results.Forbid();
+            }
+
+            return requestedId == authenticatedId
+                ? await next(context)
+                : Results.Forbid();
+        });
+
+        group.MapGet("/basket/{userId}", async (string userId, ISender sender, CancellationToken cancellationToken) =>
         {
             var basket = await sender.Send(new GetBasketQuery(userId), cancellationToken);
 
             return Results.Ok(basket);
         });
 
-        app.MapPost("/basket/{userId}/items", async (
+        group.MapPost("/basket/{userId}/items", async (
             string userId,
             AddBasketItemRequest request,
             ISender sender,
@@ -39,7 +63,7 @@ public static class BasketEndpoints
                 cancellationToken);
         });
 
-        app.MapPost("/basket/{userId}/items-grpc", async (
+        group.MapPost("/basket/{userId}/items-grpc", async (
             string userId,
             AddBasketItemRequest request,
             ISender sender,
@@ -53,7 +77,7 @@ public static class BasketEndpoints
                 cancellationToken);
         });
 
-        app.MapPut("/basket/{userId}/items/{productId}", async (
+        group.MapPut("/basket/{userId}/items/{productId}", async (
             string userId,
             string productId,
             UpdateBasketItemQuantityRequest request,
@@ -74,7 +98,7 @@ public static class BasketEndpoints
             }
         });
 
-        app.MapDelete("/basket/{userId}/items/{productId}", async (
+        group.MapDelete("/basket/{userId}/items/{productId}", async (
             string userId,
             string productId,
             ISender sender,
@@ -85,7 +109,7 @@ public static class BasketEndpoints
             return removed ? Results.NoContent() : Results.NotFound();
         });
 
-        app.MapPut("/basket/{userId}/clear", async (
+        group.MapPut("/basket/{userId}/clear", async (
             string userId,
             ISender sender,
             CancellationToken cancellationToken) =>
@@ -95,7 +119,7 @@ public static class BasketEndpoints
             return Results.Ok(basket);
         });
 
-        app.MapDelete("/basket/{userId}", async (
+        group.MapDelete("/basket/{userId}", async (
             string userId,
             ISender sender,
             CancellationToken cancellationToken) =>
@@ -105,7 +129,7 @@ public static class BasketEndpoints
             return deleted ? Results.NoContent() : Results.NotFound();
         });
 
-        app.MapGet("/basket/products/{productId}/validate", async (
+        group.MapGet("/basket/products/{productId}/validate", async (
             string productId,
             ISender sender,
             CancellationToken cancellationToken) =>
@@ -117,7 +141,7 @@ public static class BasketEndpoints
                 cancellationToken);
         });
 
-        app.MapGet("/basket/products/{productId}/validate-grpc", async (
+        group.MapGet("/basket/products/{productId}/validate-grpc", async (
             string productId,
             ISender sender,
             CancellationToken cancellationToken) =>
@@ -129,7 +153,7 @@ public static class BasketEndpoints
                 cancellationToken);
         });
 
-        app.MapPost("/basket/preview-item", async (
+        group.MapPost("/basket/preview-item", async (
             AddBasketItemRequest request,
             ISender sender,
             CancellationToken cancellationToken) =>
@@ -141,7 +165,7 @@ public static class BasketEndpoints
                 cancellationToken);
         });
 
-        app.MapPost("/basket/preview-item-grpc", async (
+        group.MapPost("/basket/preview-item-grpc", async (
             AddBasketItemRequest request,
             ISender sender,
             CancellationToken cancellationToken) =>
@@ -153,7 +177,7 @@ public static class BasketEndpoints
                 cancellationToken);
         });
 
-        app.MapGet("/basket/products/{productId}/compare-communication", async (
+        group.MapGet("/basket/products/{productId}/compare-communication", async (
             string productId,
             ISender sender,
             CancellationToken cancellationToken) =>

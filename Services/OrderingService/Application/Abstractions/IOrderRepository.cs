@@ -6,6 +6,7 @@ namespace OrderingService.Application.Abstractions;
 public interface IOrderRepository
 {
     Task<IReadOnlyList<Order>> GetAllAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Order>> GetByCustomerAsync(Guid customerId, CancellationToken cancellationToken = default);
     Task<Order?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<Order?> GetByIdAsync(
         Guid id,

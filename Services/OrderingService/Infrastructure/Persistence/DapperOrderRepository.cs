@@ -33,6 +33,33 @@ public sealed class DapperOrderRepository : IOrderRepository
         return MapOrders(orderRows, itemRows);
     }
 
+    public async Task<IReadOnlyList<Order>> GetByCustomerAsync(
+        Guid customerId,
+        CancellationToken cancellationToken = default)
+    {
+        using var connection = _connectionFactory.CreateConnection();
+
+        var orderRows = (await connection.QueryAsync<OrderRow>(new CommandDefinition("""
+            SELECT Id, CustomerId, CreatedAtUtc, Status, IdempotencyKey
+            FROM Orders
+            WHERE CustomerId = @CustomerId
+            ORDER BY CreatedAtUtc DESC;
+            """, new { CustomerId = customerId }, cancellationToken: cancellationToken))).ToList();
+
+        if (orderRows.Count == 0)
+        {
+            return [];
+        }
+
+        var itemRows = (await connection.QueryAsync<OrderItemRow>(new CommandDefinition("""
+            SELECT Id, OrderId, ProductId, ProductName, UnitPrice, Quantity
+            FROM OrderItems
+            WHERE OrderId = ANY(@OrderIds);
+            """, new { OrderIds = orderRows.Select(order => order.Id).ToArray() }, cancellationToken: cancellationToken))).ToList();
+
+        return MapOrders(orderRows, itemRows);
+    }
+
     public async Task<Order?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         using var connection = _connectionFactory.CreateConnection();
