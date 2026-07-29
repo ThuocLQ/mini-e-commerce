@@ -13,6 +13,7 @@ public class CheckoutHandler : IRequestHandler<CheckoutCommand, OrderDto>
     private readonly IBasketClient _basketClient;
     private readonly IOrderRepository _orderRepository;
     private readonly IOutboxRepository _outboxRepository;
+    private readonly ICatalogProductSnapshotClient _catalogProductClient;
     private readonly IOrderingUnitOfWork _unitOfWork;
     private readonly OrderEventOptions _eventOptions;
 
@@ -20,12 +21,14 @@ public class CheckoutHandler : IRequestHandler<CheckoutCommand, OrderDto>
         IBasketClient basketClient,
         IOrderRepository orderRepository,
         IOutboxRepository outboxRepository,
+        ICatalogProductSnapshotClient catalogProductClient,
         IOrderingUnitOfWork unitOfWork,
         IOptions<OrderEventOptions> eventOptions)
     {
         _basketClient = basketClient;
         _orderRepository = orderRepository;
         _outboxRepository = outboxRepository;
+        _catalogProductClient = catalogProductClient;
         _unitOfWork = unitOfWork;
         _eventOptions = eventOptions.Value;
     }
@@ -71,16 +74,22 @@ public class CheckoutHandler : IRequestHandler<CheckoutCommand, OrderDto>
                 throw new ArgumentException("Basket contains an invalid product id.");
             }
 
-            if (string.IsNullOrWhiteSpace(item.ProductName))
+            var product = await _catalogProductClient.GetProductAsync(productId, cancellationToken);
+            if (product is null)
             {
-                throw new ArgumentException("Basket contains an item without product name.");
+                throw new ArgumentException($"Product '{productId:D}' no longer exists and cannot be checked out.");
+            }
+
+            if (product.Price < 0)
+            {
+                throw new InvalidOperationException($"Product '{productId:D}' has an invalid current price.");
             }
 
             order.AddItem(new OrderItem(
                 Guid.NewGuid(),
                 productId,
-                item.ProductName,
-                item.Price,
+                product.Name,
+                product.Price,
                 item.Quantity));
         }
 

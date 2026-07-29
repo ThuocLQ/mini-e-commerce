@@ -28,6 +28,8 @@ public static class DependencyInjection
 
         var basketBaseUrl = configuration["ServiceUrls:BasketHttp"]
                             ?? throw new InvalidOperationException("ServiceUrls:BasketHttp is missing.");
+        var catalogBaseUrl = configuration["ServiceUrls:CatalogHttp"]
+                             ?? throw new InvalidOperationException("ServiceUrls:CatalogHttp is missing.");
 
         services.AddHttpClient<IBasketClient, HttpBasketClient>(client =>
         {
@@ -35,6 +37,12 @@ public static class DependencyInjection
             client.Timeout = TimeSpan.FromSeconds(5);
         })
         .AddHttpMessageHandler<AccessTokenDelegatingHandler>();
+
+        services.AddHttpClient<ICatalogProductSnapshotClient, HttpCatalogProductSnapshotClient>(client =>
+        {
+            client.BaseAddress = new Uri(catalogBaseUrl);
+            client.Timeout = TimeSpan.FromSeconds(5);
+        });
         
         services
             .AddOptions<OrderEventOptions>()
