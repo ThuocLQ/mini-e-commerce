@@ -3,6 +3,7 @@ using PaymentService.Application.Payments.Webhooks;
 using PaymentService.Infrastructure.Observability;
 using PaymentService.Infrastructure.Outbox;
 using PaymentService.Infrastructure.Persistence;
+using PaymentService.Infrastructure.Clients;
 
 namespace PaymentService.Infrastructure;
 
@@ -20,6 +21,16 @@ public static class DependencyInjection
         services.AddScoped<IPaymentOutboxRepository, DapperPaymentOutboxRepository>();
         services.AddSingleton<IPaymentMetrics, PaymentMetrics>();
         services.AddPostgresReadinessCheck(configuration, "PaymentDb");
+
+        var orderingBaseUrl = configuration["ServiceUrls:OrderingHttp"]
+                              ?? throw new InvalidOperationException("ServiceUrls:OrderingHttp is missing.");
+
+        services.AddHttpClient<IOrderPaymentClient, HttpOrderPaymentClient>(client =>
+        {
+            client.BaseAddress = new Uri(orderingBaseUrl);
+            client.Timeout = TimeSpan.FromSeconds(5);
+        })
+        .AddHttpMessageHandler<AccessTokenDelegatingHandler>();
 
         services
             .AddOptions<PaymentWebhookOptions>()
@@ -51,9 +62,6 @@ public static class DependencyInjection
             .Bind(configuration.GetSection(OrderingSagaClientOptions.SectionName))
             .Validate(options => !string.IsNullOrWhiteSpace(options.OrderingHttp), "ServiceUrls:OrderingHttp is required.")
             .ValidateOnStart();
-
-        var orderingBaseUrl = configuration["ServiceUrls:OrderingHttp"]
-                              ?? throw new InvalidOperationException("ServiceUrls:OrderingHttp is missing.");
 
         services.AddHttpClient<OrderingPaymentSagaClient>(client =>
         {

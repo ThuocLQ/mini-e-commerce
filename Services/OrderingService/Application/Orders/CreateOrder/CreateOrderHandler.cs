@@ -37,7 +37,8 @@ public sealed class CreateOrderHandler : IRequestHandler<CreateOrderCommand, Ord
             Guid.NewGuid(),
             request.CustomerId,
             DateTime.UtcNow,
-            OrderStatus.PendingPayment);
+            OrderStatus.PendingPayment,
+            currency: _eventOptions.Currency);
 
         foreach (var item in request.Items)
         {
@@ -52,9 +53,9 @@ public sealed class CreateOrderHandler : IRequestHandler<CreateOrderCommand, Ord
         var createdOrder = await _unitOfWork.ExecuteAsync(async transaction =>
         {
             var persistedOrder = await _repository.CreateAsync(order, transaction, cancellationToken);
-            var orderCreatedEvent = OrderIntegrationEventFactory.CreateOrderCreated(persistedOrder, _eventOptions.Currency);
+            var orderCreatedEvent = OrderIntegrationEventFactory.CreateOrderCreated(persistedOrder);
             var notificationOutboxMessage = OutboxMessageFactory.Create(orderCreatedEvent);
-            var projectionEvent = OrderIntegrationEventFactory.CreateOrderProjectionCreated(persistedOrder, _eventOptions.Currency);
+            var projectionEvent = OrderIntegrationEventFactory.CreateOrderProjectionCreated(persistedOrder);
             var projectionOutboxMessage = OutboxMessageFactory.CreateKafka(projectionEvent);
 
             await _outboxRepository.AddAsync(notificationOutboxMessage, transaction, cancellationToken);

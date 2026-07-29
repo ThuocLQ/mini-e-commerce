@@ -8,14 +8,22 @@ public sealed class Order
     public Guid CustomerId { get; }
     public DateTime CreatedAtUtc { get; }
     public OrderStatus Status { get; private set; }
+    public string Currency { get; }
     public string? IdempotencyKey { get; }
     public IReadOnlyList<OrderItem> Items => _items;
     public decimal TotalAmount => _items.Sum(item => item.TotalPrice);
 
-    public Order(Guid id, Guid customerId, DateTime createdAtUtc, OrderStatus status, string? idempotencyKey = null)
+    public Order(
+        Guid id,
+        Guid customerId,
+        DateTime createdAtUtc,
+        OrderStatus status,
+        string? idempotencyKey = null,
+        string currency = "USD")
     {
         if (id == Guid.Empty) throw new ArgumentException("Order id cannot be empty.", nameof(id));
         if (customerId == Guid.Empty) throw new ArgumentException("Customer id cannot be empty.", nameof(customerId));
+        if (string.IsNullOrWhiteSpace(currency)) throw new ArgumentException("Currency is required.", nameof(currency));
 
         idempotencyKey = string.IsNullOrWhiteSpace(idempotencyKey) ? null : idempotencyKey.Trim();
         if (idempotencyKey?.Length > 128)
@@ -28,6 +36,7 @@ public sealed class Order
         CreatedAtUtc = createdAtUtc;
         Status = status;
         IdempotencyKey = idempotencyKey;
+        Currency = currency.Trim().ToUpperInvariant();
     }
 
     public void AddItem(OrderItem item)

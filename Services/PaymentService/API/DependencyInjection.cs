@@ -1,15 +1,20 @@
 using Microsoft.AspNetCore.Diagnostics;
 using PaymentService.API.Endpoints;
 using PaymentService.Application.Payments.Webhooks;
+using PaymentService.Infrastructure.Clients;
 
 namespace PaymentService.API;
 
 public static class DependencyInjection
 {
-    public static IServiceCollection AddApi(this IServiceCollection services)
+    public static IServiceCollection AddApi(
+        this IServiceCollection services,
+        IConfiguration configuration,
+        IHostEnvironment environment)
     {
         services.AddProblemDetails();
         services.AddEndpointsApiExplorer();
+        services.AddMicroShopJwtAuthentication(configuration, environment);
 
         return services;
     }
@@ -51,6 +56,20 @@ public static class DependencyInjection
                 if (exception is UnauthorizedAccessException)
                 {
                     await Results.Unauthorized().ExecuteAsync(context);
+                    return;
+                }
+
+                if (exception is KeyNotFoundException)
+                {
+                    await Results.NotFound(new { error = exception.Message }).ExecuteAsync(context);
+                    return;
+                }
+
+                if (exception is OrderServiceUnavailableException)
+                {
+                    await Results.Json(
+                        new { errorCode = "ORDERING_UNAVAILABLE", message = exception.Message },
+                        statusCode: StatusCodes.Status503ServiceUnavailable).ExecuteAsync(context);
                     return;
                 }
 

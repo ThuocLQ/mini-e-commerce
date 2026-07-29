@@ -1,4 +1,5 @@
 using Dapper;
+using Npgsql;
 using PaymentService.Application.Abstractions;
 using PaymentService.Domain.Payments;
 
@@ -17,7 +18,9 @@ public sealed class DapperPaymentRepository : IPaymentRepository
     {
         using var connection = _connectionFactory.CreateConnection();
 
-        await connection.ExecuteAsync(new CommandDefinition("""
+        try
+        {
+            await connection.ExecuteAsync(new CommandDefinition("""
             INSERT INTO Payments (
                 Id,
                 OrderId,
@@ -41,6 +44,17 @@ public sealed class DapperPaymentRepository : IPaymentRepository
                 @CreatedAtUtc,
                 @CompletedAtUtc);
             """, ToParameters(payment), cancellationToken: cancellationToken));
+        }
+        catch (PostgresException ex) when (ex.SqlState == PostgresErrorCodes.UniqueViolation)
+        {
+            var existingPayment = await GetByOrderIdAsync(payment.OrderId, cancellationToken);
+            if (existingPayment is not null)
+            {
+                return existingPayment;
+            }
+
+            throw;
+        }
 
         return payment;
     }
@@ -57,6 +71,19 @@ public sealed class DapperPaymentRepository : IPaymentRepository
         {
             Id = id
         }, cancellationToken: cancellationToken));
+
+        return row is null ? null : MapPayment(row);
+    }
+
+    public async Task<Payment?> GetByOrderIdAsync(Guid orderId, CancellationToken cancellationToken = default)
+    {
+        using var connection = _connectionFactory.CreateConnection();
+
+        var row = await connection.QuerySingleOrDefaultAsync<PaymentRow>(new CommandDefinition("""
+            SELECT Id, OrderId, CustomerId, Amount, Currency, Status, ProviderTransactionId, FailureReason, CreatedAtUtc, CompletedAtUtc
+            FROM Payments
+            WHERE OrderId = @OrderId;
+            """, new { OrderId = orderId }, cancellationToken: cancellationToken));
 
         return row is null ? null : MapPayment(row);
     }

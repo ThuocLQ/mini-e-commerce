@@ -20,7 +20,7 @@ public sealed class DapperOrderRepository : IOrderRepository
         using var connection = _connectionFactory.CreateConnection();
 
         var orderRows = (await connection.QueryAsync<OrderRow>(new CommandDefinition("""
-            SELECT Id, CustomerId, CreatedAtUtc, Status, IdempotencyKey
+            SELECT Id, CustomerId, CreatedAtUtc, Status, IdempotencyKey, Currency
             FROM Orders
             ORDER BY CreatedAtUtc DESC;
             """, cancellationToken: cancellationToken))).ToList();
@@ -40,7 +40,7 @@ public sealed class DapperOrderRepository : IOrderRepository
         using var connection = _connectionFactory.CreateConnection();
 
         var orderRows = (await connection.QueryAsync<OrderRow>(new CommandDefinition("""
-            SELECT Id, CustomerId, CreatedAtUtc, Status, IdempotencyKey
+            SELECT Id, CustomerId, CreatedAtUtc, Status, IdempotencyKey, Currency
             FROM Orders
             WHERE CustomerId = @CustomerId
             ORDER BY CreatedAtUtc DESC;
@@ -83,12 +83,12 @@ public sealed class DapperOrderRepository : IOrderRepository
     {
         var sql = transaction is null
             ? """
-              SELECT Id, CustomerId, CreatedAtUtc, Status, IdempotencyKey
+              SELECT Id, CustomerId, CreatedAtUtc, Status, IdempotencyKey, Currency
               FROM Orders
               WHERE Id = @Id;
               """
             : """
-              SELECT Id, CustomerId, CreatedAtUtc, Status, IdempotencyKey
+              SELECT Id, CustomerId, CreatedAtUtc, Status, IdempotencyKey, Currency
               FROM Orders
               WHERE Id = @Id
               FOR UPDATE;
@@ -122,7 +122,7 @@ public sealed class DapperOrderRepository : IOrderRepository
         using var connection = _connectionFactory.CreateConnection();
 
         var orderRow = await connection.QuerySingleOrDefaultAsync<OrderRow>(new CommandDefinition("""
-            SELECT Id, CustomerId, CreatedAtUtc, Status, IdempotencyKey
+            SELECT Id, CustomerId, CreatedAtUtc, Status, IdempotencyKey, Currency
             FROM Orders
             WHERE CustomerId = @CustomerId
               AND IdempotencyKey = @IdempotencyKey;
@@ -243,8 +243,8 @@ public sealed class DapperOrderRepository : IOrderRepository
         CancellationToken cancellationToken)
     {
         await connection.ExecuteAsync(new CommandDefinition("""
-            INSERT INTO Orders (Id, CustomerId, CreatedAtUtc, Status, TotalAmount, IdempotencyKey)
-            VALUES (@Id, @CustomerId, @CreatedAtUtc, @Status, @TotalAmount, @IdempotencyKey);
+            INSERT INTO Orders (Id, CustomerId, CreatedAtUtc, Status, TotalAmount, Currency, IdempotencyKey)
+            VALUES (@Id, @CustomerId, @CreatedAtUtc, @Status, @TotalAmount, @Currency, @IdempotencyKey);
             """, new
         {
             order.Id,
@@ -252,6 +252,7 @@ public sealed class DapperOrderRepository : IOrderRepository
             order.CreatedAtUtc,
             Status = order.Status.ToString(),
             order.TotalAmount,
+            order.Currency,
             order.IdempotencyKey
         }, transaction, cancellationToken: cancellationToken));
 
@@ -291,7 +292,8 @@ public sealed class DapperOrderRepository : IOrderRepository
             row.CustomerId,
             row.CreatedAtUtc,
             Enum.Parse<OrderStatus>(row.Status),
-            row.IdempotencyKey);
+            row.IdempotencyKey,
+            row.Currency);
 
         foreach (var itemRow in itemRows)
         {
@@ -311,7 +313,8 @@ public sealed class DapperOrderRepository : IOrderRepository
         Guid CustomerId,
         DateTime CreatedAtUtc,
         string Status,
-        string? IdempotencyKey);
+        string? IdempotencyKey,
+        string Currency);
 
     private sealed record OrderItemRow(
         Guid Id,

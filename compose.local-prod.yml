@@ -315,6 +315,9 @@ services:
       ASPNETCORE_HTTP_PORTS: 8080
       ConnectionStrings__PaymentDb: Host=postgres;Port=5432;Database=paymentdb;Username=microshop;Password=${MICROSHOP_POSTGRES_PASSWORD:?Set MICROSHOP_POSTGRES_PASSWORD in .env.local-prod}
       ServiceUrls__OrderingHttp: http://orderingservice:8080
+      Jwt__Issuer: MicroShop.IdentityService
+      Jwt__Audience: MicroShop.Client
+      Jwt__SecretKey: ${MICROSHOP_JWT_SECRET_KEY:?Set MICROSHOP_JWT_SECRET_KEY in .env.local-prod}
       PaymentWebhooks__SignatureHeaderName: X-MicroShop-Signature
       PaymentWebhooks__SharedSecret: ${MICROSHOP_PAYMENT_WEBHOOK_SECRET:?Set MICROSHOP_PAYMENT_WEBHOOK_SECRET in .env.local-prod}
       PaymentWebhooks__RequireSignature: "true"

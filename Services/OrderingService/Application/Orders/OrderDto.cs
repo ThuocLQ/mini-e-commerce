@@ -6,6 +6,7 @@ public sealed record OrderDto(
     DateTime CreatedAtUtc,
     string Status,
     decimal TotalAmount,
+    string Currency,
     IReadOnlyList<OrderItemDto> Items);
 
 public sealed record OrderItemDto(

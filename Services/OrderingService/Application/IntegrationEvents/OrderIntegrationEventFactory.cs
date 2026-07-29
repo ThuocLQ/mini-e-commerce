@@ -6,18 +6,18 @@ namespace OrderingService.Application.IntegrationEvents;
 
 public static class OrderIntegrationEventFactory
 {
-    public static OrderCreatedIntegrationEvent CreateOrderCreated(Order order, string currency)
+    public static OrderCreatedIntegrationEvent CreateOrderCreated(Order order)
     {
         return new OrderCreatedIntegrationEvent
         {
             OrderId = order.Id,
             CustomerId = order.CustomerId,
             TotalAmount = order.TotalAmount,
-            Currency = currency
+            Currency = order.Currency
         };
     }
 
-    public static MicroShopEventEnvelope<OrderProjectionEventData> CreateOrderProjectionCreated(Order order, string currency)
+    public static MicroShopEventEnvelope<OrderProjectionEventData> CreateOrderProjectionCreated(Order order)
     {
         var occurredAtUtc = DateTime.UtcNow;
 
@@ -37,7 +37,7 @@ public static class OrderIntegrationEventFactory
                 // Identity profile is not part of the checkout aggregate yet; do not synchronously call Identity here.
                 CustomerName = order.CustomerId.ToString("D"),
                 TotalAmount = order.TotalAmount,
-                Currency = currency,
+                Currency = order.Currency,
                 ItemCount = order.Items.Count,
                 Items = order.Items.Select(item => new OrderProjectionItemData
                 {

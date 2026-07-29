@@ -12,6 +12,7 @@ public static class OrderMapper
             order.CreatedAtUtc,
             order.Status.ToString(),
             order.TotalAmount,
+            order.Currency,
             order.Items.Select(item => new OrderItemDto(
                 item.Id,
                 item.ProductId,

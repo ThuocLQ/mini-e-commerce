@@ -1,0 +1,12 @@
+ALTER TABLE Orders
+ADD COLUMN IF NOT EXISTS Currency text NULL;
+
+UPDATE Orders
+SET Currency = 'USD'
+WHERE Currency IS NULL OR btrim(Currency) = '';
+
+ALTER TABLE Orders
+ALTER COLUMN Currency SET NOT NULL;
+
+ALTER TABLE Orders
+ALTER COLUMN Currency SET DEFAULT 'USD';

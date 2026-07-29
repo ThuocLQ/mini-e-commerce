@@ -61,7 +61,8 @@ public class CheckoutHandler : IRequestHandler<CheckoutCommand, OrderDto>
             request.CustomerId,
             DateTime.UtcNow,
             OrderStatus.PendingPayment,
-            idempotencyKey);
+            idempotencyKey,
+            _eventOptions.Currency);
 
         foreach (var item in basket.Items)
         {
@@ -89,9 +90,9 @@ public class CheckoutHandler : IRequestHandler<CheckoutCommand, OrderDto>
             createdOrder = await _unitOfWork.ExecuteAsync(async transaction =>
             {
                 var persistedOrder = await _orderRepository.CreateAsync(order, transaction, cancellationToken);
-                var orderCreatedEvent = OrderIntegrationEventFactory.CreateOrderCreated(persistedOrder, _eventOptions.Currency);
+                var orderCreatedEvent = OrderIntegrationEventFactory.CreateOrderCreated(persistedOrder);
                 var notificationOutboxMessage = OutboxMessageFactory.Create(orderCreatedEvent);
-                var projectionEvent = OrderIntegrationEventFactory.CreateOrderProjectionCreated(persistedOrder, _eventOptions.Currency);
+                var projectionEvent = OrderIntegrationEventFactory.CreateOrderProjectionCreated(persistedOrder);
                 var projectionOutboxMessage = OutboxMessageFactory.CreateKafka(projectionEvent);
 
                 await _outboxRepository.AddAsync(notificationOutboxMessage, transaction, cancellationToken);
