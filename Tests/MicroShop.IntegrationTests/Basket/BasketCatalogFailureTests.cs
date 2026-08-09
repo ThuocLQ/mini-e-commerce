@@ -1,4 +1,5 @@
 using BasketService.Application.Abstractions;
+using BasketService.Application.Baskets;
 using BasketService.Application.Baskets.AddBasketItem;
 using BasketService.Application.Catalog;
 using BasketService.Domain.Baskets;
@@ -28,6 +29,18 @@ public sealed class BasketCatalogFailureTests
         Assert.Equal(0, basketRepository.UpdateCalls);
     }
 
+    [Fact]
+    public async Task AddItem_WhenBasketVersionChanged_ThrowsConcurrencyException()
+    {
+        var handler = new AddBasketItemHandler(
+            new ConflictingBasketRepository(),
+            new AvailableCatalogProductClient());
+
+        await Assert.ThrowsAsync<BasketConcurrencyException>(() => handler.Handle(
+            new AddBasketItemCommand("customer-1", Guid.NewGuid().ToString("D"), 1, CatalogCommunicationMode.Rest),
+            TestContext.Current.CancellationToken));
+    }
+
     private sealed class UnavailableCatalogProductClient : ICatalogProductClient
     {
         public Task<CatalogProduct?> GetProductByIdAsync(
@@ -47,6 +60,25 @@ public sealed class BasketCatalogFailureTests
         }
     }
 
+    private sealed class AvailableCatalogProductClient : ICatalogProductClient
+    {
+        public Task<CatalogProduct?> GetProductByIdAsync(
+            string productId,
+            CatalogCommunicationMode mode,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<CatalogProduct?>(new CatalogProduct(productId, "Product", 10m, null));
+        }
+
+        public Task<CatalogCallMeasurement> MeasureGetProductByIdAsync(
+            string productId,
+            CatalogCommunicationMode mode,
+            CancellationToken cancellationToken = default)
+        {
+            throw new NotSupportedException();
+        }
+    }
+
     private sealed class RecordingBasketRepository : IBasketRepository
     {
         public int GetCalls { get; private set; }
@@ -60,12 +92,13 @@ public sealed class BasketCatalogFailureTests
             return Task.FromResult(new ShoppingCart { UserId = userId });
         }
 
-        public Task<ShoppingCart> UpdateBasketAsync(
+        public Task<ShoppingCart?> TryUpdateBasketAsync(
             ShoppingCart cart,
+            long expectedVersion,
             CancellationToken cancellationToken = default)
         {
             UpdateCalls++;
-            return Task.FromResult(cart);
+            return Task.FromResult<ShoppingCart?>(cart);
         }
 
         public Task<bool> DeleteBasketAsync(
@@ -73,6 +106,37 @@ public sealed class BasketCatalogFailureTests
             CancellationToken cancellationToken = default)
         {
             return Task.FromResult(true);
+        }
+
+        public Task<bool> TryDeleteBasketAsync(
+            string userId,
+            long expectedVersion,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(true);
+        }
+    }
+
+    private sealed class ConflictingBasketRepository : IBasketRepository
+    {
+        public Task<ShoppingCart> GetBasketAsync(string userId, CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(new ShoppingCart { UserId = userId, Version = 3 });
+        }
+
+        public Task<ShoppingCart?> TryUpdateBasketAsync(ShoppingCart cart, long expectedVersion, CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<ShoppingCart?>(null);
+        }
+
+        public Task<bool> DeleteBasketAsync(string userId, CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(false);
+        }
+
+        public Task<bool> TryDeleteBasketAsync(string userId, long expectedVersion, CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(false);
         }
     }
 }

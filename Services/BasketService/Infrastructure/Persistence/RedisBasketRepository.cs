@@ -7,6 +7,27 @@ namespace BasketService.Infrastructure.Persistence;
 
 public sealed class RedisBasketRepository : IBasketRepository
 {
+    private const string CompareAndSetScript = """
+        local current = redis.call('GET', KEYS[1])
+        if not current then
+            if tonumber(ARGV[1]) ~= 0 then return 0 end
+            redis.call('SET', KEYS[1], ARGV[2], 'EX', ARGV[3])
+            return 1
+        end
+        local existing = cjson.decode(current)
+        if tonumber(existing.Version) ~= tonumber(ARGV[1]) then return 0 end
+        redis.call('SET', KEYS[1], ARGV[2], 'EX', ARGV[3])
+        return 1
+        """;
+
+    private const string CompareAndDeleteScript = """
+        local current = redis.call('GET', KEYS[1])
+        if not current then return 0 end
+        local existing = cjson.decode(current)
+        if tonumber(existing.Version) ~= tonumber(ARGV[1]) then return 0 end
+        return redis.call('DEL', KEYS[1])
+        """;
+
     private readonly IDatabase _database;
 
     public RedisBasketRepository(IConnectionMultiplexer redis)
@@ -32,21 +53,39 @@ public sealed class RedisBasketRepository : IBasketRepository
                };
     }
 
-    public async Task<ShoppingCart> UpdateBasketAsync(ShoppingCart cart, CancellationToken cancellationToken = default)
+    public async Task<ShoppingCart?> TryUpdateBasketAsync(
+        ShoppingCart cart,
+        long expectedVersion,
+        CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+        cart.Version = checked(expectedVersion + 1);
         var json = JsonSerializer.Serialize(cart);
+        var result = await _database.ScriptEvaluateAsync(
+            CompareAndSetScript,
+            [(RedisKey)GetKey(cart.UserId)],
+            [expectedVersion, json, (int)TimeSpan.FromDays(7).TotalSeconds]);
 
-        await _database.StringSetAsync(
-            GetKey(cart.UserId),
-            json,
-            expiry: TimeSpan.FromDays(7));
-
-        return cart;
+        return result.ToString() == "1" ? cart : null;
     }
 
     public async Task<bool> DeleteBasketAsync(string userId, CancellationToken cancellationToken = default)
     {
         return await _database.KeyDeleteAsync(GetKey(userId));
+    }
+
+    public async Task<bool> TryDeleteBasketAsync(
+        string userId,
+        long expectedVersion,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var result = await _database.ScriptEvaluateAsync(
+            CompareAndDeleteScript,
+            [(RedisKey)GetKey(userId)],
+            [expectedVersion]);
+
+        return result.ToString() == "1";
     }
 
     private static string GetKey(string userId)

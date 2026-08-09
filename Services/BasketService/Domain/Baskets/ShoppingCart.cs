@@ -3,6 +3,7 @@ namespace BasketService.Domain.Baskets;
 public sealed class ShoppingCart
 {
     public string UserId { get; set; } = string.Empty;
+    public long Version { get; set; }
     public List<BasketItem> Items { get; set; } = [];
 
     public decimal TotalPrice => Items.Sum(item => item.Price * item.Quantity);

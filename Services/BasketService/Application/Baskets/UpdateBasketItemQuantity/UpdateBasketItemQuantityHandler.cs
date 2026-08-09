@@ -15,13 +15,15 @@ public sealed class UpdateBasketItemQuantityHandler : IRequestHandler<UpdateBask
     public async Task<BasketDto?> Handle(UpdateBasketItemQuantityCommand request, CancellationToken cancellationToken)
     {
         var basket = await _repository.GetBasketAsync(request.UserId, cancellationToken);
+        var expectedVersion = basket.Version;
 
         if (!basket.UpdateItemQuantity(request.ProductId, request.Quantity))
         {
             return null;
         }
 
-        var updatedBasket = await _repository.UpdateBasketAsync(basket, cancellationToken);
+        var updatedBasket = await _repository.TryUpdateBasketAsync(basket, expectedVersion, cancellationToken)
+                            ?? throw new BasketConcurrencyException();
 
         return BasketDto.FromDomain(updatedBasket);
     }

@@ -25,13 +25,23 @@ public sealed class HttpBasketClient : IBasketClient
         }
     }
 
-    public async Task ClearBasketAsync(Guid customerId, CancellationToken cancellationToken = default)
+    public async Task<bool> TryClearBasketAsync(
+        Guid customerId,
+        long expectedVersion,
+        CancellationToken cancellationToken = default)
     {
         try
         {
-            var response = await _httpClient.DeleteAsync($"/basket/{customerId}", cancellationToken);
-            if (response.StatusCode == HttpStatusCode.NotFound) return;
+            var response = await _httpClient.DeleteAsync(
+                $"/basket/{customerId}/checkout?expectedVersion={expectedVersion}",
+                cancellationToken);
+            if (response.StatusCode == HttpStatusCode.Conflict || response.StatusCode == HttpStatusCode.NotFound)
+            {
+                return false;
+            }
+
             response.EnsureSuccessStatusCode();
+            return true;
         }
         catch (Exception ex) when (!cancellationToken.IsCancellationRequested && IsDownstreamFailure(ex))
         {

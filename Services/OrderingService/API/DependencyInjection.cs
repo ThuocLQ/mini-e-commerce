@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Diagnostics;
 using OrderingService.Application.Baskets;
 using OrderingService.Application.Catalog;
+using OrderingService.Application.Discounts;
 using OrderingService.API.Endpoints;
 
 namespace OrderingService.API;
@@ -54,6 +55,18 @@ public static class DependencyInjection
                 }
 
                 if (exception is CatalogUnavailableException)
+                {
+                    await Results.Json(
+                        new
+                        {
+                            ErrorCode = "DOWNSTREAM_UNAVAILABLE",
+                            exception.Message
+                        },
+                        statusCode: StatusCodes.Status503ServiceUnavailable).ExecuteAsync(context);
+                    return;
+                }
+
+                if (exception is DiscountUnavailableException)
                 {
                     await Results.Json(
                         new

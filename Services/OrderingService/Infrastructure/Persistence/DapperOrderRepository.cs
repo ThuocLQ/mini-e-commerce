@@ -20,7 +20,7 @@ public sealed class DapperOrderRepository : IOrderRepository
         using var connection = _connectionFactory.CreateConnection();
 
         var orderRows = (await connection.QueryAsync<OrderRow>(new CommandDefinition("""
-            SELECT Id, CustomerId, CreatedAtUtc, Status, IdempotencyKey, Currency
+            SELECT Id, CustomerId, CreatedAtUtc, Status, IdempotencyKey, Currency, DiscountCode, DiscountAmount
             FROM Orders
             ORDER BY CreatedAtUtc DESC;
             """, cancellationToken: cancellationToken))).ToList();
@@ -40,7 +40,7 @@ public sealed class DapperOrderRepository : IOrderRepository
         using var connection = _connectionFactory.CreateConnection();
 
         var orderRows = (await connection.QueryAsync<OrderRow>(new CommandDefinition("""
-            SELECT Id, CustomerId, CreatedAtUtc, Status, IdempotencyKey, Currency
+            SELECT Id, CustomerId, CreatedAtUtc, Status, IdempotencyKey, Currency, DiscountCode, DiscountAmount
             FROM Orders
             WHERE CustomerId = @CustomerId
             ORDER BY CreatedAtUtc DESC;
@@ -83,12 +83,12 @@ public sealed class DapperOrderRepository : IOrderRepository
     {
         var sql = transaction is null
             ? """
-              SELECT Id, CustomerId, CreatedAtUtc, Status, IdempotencyKey, Currency
+              SELECT Id, CustomerId, CreatedAtUtc, Status, IdempotencyKey, Currency, DiscountCode, DiscountAmount
               FROM Orders
               WHERE Id = @Id;
               """
             : """
-              SELECT Id, CustomerId, CreatedAtUtc, Status, IdempotencyKey, Currency
+              SELECT Id, CustomerId, CreatedAtUtc, Status, IdempotencyKey, Currency, DiscountCode, DiscountAmount
               FROM Orders
               WHERE Id = @Id
               FOR UPDATE;
@@ -122,7 +122,7 @@ public sealed class DapperOrderRepository : IOrderRepository
         using var connection = _connectionFactory.CreateConnection();
 
         var orderRow = await connection.QuerySingleOrDefaultAsync<OrderRow>(new CommandDefinition("""
-            SELECT Id, CustomerId, CreatedAtUtc, Status, IdempotencyKey, Currency
+            SELECT Id, CustomerId, CreatedAtUtc, Status, IdempotencyKey, Currency, DiscountCode, DiscountAmount
             FROM Orders
             WHERE CustomerId = @CustomerId
               AND IdempotencyKey = @IdempotencyKey;
@@ -243,8 +243,8 @@ public sealed class DapperOrderRepository : IOrderRepository
         CancellationToken cancellationToken)
     {
         await connection.ExecuteAsync(new CommandDefinition("""
-            INSERT INTO Orders (Id, CustomerId, CreatedAtUtc, Status, TotalAmount, Currency, IdempotencyKey)
-            VALUES (@Id, @CustomerId, @CreatedAtUtc, @Status, @TotalAmount, @Currency, @IdempotencyKey);
+            INSERT INTO Orders (Id, CustomerId, CreatedAtUtc, Status, TotalAmount, Currency, DiscountCode, DiscountAmount, IdempotencyKey)
+            VALUES (@Id, @CustomerId, @CreatedAtUtc, @Status, @TotalAmount, @Currency, @DiscountCode, @DiscountAmount, @IdempotencyKey);
             """, new
         {
             order.Id,
@@ -253,6 +253,8 @@ public sealed class DapperOrderRepository : IOrderRepository
             Status = order.Status.ToString(),
             order.TotalAmount,
             order.Currency,
+            order.DiscountCode,
+            order.DiscountAmount,
             order.IdempotencyKey
         }, transaction, cancellationToken: cancellationToken));
 
@@ -305,6 +307,11 @@ public sealed class DapperOrderRepository : IOrderRepository
                 itemRow.Quantity));
         }
 
+        if (row.DiscountAmount > 0 && !string.IsNullOrWhiteSpace(row.DiscountCode))
+        {
+            order.ApplyDiscount(row.DiscountCode, row.DiscountAmount);
+        }
+
         return order;
     }
 
@@ -314,7 +321,9 @@ public sealed class DapperOrderRepository : IOrderRepository
         DateTime CreatedAtUtc,
         string Status,
         string? IdempotencyKey,
-        string Currency);
+        string Currency,
+        string? DiscountCode,
+        decimal DiscountAmount);
 
     private sealed record OrderItemRow(
         Guid Id,

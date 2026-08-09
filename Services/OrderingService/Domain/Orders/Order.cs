@@ -10,8 +10,11 @@ public sealed class Order
     public OrderStatus Status { get; private set; }
     public string Currency { get; }
     public string? IdempotencyKey { get; }
+    public string? DiscountCode { get; private set; }
+    public decimal DiscountAmount { get; private set; }
     public IReadOnlyList<OrderItem> Items => _items;
-    public decimal TotalAmount => _items.Sum(item => item.TotalPrice);
+    public decimal SubtotalAmount => _items.Sum(item => item.TotalPrice);
+    public decimal TotalAmount => SubtotalAmount - DiscountAmount;
 
     public Order(
         Guid id,
@@ -42,6 +45,22 @@ public sealed class Order
     public void AddItem(OrderItem item)
     {
         _items.Add(item);
+    }
+
+    public void ApplyDiscount(string couponCode, decimal discountAmount)
+    {
+        if (string.IsNullOrWhiteSpace(couponCode))
+        {
+            throw new ArgumentException("Discount code is required.", nameof(couponCode));
+        }
+
+        if (discountAmount <= 0 || discountAmount > SubtotalAmount)
+        {
+            throw new ArgumentOutOfRangeException(nameof(discountAmount), "Discount amount must be greater than zero and cannot exceed the order subtotal.");
+        }
+
+        DiscountCode = couponCode.Trim().ToUpperInvariant();
+        DiscountAmount = decimal.Round(discountAmount, 2, MidpointRounding.AwayFromZero);
     }
 
     public bool MarkPendingPayment()

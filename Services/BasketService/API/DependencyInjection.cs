@@ -1,5 +1,6 @@
 using BasketService.API.Endpoints;
 using BasketService.Application.Catalog;
+using BasketService.Application.Baskets;
 using Microsoft.AspNetCore.Diagnostics;
 
 namespace BasketService.API;
@@ -42,6 +43,12 @@ public static class DependencyInjection
                             Message = "CatalogService is unavailable. Please try again later."
                         },
                         statusCode: StatusCodes.Status503ServiceUnavailable).ExecuteAsync(context);
+                    return;
+                }
+
+                if (exception is BasketConcurrencyException)
+                {
+                    await Results.Conflict(new { exception.Message }).ExecuteAsync(context);
                     return;
                 }
 

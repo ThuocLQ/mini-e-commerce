@@ -15,9 +15,11 @@ public sealed class ClearBasketHandler : IRequestHandler<ClearBasketCommand, Bas
     public async Task<BasketDto> Handle(ClearBasketCommand request, CancellationToken cancellationToken)
     {
         var basket = await _repository.GetBasketAsync(request.UserId, cancellationToken);
+        var expectedVersion = basket.Version;
         basket.Clear();
 
-        var updatedBasket = await _repository.UpdateBasketAsync(basket, cancellationToken);
+        var updatedBasket = await _repository.TryUpdateBasketAsync(basket, expectedVersion, cancellationToken)
+                            ?? throw new BasketConcurrencyException();
 
         return BasketDto.FromDomain(updatedBasket);
     }

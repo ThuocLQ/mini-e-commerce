@@ -15,13 +15,17 @@ public sealed class RemoveBasketItemHandler : IRequestHandler<RemoveBasketItemCo
     public async Task<bool> Handle(RemoveBasketItemCommand request, CancellationToken cancellationToken)
     {
         var basket = await _repository.GetBasketAsync(request.UserId, cancellationToken);
+        var expectedVersion = basket.Version;
 
         if (!basket.RemoveItem(request.ProductId))
         {
             return false;
         }
 
-        await _repository.UpdateBasketAsync(basket, cancellationToken);
+        if (await _repository.TryUpdateBasketAsync(basket, expectedVersion, cancellationToken) is null)
+        {
+            throw new BasketConcurrencyException();
+        }
 
         return true;
     }

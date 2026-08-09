@@ -46,6 +46,7 @@ public sealed class AddBasketItemHandler : IRequestHandler<AddBasketItemCommand,
         }
 
         var basket = await _repository.GetBasketAsync(request.UserId, cancellationToken);
+        var expectedVersion = basket.Version;
         basket.AddItem(new BasketItem
         {
             ProductId = request.ProductId,
@@ -54,7 +55,8 @@ public sealed class AddBasketItemHandler : IRequestHandler<AddBasketItemCommand,
             Price = product.Price
         });
 
-        var updatedBasket = await _repository.UpdateBasketAsync(basket, cancellationToken);
+        var updatedBasket = await _repository.TryUpdateBasketAsync(basket, expectedVersion, cancellationToken)
+                            ?? throw new BasketConcurrencyException();
 
         return BasketDto.FromDomain(updatedBasket);
     }

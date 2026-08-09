@@ -1,0 +1,5 @@
+ALTER TABLE Orders
+ADD COLUMN IF NOT EXISTS DiscountCode text NULL;
+
+ALTER TABLE Orders
+ADD COLUMN IF NOT EXISTS DiscountAmount numeric(18, 2) NOT NULL DEFAULT 0;

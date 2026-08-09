@@ -34,7 +34,7 @@ public static class CheckoutEndpoints
         }
 
         var result = await sender.Send(
-            new CheckoutCommand(request.CustomerId, idempotencyKey ?? request.IdempotencyKey),
+            new CheckoutCommand(request.CustomerId, idempotencyKey ?? request.IdempotencyKey, request.CouponCode),
             cancellationToken);
 
         return Results.Created($"/orders/{result.Id}", result);
@@ -45,5 +45,5 @@ public static class CheckoutEndpoints
         return Guid.TryParse(user.FindFirst(ClaimTypes.NameIdentifier)?.Value, out customerId);
     }
 
-    private sealed record CheckoutRequest(Guid CustomerId, string? IdempotencyKey);
+    private sealed record CheckoutRequest(Guid CustomerId, string? IdempotencyKey, string? CouponCode);
 }

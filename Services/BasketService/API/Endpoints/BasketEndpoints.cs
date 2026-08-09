@@ -2,6 +2,7 @@ using BasketService.API.Contracts;
 using BasketService.Application.Baskets;
 using BasketService.Application.Baskets.AddBasketItem;
 using BasketService.Application.Baskets.ClearBasket;
+using BasketService.Application.Baskets.CheckoutBasket;
 using BasketService.Application.Baskets.CompareCatalogCommunication;
 using BasketService.Application.Baskets.DeleteBasket;
 using BasketService.Application.Baskets.GetBasket;
@@ -127,6 +128,22 @@ public static class BasketEndpoints
             var deleted = await sender.Send(new DeleteBasketCommand(userId), cancellationToken);
 
             return deleted ? Results.NoContent() : Results.NotFound();
+        });
+
+        group.MapDelete("/basket/{userId}/checkout", async (
+            string userId,
+            long expectedVersion,
+            ISender sender,
+            CancellationToken cancellationToken) =>
+        {
+            var cleared = await sender.Send(
+                new CheckoutBasketCommand(userId, expectedVersion),
+                cancellationToken);
+
+            return cleared ? Results.NoContent() : Results.Conflict(new
+            {
+                Message = "Basket changed after checkout started and was not cleared."
+            });
         });
 
         group.MapGet("/basket/products/{productId}/validate", async (

@@ -13,6 +13,9 @@ public static class OrderMapper
             order.Status.ToString(),
             order.TotalAmount,
             order.Currency,
+            order.SubtotalAmount,
+            order.DiscountCode,
+            order.DiscountAmount,
             order.Items.Select(item => new OrderItemDto(
                 item.Id,
                 item.ProductId,

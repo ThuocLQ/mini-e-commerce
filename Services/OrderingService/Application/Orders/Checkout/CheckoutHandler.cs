@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.Extensions.Options;
 using OrderingService.Application.Abstractions;
+using OrderingService.Application.Baskets;
 using OrderingService.Application.IntegrationEvents;
 using OrderingService.Application.Orders;
 using OrderingService.Application.Outbox;
@@ -14,23 +15,29 @@ public class CheckoutHandler : IRequestHandler<CheckoutCommand, OrderDto>
     private readonly IOrderRepository _orderRepository;
     private readonly IOutboxRepository _outboxRepository;
     private readonly ICatalogProductSnapshotClient _catalogProductClient;
+    private readonly IDiscountClient _discountClient;
     private readonly IOrderingUnitOfWork _unitOfWork;
     private readonly OrderEventOptions _eventOptions;
+    private readonly ILogger<CheckoutHandler> _logger;
 
     public CheckoutHandler(
         IBasketClient basketClient,
         IOrderRepository orderRepository,
         IOutboxRepository outboxRepository,
         ICatalogProductSnapshotClient catalogProductClient,
+        IDiscountClient discountClient,
         IOrderingUnitOfWork unitOfWork,
-        IOptions<OrderEventOptions> eventOptions)
+        IOptions<OrderEventOptions> eventOptions,
+        ILogger<CheckoutHandler> logger)
     {
         _basketClient = basketClient;
         _orderRepository = orderRepository;
         _outboxRepository = outboxRepository;
         _catalogProductClient = catalogProductClient;
+        _discountClient = discountClient;
         _unitOfWork = unitOfWork;
         _eventOptions = eventOptions.Value;
+        _logger = logger;
     }
     
     public async Task<OrderDto> Handle(CheckoutCommand request, CancellationToken cancellationToken)
@@ -43,7 +50,6 @@ public class CheckoutHandler : IRequestHandler<CheckoutCommand, OrderDto>
 
         if (existingOrder is not null)
         {
-            await _basketClient.ClearBasketAsync(request.CustomerId, cancellationToken);
             return OrderMapper.ToDto(existingOrder);
         }
 
@@ -93,6 +99,22 @@ public class CheckoutHandler : IRequestHandler<CheckoutCommand, OrderDto>
                 item.Quantity));
         }
 
+        if (!string.IsNullOrWhiteSpace(request.CouponCode))
+        {
+            var discount = await _discountClient.ApplyAsync(
+                request.CouponCode.Trim(),
+                order.SubtotalAmount,
+                cancellationToken);
+
+            if (!discount.IsValid || discount.DiscountAmount <= 0 ||
+                discount.FinalAmount != order.SubtotalAmount - discount.DiscountAmount)
+            {
+                throw new ArgumentException(discount.Message);
+            }
+
+            order.ApplyDiscount(discount.CouponCode, discount.DiscountAmount);
+        }
+
         Order createdOrder;
         try
         {
@@ -122,11 +144,29 @@ public class CheckoutHandler : IRequestHandler<CheckoutCommand, OrderDto>
                 throw;
             }
 
-            await _basketClient.ClearBasketAsync(request.CustomerId, cancellationToken);
             return OrderMapper.ToDto(duplicatedOrder);
         }
 
-        await _basketClient.ClearBasketAsync(request.CustomerId, cancellationToken);
+        try
+        {
+            var cleared = await _basketClient.TryClearBasketAsync(request.CustomerId, basket.Version, cancellationToken);
+            if (!cleared)
+            {
+                _logger.LogInformation(
+                    "Basket was retained after checkout because its version changed. OrderId: {OrderId}, CustomerId: {CustomerId}, BasketVersion: {BasketVersion}",
+                    createdOrder.Id,
+                    request.CustomerId,
+                    basket.Version);
+            }
+        }
+        catch (BasketUnavailableException exception)
+        {
+            _logger.LogWarning(
+                exception,
+                "Order was created but BasketService was unavailable for conditional clear. OrderId: {OrderId}, CustomerId: {CustomerId}",
+                createdOrder.Id,
+                request.CustomerId);
+        }
 
         return OrderMapper.ToDto(createdOrder);
     }

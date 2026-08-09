@@ -30,6 +30,8 @@ public static class DependencyInjection
                             ?? throw new InvalidOperationException("ServiceUrls:BasketHttp is missing.");
         var catalogBaseUrl = configuration["ServiceUrls:CatalogHttp"]
                              ?? throw new InvalidOperationException("ServiceUrls:CatalogHttp is missing.");
+        var discountBaseUrl = configuration["ServiceUrls:DiscountHttp"]
+                              ?? throw new InvalidOperationException("ServiceUrls:DiscountHttp is missing.");
 
         services.AddHttpClient<IBasketClient, HttpBasketClient>(client =>
         {
@@ -41,6 +43,12 @@ public static class DependencyInjection
         services.AddHttpClient<ICatalogProductSnapshotClient, HttpCatalogProductSnapshotClient>(client =>
         {
             client.BaseAddress = new Uri(catalogBaseUrl);
+            client.Timeout = TimeSpan.FromSeconds(5);
+        });
+
+        services.AddHttpClient<IDiscountClient, HttpDiscountClient>(client =>
+        {
+            client.BaseAddress = new Uri(discountBaseUrl);
             client.Timeout = TimeSpan.FromSeconds(5);
         });
         

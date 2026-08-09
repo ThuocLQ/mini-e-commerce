@@ -219,6 +219,7 @@ services:
       ConnectionStrings__Redis: redis:6379
       Redis__ConnectionString: redis:6379
       ServiceUrls__CatalogHttp: http://catalogservice:8080
+      ServiceUrls__DiscountHttp: http://discountservice:8080
       ServiceUrls__CatalogGrpc: http://catalogservice:8080
       Jwt__Issuer: MicroShop.IdentityService
       Jwt__Audience: MicroShop.Client

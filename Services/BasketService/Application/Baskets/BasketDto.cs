@@ -5,7 +5,8 @@ namespace BasketService.Application.Baskets;
 public sealed record BasketDto(
     string UserId,
     IReadOnlyList<BasketItemDto> Items,
-    decimal TotalPrice)
+    decimal TotalPrice,
+    long Version)
 {
     public static BasketDto FromDomain(ShoppingCart basket)
     {
@@ -16,7 +17,8 @@ public sealed record BasketDto(
                 item.ProductName,
                 item.Quantity,
                 item.Price)).ToList(),
-            basket.TotalPrice);
+            basket.TotalPrice,
+            basket.Version);
     }
 }
 

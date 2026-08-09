@@ -48,6 +48,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate DbUp migration naming
+        shell: pwsh
+        run: ./scripts/Test-DbUpMigrationNaming.ps1 -BaseRef "${{ github.event.before || github.event.pull_request.base.sha }}"
 
       - name: Validate PowerShell scripts
         shell: pwsh
@@ -71,7 +77,8 @@ jobs:
             "scripts/local-prod-up.ps1",
             "scripts/test-kafka-lesson25.ps1",
             "scripts/test-order-outbox-kafka.ps1",
-            "scripts/test-projection-reliability.ps1"
+            "scripts/test-projection-reliability.ps1",
+            "scripts/Test-DbUpMigrationNaming.ps1"
           )
 
           foreach ($script in $scripts) {
