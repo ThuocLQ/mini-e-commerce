@@ -6,6 +6,7 @@ using CatalogService.Application.Products.GetProducts;
 using CatalogService.Application.Products.GetProductsByPrice;
 using CatalogService.Application.Products.SearchProducts;
 using CatalogService.Application.Products.UpdateProduct;
+using CatalogService.Application.Products.SetProductStock;
 using CatalogService.API.Contracts;
 using FluentValidation;
 using FluentValidation.Results;
@@ -79,7 +80,7 @@ public static class ProductEndpoints
             ISender sender,
             CancellationToken cancellationToken) =>
         {
-            var command = new CreateProductCommand(request.Name, request.Price, request.Description);
+            var command = new CreateProductCommand(request.Name, request.Price, request.Description, request.StockQuantity);
             var validationResult = await validator.ValidateAsync(command, cancellationToken);
 
             if (!validationResult.IsValid)
@@ -110,6 +111,17 @@ public static class ProductEndpoints
             return result is null ? Results.NotFound() : Results.Ok(result);
         })
             .RequireAuthorization("AdminOnly");;
+
+        group.MapPut("/{id}/stock", async (
+            string id,
+            SetProductStockRequest request,
+            ISender sender,
+            CancellationToken cancellationToken) =>
+        {
+            var result = await sender.Send(new SetProductStockCommand(id, request.StockQuantity), cancellationToken);
+            return Results.Ok(result);
+        })
+        .RequireAuthorization("AdminOnly");
         
         //Delete product : sau nay co the dung "Soft delete"
         group.MapDelete("/{id}", async (

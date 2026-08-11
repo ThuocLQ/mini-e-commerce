@@ -15,7 +15,8 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(
         this IServiceCollection services,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        IHostEnvironment environment)
     {
         services.AddSingleton<IDbConnectionFactory, NpgsqlConnectionFactory>();
         services.AddSingleton<IDatabaseInitializer, PostgresDatabaseInitializer>();
@@ -32,6 +33,13 @@ public static class DependencyInjection
                              ?? throw new InvalidOperationException("ServiceUrls:CatalogHttp is missing.");
         var discountBaseUrl = configuration["ServiceUrls:DiscountHttp"]
                               ?? throw new InvalidOperationException("ServiceUrls:DiscountHttp is missing.");
+        var internalApiKey = configuration["InternalApi:Key"]
+                             ?? throw new InvalidOperationException("InternalApi:Key is missing.");
+        if (!environment.IsDevelopment() &&
+            (internalApiKey.Contains("SET_BY_ENVIRONMENT", StringComparison.OrdinalIgnoreCase) || internalApiKey.Contains("CHANGEME", StringComparison.OrdinalIgnoreCase)))
+        {
+            throw new InvalidOperationException("InternalApi:Key must be supplied from a non-development secret source outside Development.");
+        }
 
         services.AddHttpClient<IBasketClient, HttpBasketClient>(client =>
         {
@@ -50,6 +58,13 @@ public static class DependencyInjection
         {
             client.BaseAddress = new Uri(discountBaseUrl);
             client.Timeout = TimeSpan.FromSeconds(5);
+        });
+
+        services.AddHttpClient<IInventoryReservationClient, HttpInventoryReservationClient>(client =>
+        {
+            client.BaseAddress = new Uri(catalogBaseUrl);
+            client.Timeout = TimeSpan.FromSeconds(5);
+            client.DefaultRequestHeaders.Add("X-MicroShop-Internal-Key", internalApiKey);
         });
         
         services

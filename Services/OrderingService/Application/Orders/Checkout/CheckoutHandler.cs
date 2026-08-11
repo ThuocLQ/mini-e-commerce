@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.Extensions.Options;
 using OrderingService.Application.Abstractions;
 using OrderingService.Application.Baskets;
+using OrderingService.Application.Inventory;
 using OrderingService.Application.IntegrationEvents;
 using OrderingService.Application.Orders;
 using OrderingService.Application.Outbox;
@@ -16,6 +17,7 @@ public class CheckoutHandler : IRequestHandler<CheckoutCommand, OrderDto>
     private readonly IOutboxRepository _outboxRepository;
     private readonly ICatalogProductSnapshotClient _catalogProductClient;
     private readonly IDiscountClient _discountClient;
+    private readonly IInventoryReservationClient _inventoryReservationClient;
     private readonly IOrderingUnitOfWork _unitOfWork;
     private readonly OrderEventOptions _eventOptions;
     private readonly ILogger<CheckoutHandler> _logger;
@@ -26,6 +28,7 @@ public class CheckoutHandler : IRequestHandler<CheckoutCommand, OrderDto>
         IOutboxRepository outboxRepository,
         ICatalogProductSnapshotClient catalogProductClient,
         IDiscountClient discountClient,
+        IInventoryReservationClient inventoryReservationClient,
         IOrderingUnitOfWork unitOfWork,
         IOptions<OrderEventOptions> eventOptions,
         ILogger<CheckoutHandler> logger)
@@ -35,6 +38,7 @@ public class CheckoutHandler : IRequestHandler<CheckoutCommand, OrderDto>
         _outboxRepository = outboxRepository;
         _catalogProductClient = catalogProductClient;
         _discountClient = discountClient;
+        _inventoryReservationClient = inventoryReservationClient;
         _unitOfWork = unitOfWork;
         _eventOptions = eventOptions.Value;
         _logger = logger;
@@ -115,6 +119,16 @@ public class CheckoutHandler : IRequestHandler<CheckoutCommand, OrderDto>
             order.ApplyDiscount(discount.CouponCode, discount.DiscountAmount);
         }
 
+        var reservation = await _inventoryReservationClient.ReserveAsync(
+            order.Id,
+            order.Items.Select(item => new InventoryReservationItem(item.ProductId, item.Quantity)).ToList(),
+            DateTime.UtcNow.AddMinutes(30),
+            cancellationToken);
+        if (!reservation.Succeeded)
+        {
+            throw new InsufficientInventoryException(reservation.FailureReason);
+        }
+
         Order createdOrder;
         try
         {
@@ -145,6 +159,19 @@ public class CheckoutHandler : IRequestHandler<CheckoutCommand, OrderDto>
             }
 
             return OrderMapper.ToDto(duplicatedOrder);
+        }
+        catch
+        {
+            try
+            {
+                await _inventoryReservationClient.ReleaseAsync(order.Id, cancellationToken);
+            }
+            catch (InventoryUnavailableException exception)
+            {
+                _logger.LogWarning(exception, "Could not release inventory after checkout persistence failed. OrderId: {OrderId}", order.Id);
+            }
+
+            throw;
         }
 
         try

@@ -1,4 +1,5 @@
 using System.Data;
+using Microsoft.Extensions.Logging.Abstractions;
 using OrderingService.Application.Abstractions;
 using OrderingService.Application.OrderPaymentSagas.ApplyPaymentEvent;
 using OrderingService.Domain.OrderPaymentSagas;
@@ -31,7 +32,9 @@ public sealed class PaymentSagaCompensationTests
         var handler = new ApplyPaymentSagaEventHandler(
             new InlineUnitOfWork(),
             orderRepository,
-            sagaRepository);
+            sagaRepository,
+            new StubInventoryReservationClient(),
+            NullLogger<ApplyPaymentSagaEventHandler>.Instance);
 
         var eventId = Guid.NewGuid();
         var result = await handler.Handle(
@@ -125,6 +128,15 @@ public sealed class PaymentSagaCompensationTests
             SavedSaga = savedSaga;
             return Task.CompletedTask;
         }
+    }
+
+    private sealed class StubInventoryReservationClient : IInventoryReservationClient
+    {
+        public Task<InventoryReservationResponse> ReserveAsync(Guid orderId, IReadOnlyList<InventoryReservationItem> items, DateTime expiresAtUtc, CancellationToken cancellationToken = default) =>
+            Task.FromResult(new InventoryReservationResponse(true, null));
+
+        public Task ReleaseAsync(Guid orderId, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task CommitAsync(Guid orderId, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 
     private sealed class StubTransaction : IDbTransaction

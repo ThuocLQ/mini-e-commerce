@@ -20,14 +20,15 @@ public sealed class DapperProductRepository : IProductRepository
         using var connection = CreateConnection();
 
         await connection.ExecuteAsync(new CommandDefinition("""
-            INSERT INTO Products (Id, Name, Description, Price)
-            VALUES (@Id, @Name, @Description, @Price)
+            INSERT INTO Products (Id, Name, Description, Price, StockQuantity)
+            VALUES (@Id, @Name, @Description, @Price, @StockQuantity)
             """, new
         {
             product.Id,
             product.Name,
             product.Description,
-            product.Price
+            product.Price,
+            product.StockQuantity
         }, cancellationToken: cancellationToken));
 
         return product;
@@ -55,6 +56,18 @@ public sealed class DapperProductRepository : IProductRepository
         return await GetByIdAsync(product.Id, cancellationToken);
     }
 
+    public async Task<Product?> SetStockQuantityAsync(string id, int stockQuantity, CancellationToken cancellationToken = default)
+    {
+        using var connection = CreateConnection();
+        var affectedRows = await connection.ExecuteAsync(new CommandDefinition("""
+            UPDATE Products
+            SET StockQuantity = @StockQuantity
+            WHERE Id = @Id AND @StockQuantity >= ReservedQuantity
+            """, new { Id = id, StockQuantity = stockQuantity }, cancellationToken: cancellationToken));
+
+        return affectedRows == 0 ? null : await GetByIdAsync(id, cancellationToken);
+    }
+
     public async Task<bool> DeleteAsync(string id, CancellationToken cancellationToken = default)
     {
         using var connection = CreateConnection();
@@ -72,7 +85,7 @@ public sealed class DapperProductRepository : IProductRepository
         using var connection = CreateConnection();
 
         var rows = await connection.QueryAsync<ProductRow>(new CommandDefinition("""
-            SELECT Id, Name, Description, Price
+            SELECT Id, Name, Description, Price, StockQuantity
             FROM Products
             ORDER BY Name;
             """, cancellationToken: cancellationToken));
@@ -85,7 +98,7 @@ public sealed class DapperProductRepository : IProductRepository
         using var connection = CreateConnection();
 
         var row = await connection.QueryFirstOrDefaultAsync<ProductRow>(new CommandDefinition("""
-            SELECT Id, Name, Description, Price
+            SELECT Id, Name, Description, Price, StockQuantity
             FROM Products
             WHERE Id = @Id;
             """, new { Id = id }, cancellationToken: cancellationToken));
@@ -133,7 +146,7 @@ public sealed class DapperProductRepository : IProductRepository
             : "ORDER BY Name";
 
         var sql = $"""
-            SELECT Id, Name, Description, Price
+            SELECT Id, Name, Description, Price, StockQuantity
             FROM Products
             {whereSql}
             {orderBySql};
@@ -168,8 +181,8 @@ public sealed class DapperProductRepository : IProductRepository
 
     private static Product ToDomain(ProductRow row)
     {
-        return new Product(row.Id, row.Name, row.Description, Convert.ToDecimal(row.Price));
+        return new Product(row.Id, row.Name, row.Description, Convert.ToDecimal(row.Price), row.StockQuantity);
     }
 
-    private sealed record ProductRow(string Id, string Name, string Description, decimal Price);
+    private sealed record ProductRow(string Id, string Name, string Description, decimal Price, int StockQuantity);
 }

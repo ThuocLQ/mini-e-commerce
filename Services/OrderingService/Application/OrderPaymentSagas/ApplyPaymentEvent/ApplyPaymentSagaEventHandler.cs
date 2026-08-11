@@ -1,5 +1,6 @@
 using MediatR;
 using OrderingService.Application.Abstractions;
+using OrderingService.Application.Inventory;
 using OrderingService.Domain.OrderPaymentSagas;
 using OrderingService.Domain.Orders;
 
@@ -12,15 +13,21 @@ public sealed class ApplyPaymentSagaEventHandler : IRequestHandler<ApplyPaymentS
     private readonly IOrderingUnitOfWork _unitOfWork;
     private readonly IOrderRepository _orderRepository;
     private readonly IOrderPaymentSagaRepository _sagaRepository;
+    private readonly IInventoryReservationClient _inventoryReservationClient;
+    private readonly ILogger<ApplyPaymentSagaEventHandler> _logger;
 
     public ApplyPaymentSagaEventHandler(
         IOrderingUnitOfWork unitOfWork,
         IOrderRepository orderRepository,
-        IOrderPaymentSagaRepository sagaRepository)
+        IOrderPaymentSagaRepository sagaRepository,
+        IInventoryReservationClient inventoryReservationClient,
+        ILogger<ApplyPaymentSagaEventHandler> logger)
     {
         _unitOfWork = unitOfWork;
         _orderRepository = orderRepository;
         _sagaRepository = sagaRepository;
+        _inventoryReservationClient = inventoryReservationClient;
+        _logger = logger;
     }
 
     public async Task<OrderPaymentSagaDto?> Handle(
@@ -60,7 +67,32 @@ public sealed class ApplyPaymentSagaEventHandler : IRequestHandler<ApplyPaymentS
             return currentSaga;
         }, cancellationToken);
 
-        return saga is null ? null : OrderPaymentSagaMapper.ToDto(saga);
+        if (saga is null)
+        {
+            return null;
+        }
+
+        try
+        {
+            if (saga.State == OrderPaymentSagaState.OrderPaid)
+            {
+                await _inventoryReservationClient.CommitAsync(request.OrderId, cancellationToken);
+            }
+            else if (saga.State is OrderPaymentSagaState.OrderCancelled or OrderPaymentSagaState.TimedOut)
+            {
+                await _inventoryReservationClient.ReleaseAsync(request.OrderId, cancellationToken);
+            }
+        }
+        catch (InventoryUnavailableException exception)
+        {
+            _logger.LogWarning(
+                exception,
+                "Payment saga state was persisted but inventory reconciliation could not run. OrderId: {OrderId}, SagaState: {SagaState}",
+                request.OrderId,
+                saga.State);
+        }
+
+        return OrderPaymentSagaMapper.ToDto(saga);
     }
 
     private async Task ApplyEventAsync(

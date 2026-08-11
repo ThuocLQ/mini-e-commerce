@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Diagnostics;
 using OrderingService.Application.Baskets;
 using OrderingService.Application.Catalog;
 using OrderingService.Application.Discounts;
+using OrderingService.Application.Inventory;
+using OrderingService.Application.Orders;
 using OrderingService.API.Endpoints;
 
 namespace OrderingService.API;
@@ -75,6 +77,18 @@ public static class DependencyInjection
                             exception.Message
                         },
                         statusCode: StatusCodes.Status503ServiceUnavailable).ExecuteAsync(context);
+                    return;
+                }
+
+                if (exception is InventoryUnavailableException)
+                {
+                    await Results.Json(new { ErrorCode = "DOWNSTREAM_UNAVAILABLE", exception.Message }, statusCode: StatusCodes.Status503ServiceUnavailable).ExecuteAsync(context);
+                    return;
+                }
+
+                if (exception is InsufficientInventoryException)
+                {
+                    await Results.Conflict(new { exception.Message }).ExecuteAsync(context);
                     return;
                 }
 

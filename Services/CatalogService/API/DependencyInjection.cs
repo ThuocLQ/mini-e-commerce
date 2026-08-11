@@ -10,12 +10,23 @@ namespace CatalogService.API;
 
 public static class DependencyInjection
 {
-    public static IServiceCollection AddApi(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddApi(this IServiceCollection services, IConfiguration configuration, IHostEnvironment environment)
     {
         services.AddCatalogAuthentication(configuration);
+        ValidateInternalApiKey(configuration, environment);
         services.AddGrpc();
 
         return services;
+    }
+
+    private static void ValidateInternalApiKey(IConfiguration configuration, IHostEnvironment environment)
+    {
+        var key = configuration["InternalApi:Key"];
+        if (string.IsNullOrWhiteSpace(key) ||
+            (!environment.IsDevelopment() && (key.Contains("SET_BY_ENVIRONMENT", StringComparison.OrdinalIgnoreCase) || key.Contains("CHANGEME", StringComparison.OrdinalIgnoreCase))))
+        {
+            throw new InvalidOperationException("InternalApi:Key must be supplied from a non-development secret source outside Development.");
+        }
     }
 
     private static IServiceCollection AddCatalogAuthentication(
@@ -65,6 +76,7 @@ public static class DependencyInjection
     public static IEndpointRouteBuilder MapApiEndpoints(this IEndpointRouteBuilder app)
     {
         app.MapProductEndpoints();
+        app.MapInventoryEndpoints();
         app.MapGrpcService<CatalogGrpcService>();
 
         return app;

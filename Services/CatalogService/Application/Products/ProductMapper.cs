@@ -10,6 +10,7 @@ public static class ProductMapper
             product.Id,
             product.Name,
             product.Description,
-            product.Price);
+            product.Price,
+            product.StockQuantity);
     }
 }

@@ -94,7 +94,7 @@ public static class ReadinessHealthCheckExtensions
             throw new InvalidOperationException("Connection string is missing.");
         }
 
-        if (Uri.TryCreate(connectionString, UriKind.Absolute, out var uri))
+        if (Uri.TryCreate(connectionString, UriKind.Absolute, out var uri) && !string.IsNullOrWhiteSpace(uri.Host))
         {
             var uriPort = uri.Port > 0 ? uri.Port : defaultPort;
             return (uri.Host, uriPort);

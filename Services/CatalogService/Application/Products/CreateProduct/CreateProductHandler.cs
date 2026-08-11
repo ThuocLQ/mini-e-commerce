@@ -19,7 +19,8 @@ public sealed class CreateProductHandler : IRequestHandler<CreateProductCommand,
             Guid.NewGuid().ToString(),
             request.Name,
             request.Description ?? string.Empty,
-            request.Price);
+            request.Price,
+            request.StockQuantity);
 
         var created = await _productRepository.CreateAsync(product, cancellationToken);
 
