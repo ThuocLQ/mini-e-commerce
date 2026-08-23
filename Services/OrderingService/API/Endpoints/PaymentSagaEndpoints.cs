@@ -8,8 +8,10 @@ public static class PaymentSagaEndpoints
 {
     public static IEndpointRouteBuilder MapPaymentSagaEndpoints(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/orders")
-            .WithTags("Payment Saga");
+        var group = app.MapGroup("/_internal/orders")
+            .WithTags("Internal Payment Saga")
+            .ExcludeFromDescription()
+            .RequireInternalApiKey(app.ServiceProvider.GetRequiredService<IConfiguration>());
 
         group.MapPost("/{orderId:guid}/payment-events", async (
             Guid orderId,

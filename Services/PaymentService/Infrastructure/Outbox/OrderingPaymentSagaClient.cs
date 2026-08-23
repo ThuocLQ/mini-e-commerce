@@ -6,10 +6,24 @@ namespace PaymentService.Infrastructure.Outbox;
 public sealed class OrderingPaymentSagaClient
 {
     private readonly HttpClient _httpClient;
+    private readonly string _internalApiKey;
 
-    public OrderingPaymentSagaClient(HttpClient httpClient)
+    public OrderingPaymentSagaClient(
+        HttpClient httpClient,
+        IConfiguration configuration,
+        IHostEnvironment environment)
     {
         _httpClient = httpClient;
+        _internalApiKey = configuration["InternalApi:Key"]
+            ?? throw new InvalidOperationException("InternalApi:Key is missing.");
+
+        if (!environment.IsDevelopment() &&
+            (_internalApiKey.Contains("SET_BY_ENVIRONMENT", StringComparison.OrdinalIgnoreCase) ||
+             _internalApiKey.Contains("CHANGEME", StringComparison.OrdinalIgnoreCase)))
+        {
+            throw new InvalidOperationException(
+                "InternalApi:Key must be supplied from a non-development secret source outside Development.");
+        }
     }
 
     public async Task ApplyPaymentSucceededAsync(
@@ -45,10 +59,12 @@ public sealed class OrderingPaymentSagaClient
         ApplyPaymentSagaEventRequest request,
         CancellationToken cancellationToken)
     {
-        using var httpRequest = new HttpRequestMessage(HttpMethod.Post, $"/orders/{orderId}/payment-events")
+        using var httpRequest = new HttpRequestMessage(HttpMethod.Post, $"/_internal/orders/{orderId}/payment-events")
         {
             Content = JsonContent.Create(request)
         };
+
+        httpRequest.Headers.TryAddWithoutValidation("X-MicroShop-Internal-Key", _internalApiKey);
 
         var correlationId = BuildingBlocks.Contracts.Correlation.CorrelationContext.CorrelationId;
         if (!string.IsNullOrWhiteSpace(correlationId))

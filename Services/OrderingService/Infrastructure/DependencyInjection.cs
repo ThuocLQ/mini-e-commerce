@@ -120,6 +120,16 @@ public static class DependencyInjection
                     messageConfigurator.SetEntityName("order.created");
                 });
 
+                busFactoryConfigurator.Message<OrderStatusChangedIntegrationEvent>(messageConfigurator =>
+                {
+                    messageConfigurator.SetEntityName("order.status-changed");
+                });
+
+                busFactoryConfigurator.Message<OrderPaymentSagaStateChangedIntegrationEvent>(messageConfigurator =>
+                {
+                    messageConfigurator.SetEntityName("order.payment-saga-state-changed");
+                });
+
                 busFactoryConfigurator.Host(
                     rabbitMqOptions.Host,
                     rabbitMqOptions.Port,

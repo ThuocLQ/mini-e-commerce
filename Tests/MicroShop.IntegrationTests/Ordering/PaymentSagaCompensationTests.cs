@@ -4,6 +4,7 @@ using OrderingService.Application.Abstractions;
 using OrderingService.Application.OrderPaymentSagas.ApplyPaymentEvent;
 using OrderingService.Domain.OrderPaymentSagas;
 using OrderingService.Domain.Orders;
+using OrderingService.Domain.Outbox;
 
 namespace MicroShop.IntegrationTests.Ordering;
 
@@ -29,10 +30,12 @@ public sealed class PaymentSagaCompensationTests
 
         var orderRepository = new StubOrderRepository(order);
         var sagaRepository = new StubSagaRepository(saga);
+        var outboxRepository = new RecordingOutboxRepository();
         var handler = new ApplyPaymentSagaEventHandler(
             new InlineUnitOfWork(),
             orderRepository,
             sagaRepository,
+            outboxRepository,
             new StubInventoryReservationClient(),
             NullLogger<ApplyPaymentSagaEventHandler>.Instance);
 
@@ -51,7 +54,40 @@ public sealed class PaymentSagaCompensationTests
         Assert.Equal(eventId, result.LastProcessedEventId);
         Assert.Contains("cancelled or timed out", result.LastError);
         Assert.Equal(0, orderRepository.StatusUpdateCalls);
+        var sagaEvent = Assert.Single(outboxRepository.Messages);
+        Assert.Contains("OrderPaymentSagaStateChangedIntegrationEvent", sagaEvent.Type);
         Assert.Same(saga, sagaRepository.SavedSaga);
+    }
+
+    [Fact]
+    public async Task PaymentSucceeded_PersistsRabbitAndKafkaTransitionEvents()
+    {
+        var order = new Order(Guid.NewGuid(), Guid.NewGuid(), DateTime.UtcNow, OrderStatus.PendingPayment);
+        order.AddItem(new OrderItem(Guid.NewGuid(), Guid.NewGuid(), "Product", 10m, 1));
+        var paymentId = Guid.NewGuid();
+        var outboxRepository = new RecordingOutboxRepository();
+        var handler = new ApplyPaymentSagaEventHandler(
+            new InlineUnitOfWork(),
+            new StubOrderRepository(order),
+            new StubSagaRepository(OrderPaymentSaga.Start(order.Id, paymentId, DateTime.UtcNow, TimeSpan.FromMinutes(30))),
+            outboxRepository,
+            new StubInventoryReservationClient(),
+            NullLogger<ApplyPaymentSagaEventHandler>.Instance);
+
+        await handler.Handle(
+            new ApplyPaymentSagaEventCommand(Guid.NewGuid(), OrderPaymentSagaEventType.PaymentSucceeded, order.Id, paymentId, null),
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(OrderStatus.Paid, order.Status);
+        Assert.Equal(3, outboxRepository.Messages.Count);
+        Assert.Contains(outboxRepository.Messages, message =>
+            message.Transport == OutboxTransport.RabbitMq &&
+            message.Type.Contains("OrderStatusChangedIntegrationEvent"));
+        Assert.Contains(outboxRepository.Messages, message =>
+            message.Transport == OutboxTransport.RabbitMq &&
+            message.Type.Contains("OrderPaymentSagaStateChangedIntegrationEvent"));
+        Assert.Contains(outboxRepository.Messages, message =>
+            message.Transport == OutboxTransport.Kafka && message.Type == "OrderPaid");
     }
 
     private sealed class InlineUnitOfWork : IOrderingUnitOfWork
@@ -137,6 +173,26 @@ public sealed class PaymentSagaCompensationTests
 
         public Task ReleaseAsync(Guid orderId, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task CommitAsync(Guid orderId, CancellationToken cancellationToken = default) => Task.CompletedTask;
+    }
+
+    private sealed class RecordingOutboxRepository : IOutboxRepository
+    {
+        public List<OutboxMessage> Messages { get; } = [];
+
+        public Task AddAsync(OutboxMessage message, IDbTransaction? transaction = null, CancellationToken cancellationToken = default)
+        {
+            Messages.Add(message);
+            return Task.CompletedTask;
+        }
+
+        public Task<IReadOnlyList<OutboxMessage>> ClaimPendingAsync(int batchSize, int maxRetryCount, Guid lockId, DateTime nowUtc, TimeSpan lockDuration, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<OutboxMessage>>([]);
+
+        public Task<IReadOnlyList<OutboxMessage>> GetLatestAsync(int limit, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<OutboxMessage>>([]);
+
+        public Task MarkAsProcessedAsync(Guid id, Guid lockId, DateTime processedAtUtc, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task MarkAsFailedAsync(Guid id, Guid lockId, string error, DateTime nextAttemptAtUtc, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 
     private sealed class StubTransaction : IDbTransaction

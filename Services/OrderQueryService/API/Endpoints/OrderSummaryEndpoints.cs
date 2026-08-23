@@ -3,6 +3,7 @@ using OrderQueryService.API.Contracts;
 using OrderQueryService.API;
 using OrderQueryService.Application.Abstractions;
 using OrderQueryService.Application.ReadModels;
+using System.Security.Claims;
 
 namespace OrderQueryService.API.Endpoints;
 
@@ -11,9 +12,11 @@ public static class OrderSummaryEndpoints
     public static IEndpointRouteBuilder MapOrderSummaryEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/order-summaries")
-            .WithTags("Order Summaries");
+            .WithTags("Order Summaries")
+            .RequireAuthorization("authenticated");
 
         group.MapGet("", async (
+            ClaimsPrincipal user,
             IOrderSummaryReadRepository repository,
             int? limit,
             ILoggerFactory loggerFactory,
@@ -27,7 +30,14 @@ public static class OrderSummaryEndpoints
                 "OrderQueryService",
                 take);
 
-            var summaries = await repository.GetLatestAsync(take, cancellationToken);
+            if (!TryGetCustomerId(user, out var customerId))
+            {
+                return Results.Forbid();
+            }
+
+            var summaries = user.IsInRole("Admin")
+                ? await repository.GetLatestAsync(take, cancellationToken)
+                : await repository.GetLatestForCustomerAsync(customerId, take, cancellationToken);
 
             logger.LogInformation(
                 "Order summaries returned. Service={Service}, ResultCount={ResultCount}.",
@@ -40,6 +50,7 @@ public static class OrderSummaryEndpoints
 
         group.MapGet("/{orderId:guid}", async (
             Guid orderId,
+            ClaimsPrincipal user,
             IOrderSummaryReadRepository repository,
             ILoggerFactory loggerFactory,
             HttpContext httpContext,
@@ -52,23 +63,33 @@ public static class OrderSummaryEndpoints
                 "OrderQueryService",
                 orderId);
 
+            if (!TryGetCustomerId(user, out var customerId))
+            {
+                return Results.Forbid();
+            }
+
             var summary = await repository.GetByOrderIdAsync(orderId, cancellationToken);
 
-            if (summary is null)
+            if (summary is null || (!user.IsInRole("Admin") && summary.CustomerId != customerId))
             {
                 logger.LogWarning(
                     "Order summary not found. Service={Service}, OrderId={OrderId}.",
                     "OrderQueryService",
                     orderId);
+
+                return ApiProblemResults.NotFound(httpContext, "Order summary was not found.");
             }
 
-            return summary is null
-                ? ApiProblemResults.NotFound(httpContext, "Order summary was not found.")
-                : Results.Ok(summary);
+            return Results.Ok(summary);
         })
         .WithName("GetOrderSummaryByOrderId");
 
         return app;
+    }
+
+    private static bool TryGetCustomerId(ClaimsPrincipal user, out Guid customerId)
+    {
+        return Guid.TryParse(user.FindFirst(ClaimTypes.NameIdentifier)?.Value, out customerId);
     }
 
     public static IEndpointRouteBuilder MapDebugOrderSummaryEndpoints(this IEndpointRouteBuilder app)
@@ -123,7 +144,8 @@ public static class OrderSummaryEndpoints
             return Results.Ok(persistedModel ?? model);
         })
         .WithTags("Debug")
-        .WithName("DebugUpsertOrderSummary");
+        .WithName("DebugUpsertOrderSummary")
+        .RequireAuthorization("administrator");
 
         return app;
     }

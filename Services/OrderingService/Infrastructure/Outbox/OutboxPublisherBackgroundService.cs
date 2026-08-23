@@ -183,6 +183,54 @@ public sealed class OutboxPublisherBackgroundService : BackgroundService
             return;
         }
 
+        var orderStatusChangedTypeName = typeof(OrderStatusChangedIntegrationEvent).FullName;
+        if (message.Type is nameof(OrderStatusChangedIntegrationEvent) || message.Type == orderStatusChangedTypeName)
+        {
+            var integrationEvent = JsonSerializer.Deserialize<OrderStatusChangedIntegrationEvent>(message.Content, JsonOptions)
+                ?? throw new InvalidOperationException($"Cannot deserialize outbox message {message.Id} to {nameof(OrderStatusChangedIntegrationEvent)}.");
+
+            using (CorrelationContext.BeginScope(integrationEvent.CorrelationId))
+            {
+                await publishEndpoint.Publish(integrationEvent, publishContext =>
+                {
+                    if (!string.IsNullOrWhiteSpace(integrationEvent.CorrelationId))
+                    {
+                        publishContext.Headers.Set("X-Correlation-ID", integrationEvent.CorrelationId);
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(integrationEvent.CausationId))
+                    {
+                        publishContext.Headers.Set("X-Causation-ID", integrationEvent.CausationId);
+                    }
+                }, cancellationToken);
+            }
+            return;
+        }
+
+        var sagaStateChangedTypeName = typeof(OrderPaymentSagaStateChangedIntegrationEvent).FullName;
+        if (message.Type is nameof(OrderPaymentSagaStateChangedIntegrationEvent) || message.Type == sagaStateChangedTypeName)
+        {
+            var integrationEvent = JsonSerializer.Deserialize<OrderPaymentSagaStateChangedIntegrationEvent>(message.Content, JsonOptions)
+                ?? throw new InvalidOperationException($"Cannot deserialize outbox message {message.Id} to {nameof(OrderPaymentSagaStateChangedIntegrationEvent)}.");
+
+            using (CorrelationContext.BeginScope(integrationEvent.CorrelationId))
+            {
+                await publishEndpoint.Publish(integrationEvent, publishContext =>
+                {
+                    if (!string.IsNullOrWhiteSpace(integrationEvent.CorrelationId))
+                    {
+                        publishContext.Headers.Set("X-Correlation-ID", integrationEvent.CorrelationId);
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(integrationEvent.CausationId))
+                    {
+                        publishContext.Headers.Set("X-Causation-ID", integrationEvent.CausationId);
+                    }
+                }, cancellationToken);
+            }
+            return;
+        }
+
         throw new NotSupportedException($"Unsupported outbox message type: {message.Type}");
     }
 

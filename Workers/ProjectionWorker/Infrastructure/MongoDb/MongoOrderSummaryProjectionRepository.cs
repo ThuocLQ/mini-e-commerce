@@ -40,6 +40,7 @@ public sealed class MongoOrderSummaryProjectionRepository : IOrderSummaryProject
         {
             OrderProjectionEventTypes.OrderCreated => ApplyOrderCreated(orderEvent, existing),
             OrderProjectionEventTypes.OrderPaid => ApplyOrderPaid(orderEvent, existing),
+            OrderProjectionEventTypes.OrderPaymentFailed => ApplyOrderPaymentFailed(orderEvent, existing),
             OrderProjectionEventTypes.OrderCancelled => ApplyOrderCancelled(orderEvent, existing),
             _ => throw new ArgumentException($"Unsupported order event type '{orderEvent.EventType}'.")
         };
@@ -111,6 +112,18 @@ public sealed class MongoOrderSummaryProjectionRepository : IOrderSummaryProject
             status: "Cancelled",
             paidAtUtc: existing?.PaidAtUtc,
             cancelledAtUtc: orderEvent.OccurredAtUtc);
+    }
+
+    private static OrderSummaryProjectionDocument ApplyOrderPaymentFailed(
+        OrderProjectionEvent orderEvent,
+        OrderSummaryProjectionDocument? existing)
+    {
+        return BuildDocument(
+            orderEvent,
+            existing,
+            status: "PaymentFailed",
+            paidAtUtc: existing?.PaidAtUtc,
+            cancelledAtUtc: existing?.CancelledAtUtc);
     }
 
     private static OrderSummaryProjectionDocument BuildDocument(

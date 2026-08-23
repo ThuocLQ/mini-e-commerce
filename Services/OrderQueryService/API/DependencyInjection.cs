@@ -8,11 +8,15 @@ namespace OrderQueryService.API;
 
 public static class DependencyInjection
 {
-    public static IServiceCollection AddApi(this IServiceCollection services)
+    public static IServiceCollection AddApi(
+        this IServiceCollection services,
+        IConfiguration configuration,
+        IHostEnvironment environment)
     {
         services.AddProblemDetails();
         services.AddEndpointsApiExplorer();
         services.AddValidatorsFromAssemblyContaining<DebugUpsertOrderSummaryRequestValidator>();
+        services.AddMicroShopJwtAuthentication(configuration, environment);
 
         return services;
     }

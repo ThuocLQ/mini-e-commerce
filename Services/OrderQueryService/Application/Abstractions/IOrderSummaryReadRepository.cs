@@ -15,4 +15,9 @@ public interface IOrderSummaryReadRepository
     Task<IReadOnlyList<OrderSummaryReadModel>> GetLatestAsync(
         int limit,
         CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<OrderSummaryReadModel>> GetLatestForCustomerAsync(
+        Guid customerId,
+        int limit,
+        CancellationToken cancellationToken = default);
 }

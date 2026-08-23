@@ -16,7 +16,8 @@ $requiredKeys = @(
     "MICROSHOP_RABBITMQ_PASSWORD",
     "MICROSHOP_MONGO_PASSWORD",
     "MICROSHOP_JWT_SECRET_KEY",
-    "MICROSHOP_PAYMENT_WEBHOOK_SECRET"
+    "MICROSHOP_PAYMENT_WEBHOOK_SECRET",
+    "MICROSHOP_INTERNAL_API_KEY"
 )
 
 $values = @{}
@@ -60,6 +61,7 @@ kubectl create secret generic $SecretName `
     --from-literal=mongo-password=$($values["MICROSHOP_MONGO_PASSWORD"]) `
     --from-literal=jwt-secret-key=$($values["MICROSHOP_JWT_SECRET_KEY"]) `
     --from-literal=payment-webhook-secret=$($values["MICROSHOP_PAYMENT_WEBHOOK_SECRET"]) `
+    --from-literal=internal-api-key=$($values["MICROSHOP_INTERNAL_API_KEY"]) `
     --dry-run=client `
     -o yaml | kubectl apply -f -
 

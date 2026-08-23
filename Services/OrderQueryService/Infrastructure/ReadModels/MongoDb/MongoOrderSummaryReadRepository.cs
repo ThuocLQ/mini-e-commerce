@@ -88,4 +88,24 @@ public sealed class MongoOrderSummaryReadRepository : IOrderSummaryReadRepositor
             .Select(OrderSummaryDocumentMapper.ToReadModel)
             .ToList();
     }
+
+    public async Task<IReadOnlyList<OrderSummaryReadModel>> GetLatestForCustomerAsync(
+        Guid customerId,
+        int limit,
+        CancellationToken cancellationToken = default)
+    {
+        var filter = Builders<OrderSummaryDocument>.Filter.Eq(
+            x => x.CustomerId,
+            customerId.ToString("D"));
+
+        var documents = await _collection
+            .Find(filter)
+            .SortByDescending(x => x.CreatedAtUtc)
+            .Limit(limit)
+            .ToListAsync(cancellationToken);
+
+        return documents
+            .Select(OrderSummaryDocumentMapper.ToReadModel)
+            .ToList();
+    }
 }

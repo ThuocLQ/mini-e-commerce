@@ -1,6 +1,8 @@
 using MediatR;
 using OrderingService.Application.Abstractions;
 using OrderingService.Application.Inventory;
+using OrderingService.Application.IntegrationEvents;
+using OrderingService.Application.Outbox;
 using OrderingService.Domain.OrderPaymentSagas;
 using OrderingService.Domain.Orders;
 
@@ -13,6 +15,7 @@ public sealed class ApplyPaymentSagaEventHandler : IRequestHandler<ApplyPaymentS
     private readonly IOrderingUnitOfWork _unitOfWork;
     private readonly IOrderRepository _orderRepository;
     private readonly IOrderPaymentSagaRepository _sagaRepository;
+    private readonly IOutboxRepository _outboxRepository;
     private readonly IInventoryReservationClient _inventoryReservationClient;
     private readonly ILogger<ApplyPaymentSagaEventHandler> _logger;
 
@@ -20,12 +23,14 @@ public sealed class ApplyPaymentSagaEventHandler : IRequestHandler<ApplyPaymentS
         IOrderingUnitOfWork unitOfWork,
         IOrderRepository orderRepository,
         IOrderPaymentSagaRepository sagaRepository,
+        IOutboxRepository outboxRepository,
         IInventoryReservationClient inventoryReservationClient,
         ILogger<ApplyPaymentSagaEventHandler> logger)
     {
         _unitOfWork = unitOfWork;
         _orderRepository = orderRepository;
         _sagaRepository = sagaRepository;
+        _outboxRepository = outboxRepository;
         _inventoryReservationClient = inventoryReservationClient;
         _logger = logger;
     }
@@ -60,7 +65,23 @@ public sealed class ApplyPaymentSagaEventHandler : IRequestHandler<ApplyPaymentS
                 return currentSaga;
             }
 
+            var previousOrderStatus = order.Status;
+            var previousSagaState = currentSaga.State;
             await ApplyEventAsync(request, order, currentSaga, transaction, cancellationToken);
+
+            if (order.Status != previousOrderStatus)
+            {
+                var statusChangedEvent = OrderIntegrationEventFactory.CreateOrderStatusChanged(order, previousOrderStatus);
+                var projectionEvent = OrderIntegrationEventFactory.CreateOrderProjectionStatusChanged(order, previousOrderStatus);
+                await _outboxRepository.AddAsync(OutboxMessageFactory.Create(statusChangedEvent), transaction, cancellationToken);
+                await _outboxRepository.AddAsync(OutboxMessageFactory.CreateKafka(projectionEvent), transaction, cancellationToken);
+            }
+
+            if (currentSaga.State != previousSagaState)
+            {
+                var sagaStateChangedEvent = OrderIntegrationEventFactory.CreatePaymentSagaStateChanged(currentSaga, previousSagaState);
+                await _outboxRepository.AddAsync(OutboxMessageFactory.Create(sagaStateChangedEvent), transaction, cancellationToken);
+            }
 
             await _sagaRepository.UpsertAsync(currentSaga, transaction, cancellationToken);
 
