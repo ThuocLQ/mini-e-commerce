@@ -1,6 +1,7 @@
 using System.Text.Json;
 using BuildingBlocks.Contracts.Correlation;
 using BuildingBlocks.Contracts.Events.Orders;
+using BuildingBlocks.Contracts.Events.Inventory;
 using Confluent.Kafka;
 using MassTransit;
 using Microsoft.Extensions.Options;
@@ -231,6 +232,41 @@ public sealed class OutboxPublisherBackgroundService : BackgroundService
             return;
         }
 
+        var inventoryCommitRequestedTypeName = typeof(InventoryCommitRequestedIntegrationEvent).FullName;
+        var inventoryReleaseRequestedTypeName = typeof(InventoryReleaseRequestedIntegrationEvent).FullName;
+        if (message.Type is nameof(InventoryCommitRequestedIntegrationEvent) or nameof(InventoryReleaseRequestedIntegrationEvent)
+            || message.Type == inventoryCommitRequestedTypeName
+            || message.Type == inventoryReleaseRequestedTypeName)
+        {
+            if (message.Type is nameof(InventoryCommitRequestedIntegrationEvent) || message.Type == inventoryCommitRequestedTypeName)
+            {
+                var integrationEvent = JsonSerializer.Deserialize<InventoryCommitRequestedIntegrationEvent>(message.Content, JsonOptions)
+                    ?? throw new InvalidOperationException($"Cannot deserialize outbox message {message.Id} to {nameof(InventoryCommitRequestedIntegrationEvent)}.");
+
+                using (CorrelationContext.BeginScope(integrationEvent.CorrelationId))
+                {
+                    await publishEndpoint.Publish(integrationEvent, publishContext =>
+                    {
+                        SetCorrelationHeaders(publishContext, integrationEvent.CorrelationId, integrationEvent.CausationId);
+                    }, cancellationToken);
+                }
+            }
+            else
+            {
+                var integrationEvent = JsonSerializer.Deserialize<InventoryReleaseRequestedIntegrationEvent>(message.Content, JsonOptions)
+                    ?? throw new InvalidOperationException($"Cannot deserialize outbox message {message.Id} to {nameof(InventoryReleaseRequestedIntegrationEvent)}.");
+
+                using (CorrelationContext.BeginScope(integrationEvent.CorrelationId))
+                {
+                    await publishEndpoint.Publish(integrationEvent, publishContext =>
+                    {
+                        SetCorrelationHeaders(publishContext, integrationEvent.CorrelationId, integrationEvent.CausationId);
+                    }, cancellationToken);
+                }
+            }
+            return;
+        }
+
         throw new NotSupportedException($"Unsupported outbox message type: {message.Type}");
     }
 
@@ -267,6 +303,19 @@ public sealed class OutboxPublisherBackgroundService : BackgroundService
         }
 
         return orderId.ToString("D");
+    }
+
+    private static void SetCorrelationHeaders(PublishContext publishContext, string? correlationId, string? causationId)
+    {
+        if (!string.IsNullOrWhiteSpace(correlationId))
+        {
+            publishContext.Headers.Set("X-Correlation-ID", correlationId);
+        }
+
+        if (!string.IsNullOrWhiteSpace(causationId))
+        {
+            publishContext.Headers.Set("X-Causation-ID", causationId);
+        }
     }
 
     private DateTime CalculateNextAttemptAtUtc(int retryCount)

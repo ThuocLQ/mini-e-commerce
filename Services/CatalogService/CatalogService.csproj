@@ -13,6 +13,7 @@
       <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
       <PackageReference Include="Grpc.AspNetCore" Version="2.76.0" />
       <PackageReference Include="MediatR" Version="14.1.0" />
+      <PackageReference Include="MassTransit.RabbitMQ" Version="8.5.8" />
       <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.8" />
       <PackageReference Include="Npgsql" Version="10.0.0-rc.1" />
     </ItemGroup>
@@ -23,6 +24,7 @@
         <Protobuf Include="API\Protos\catalog.proto" GrpcServices="Server" />
     </ItemGroup>
     <ItemGroup>
+      <ProjectReference Include="..\..\BuildingBlocks.Contracts\BuildingBlocks.Contracts.csproj" />
       <ProjectReference Include="..\..\MicroShop.ServiceDefaults\MicroShop.ServiceDefaults.csproj" />
     </ItemGroup>
 

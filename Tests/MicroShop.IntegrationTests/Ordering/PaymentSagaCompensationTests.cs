@@ -1,5 +1,4 @@
 using System.Data;
-using Microsoft.Extensions.Logging.Abstractions;
 using OrderingService.Application.Abstractions;
 using OrderingService.Application.OrderPaymentSagas.ApplyPaymentEvent;
 using OrderingService.Domain.OrderPaymentSagas;
@@ -35,9 +34,7 @@ public sealed class PaymentSagaCompensationTests
             new InlineUnitOfWork(),
             orderRepository,
             sagaRepository,
-            outboxRepository,
-            new StubInventoryReservationClient(),
-            NullLogger<ApplyPaymentSagaEventHandler>.Instance);
+            outboxRepository);
 
         var eventId = Guid.NewGuid();
         var result = await handler.Handle(
@@ -70,16 +67,14 @@ public sealed class PaymentSagaCompensationTests
             new InlineUnitOfWork(),
             new StubOrderRepository(order),
             new StubSagaRepository(OrderPaymentSaga.Start(order.Id, paymentId, DateTime.UtcNow, TimeSpan.FromMinutes(30))),
-            outboxRepository,
-            new StubInventoryReservationClient(),
-            NullLogger<ApplyPaymentSagaEventHandler>.Instance);
+            outboxRepository);
 
         await handler.Handle(
             new ApplyPaymentSagaEventCommand(Guid.NewGuid(), OrderPaymentSagaEventType.PaymentSucceeded, order.Id, paymentId, null),
             TestContext.Current.CancellationToken);
 
         Assert.Equal(OrderStatus.Paid, order.Status);
-        Assert.Equal(3, outboxRepository.Messages.Count);
+        Assert.Equal(4, outboxRepository.Messages.Count);
         Assert.Contains(outboxRepository.Messages, message =>
             message.Transport == OutboxTransport.RabbitMq &&
             message.Type.Contains("OrderStatusChangedIntegrationEvent"));
@@ -88,6 +83,33 @@ public sealed class PaymentSagaCompensationTests
             message.Type.Contains("OrderPaymentSagaStateChangedIntegrationEvent"));
         Assert.Contains(outboxRepository.Messages, message =>
             message.Transport == OutboxTransport.Kafka && message.Type == "OrderPaid");
+        Assert.Contains(outboxRepository.Messages, message =>
+            message.Transport == OutboxTransport.RabbitMq &&
+            message.Type.Contains("InventoryCommitRequestedIntegrationEvent"));
+    }
+
+    [Fact]
+    public async Task PaymentFailed_PersistsInventoryReleaseCommandInTheOutbox()
+    {
+        var order = new Order(Guid.NewGuid(), Guid.NewGuid(), DateTime.UtcNow, OrderStatus.PendingPayment);
+        order.AddItem(new OrderItem(Guid.NewGuid(), Guid.NewGuid(), "Product", 10m, 1));
+        var paymentId = Guid.NewGuid();
+        var outboxRepository = new RecordingOutboxRepository();
+        var handler = new ApplyPaymentSagaEventHandler(
+            new InlineUnitOfWork(),
+            new StubOrderRepository(order),
+            new StubSagaRepository(OrderPaymentSaga.Start(order.Id, paymentId, DateTime.UtcNow, TimeSpan.FromMinutes(30))),
+            outboxRepository);
+
+        await handler.Handle(
+            new ApplyPaymentSagaEventCommand(Guid.NewGuid(), OrderPaymentSagaEventType.PaymentFailed, order.Id, paymentId, "Card declined."),
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(OrderStatus.Cancelled, order.Status);
+        Assert.Equal(4, outboxRepository.Messages.Count);
+        Assert.Contains(outboxRepository.Messages, message =>
+            message.Transport == OutboxTransport.RabbitMq &&
+            message.Type.Contains("InventoryReleaseRequestedIntegrationEvent"));
     }
 
     private sealed class InlineUnitOfWork : IOrderingUnitOfWork
@@ -164,15 +186,6 @@ public sealed class PaymentSagaCompensationTests
             SavedSaga = savedSaga;
             return Task.CompletedTask;
         }
-    }
-
-    private sealed class StubInventoryReservationClient : IInventoryReservationClient
-    {
-        public Task<InventoryReservationResponse> ReserveAsync(Guid orderId, IReadOnlyList<InventoryReservationItem> items, DateTime expiresAtUtc, CancellationToken cancellationToken = default) =>
-            Task.FromResult(new InventoryReservationResponse(true, null));
-
-        public Task ReleaseAsync(Guid orderId, CancellationToken cancellationToken = default) => Task.CompletedTask;
-        public Task CommitAsync(Guid orderId, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 
     private sealed class RecordingOutboxRepository : IOutboxRepository

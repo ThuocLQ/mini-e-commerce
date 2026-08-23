@@ -1,6 +1,6 @@
 using MediatR;
+using BuildingBlocks.Contracts.Events.Inventory;
 using OrderingService.Application.Abstractions;
-using OrderingService.Application.Inventory;
 using OrderingService.Application.IntegrationEvents;
 using OrderingService.Application.Outbox;
 using OrderingService.Domain.OrderPaymentSagas;
@@ -16,23 +16,17 @@ public sealed class ApplyPaymentSagaEventHandler : IRequestHandler<ApplyPaymentS
     private readonly IOrderRepository _orderRepository;
     private readonly IOrderPaymentSagaRepository _sagaRepository;
     private readonly IOutboxRepository _outboxRepository;
-    private readonly IInventoryReservationClient _inventoryReservationClient;
-    private readonly ILogger<ApplyPaymentSagaEventHandler> _logger;
 
     public ApplyPaymentSagaEventHandler(
         IOrderingUnitOfWork unitOfWork,
         IOrderRepository orderRepository,
         IOrderPaymentSagaRepository sagaRepository,
-        IOutboxRepository outboxRepository,
-        IInventoryReservationClient inventoryReservationClient,
-        ILogger<ApplyPaymentSagaEventHandler> logger)
+        IOutboxRepository outboxRepository)
     {
         _unitOfWork = unitOfWork;
         _orderRepository = orderRepository;
         _sagaRepository = sagaRepository;
         _outboxRepository = outboxRepository;
-        _inventoryReservationClient = inventoryReservationClient;
-        _logger = logger;
     }
 
     public async Task<OrderPaymentSagaDto?> Handle(
@@ -81,6 +75,7 @@ public sealed class ApplyPaymentSagaEventHandler : IRequestHandler<ApplyPaymentS
             {
                 var sagaStateChangedEvent = OrderIntegrationEventFactory.CreatePaymentSagaStateChanged(currentSaga, previousSagaState);
                 await _outboxRepository.AddAsync(OutboxMessageFactory.Create(sagaStateChangedEvent), transaction, cancellationToken);
+                await AddInventoryCommandAsync(currentSaga, transaction, cancellationToken);
             }
 
             await _sagaRepository.UpsertAsync(currentSaga, transaction, cancellationToken);
@@ -93,27 +88,19 @@ public sealed class ApplyPaymentSagaEventHandler : IRequestHandler<ApplyPaymentS
             return null;
         }
 
-        try
-        {
-            if (saga.State == OrderPaymentSagaState.OrderPaid)
-            {
-                await _inventoryReservationClient.CommitAsync(request.OrderId, cancellationToken);
-            }
-            else if (saga.State is OrderPaymentSagaState.OrderCancelled or OrderPaymentSagaState.TimedOut)
-            {
-                await _inventoryReservationClient.ReleaseAsync(request.OrderId, cancellationToken);
-            }
-        }
-        catch (InventoryUnavailableException exception)
-        {
-            _logger.LogWarning(
-                exception,
-                "Payment saga state was persisted but inventory reconciliation could not run. OrderId: {OrderId}, SagaState: {SagaState}",
-                request.OrderId,
-                saga.State);
-        }
-
         return OrderPaymentSagaMapper.ToDto(saga);
+    }
+
+    private Task AddInventoryCommandAsync(OrderPaymentSaga saga, System.Data.IDbTransaction transaction, CancellationToken cancellationToken)
+    {
+        return saga.State switch
+        {
+            OrderPaymentSagaState.OrderPaid => _outboxRepository.AddAsync(
+                OutboxMessageFactory.Create(new InventoryCommitRequestedIntegrationEvent { OrderId = saga.OrderId }), transaction, cancellationToken),
+            OrderPaymentSagaState.OrderCancelled or OrderPaymentSagaState.TimedOut => _outboxRepository.AddAsync(
+                OutboxMessageFactory.Create(new InventoryReleaseRequestedIntegrationEvent { OrderId = saga.OrderId, Reason = saga.LastError ?? saga.State.ToString() }), transaction, cancellationToken),
+            _ => Task.CompletedTask
+        };
     }
 
     private async Task ApplyEventAsync(

@@ -78,6 +78,7 @@ apps:
       MICROSHOP_POSTGRES_PASSWORD: postgres-password
       MICROSHOP_JWT_SECRET_KEY: jwt-secret-key
       MICROSHOP_INTERNAL_API_KEY: internal-api-key
+      MICROSHOP_RABBITMQ_PASSWORD: rabbitmq-password
     env:
       ASPNETCORE_ENVIRONMENT: Kubernetes
       ASPNETCORE_HTTP_PORTS: "8080"
@@ -86,11 +87,16 @@ apps:
       ServiceDefaults__RequiredConfigurationKeys__0: ConnectionStrings:CatalogDb
       ServiceDefaults__RequiredConfigurationKeys__1: Jwt:SecretKey
       ServiceDefaults__RequiredConfigurationKeys__2: InternalApi:Key
+      ServiceDefaults__RequiredConfigurationKeys__3: RabbitMq:Password
       ConnectionStrings__CatalogDb: Host=postgres;Port=5432;Database=catalogdb;Username=microshop;Password=$(MICROSHOP_POSTGRES_PASSWORD)
       Jwt__Issuer: MicroShop.IdentityService
       Jwt__Audience: MicroShop.Client
       Jwt__SecretKey: $(MICROSHOP_JWT_SECRET_KEY)
       InternalApi__Key: $(MICROSHOP_INTERNAL_API_KEY)
+      RabbitMq__Host: rabbitmq
+      RabbitMq__VirtualHost: /
+      RabbitMq__UserName: microshop
+      RabbitMq__Password: $(MICROSHOP_RABBITMQ_PASSWORD)
   basketservice:
     kind: web
     image:
