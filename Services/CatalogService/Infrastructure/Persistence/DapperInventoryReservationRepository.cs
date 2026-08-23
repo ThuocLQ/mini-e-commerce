@@ -68,8 +68,11 @@ public sealed class DapperInventoryReservationRepository : IInventoryReservation
         return new InventoryReservationResult(true);
     }
 
-    public Task ReleaseAsync(Guid orderId, CancellationToken cancellationToken = default) => ChangeReservationAsync(orderId, "Released", false, cancellationToken);
-    public Task CommitAsync(Guid orderId, CancellationToken cancellationToken = default) => ChangeReservationAsync(orderId, "Committed", true, cancellationToken);
+    public Task ReleaseAsync(Guid orderId, Guid? messageId = null, CancellationToken cancellationToken = default) =>
+        ChangeReservationAsync(orderId, "Released", false, messageId, cancellationToken);
+
+    public Task CommitAsync(Guid orderId, Guid? messageId = null, CancellationToken cancellationToken = default) =>
+        ChangeReservationAsync(orderId, "Committed", true, messageId, cancellationToken);
 
     public async Task<int> ReleaseExpiredAsync(CancellationToken cancellationToken = default)
     {
@@ -83,17 +86,44 @@ public sealed class DapperInventoryReservationRepository : IInventoryReservation
 
         foreach (var orderId in orderIds)
         {
-            await ReleaseAsync(orderId, cancellationToken);
+            await ReleaseAsync(orderId, cancellationToken: cancellationToken);
         }
 
         return orderIds.Count;
     }
 
-    private async Task ChangeReservationAsync(Guid orderId, string targetStatus, bool deductStock, CancellationToken cancellationToken)
+    private async Task ChangeReservationAsync(
+        Guid orderId,
+        string targetStatus,
+        bool deductStock,
+        Guid? messageId,
+        CancellationToken cancellationToken)
     {
         using var connection = _connectionFactory.CreateConnection();
         connection.Open();
         using var transaction = connection.BeginTransaction();
+
+        if (messageId is not null)
+        {
+            var receiptEventId = await connection.QuerySingleOrDefaultAsync<Guid?>(new CommandDefinition("""
+                INSERT INTO InventoryCommandReceipts (EventId, CommandType, ReceivedAtUtc)
+                VALUES (@EventId, @CommandType, @ReceivedAtUtc)
+                ON CONFLICT (EventId) DO NOTHING
+                RETURNING EventId;
+                """, new
+            {
+                EventId = messageId,
+                CommandType = targetStatus,
+                ReceivedAtUtc = DateTime.UtcNow
+            }, transaction, cancellationToken: cancellationToken));
+
+            if (receiptEventId is null)
+            {
+                transaction.Commit();
+                return;
+            }
+        }
+
         var status = await connection.QuerySingleOrDefaultAsync<string>(new CommandDefinition(
             "SELECT Status FROM InventoryReservations WHERE OrderId = @OrderId FOR UPDATE", new { OrderId = orderId }, transaction, cancellationToken: cancellationToken));
         if (status != "Reserved") { transaction.Commit(); return; }

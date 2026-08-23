@@ -8,8 +8,8 @@ public interface IInventoryReservationRepository
         DateTime expiresAtUtc,
         CancellationToken cancellationToken = default);
 
-    Task ReleaseAsync(Guid orderId, CancellationToken cancellationToken = default);
-    Task CommitAsync(Guid orderId, CancellationToken cancellationToken = default);
+    Task ReleaseAsync(Guid orderId, Guid? messageId = null, CancellationToken cancellationToken = default);
+    Task CommitAsync(Guid orderId, Guid? messageId = null, CancellationToken cancellationToken = default);
     Task<int> ReleaseExpiredAsync(CancellationToken cancellationToken = default);
 }
 

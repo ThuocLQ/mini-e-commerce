@@ -13,7 +13,7 @@
       <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
       <PackageReference Include="Grpc.AspNetCore" Version="2.76.0" />
       <PackageReference Include="MediatR" Version="14.1.0" />
-      <PackageReference Include="MassTransit.RabbitMQ" Version="8.5.8" />
+      <PackageReference Include="MassTransit.RabbitMQ" Version="8.5.5" />
       <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.8" />
       <PackageReference Include="Npgsql" Version="10.0.0-rc.1" />
     </ItemGroup>
