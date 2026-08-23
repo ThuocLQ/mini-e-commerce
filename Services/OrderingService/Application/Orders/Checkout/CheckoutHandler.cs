@@ -1,5 +1,7 @@
 using MediatR;
 using Microsoft.Extensions.Options;
+using System.Security.Cryptography;
+using System.Text;
 using OrderingService.Application.Abstractions;
 using OrderingService.Application.Baskets;
 using OrderingService.Application.Inventory;
@@ -47,6 +49,8 @@ public class CheckoutHandler : IRequestHandler<CheckoutCommand, OrderDto>
     public async Task<OrderDto> Handle(CheckoutCommand request, CancellationToken cancellationToken)
     {
         var idempotencyKey = NormalizeIdempotencyKey(request.IdempotencyKey);
+        EnsureValidBasketId(request.BasketId);
+        EnsureValidBasketVersion(request.BasketVersion);
         var existingOrder = await _orderRepository.GetByCustomerAndIdempotencyKeyAsync(
             request.CustomerId,
             idempotencyKey,
@@ -54,6 +58,8 @@ public class CheckoutHandler : IRequestHandler<CheckoutCommand, OrderDto>
 
         if (existingOrder is not null)
         {
+            EnsureMatchingCoupon(existingOrder, request.CouponCode);
+            EnsureMatchingBasketIdentity(existingOrder, request.BasketId, request.BasketVersion);
             return OrderMapper.ToDto(existingOrder);
         }
 
@@ -69,13 +75,24 @@ public class CheckoutHandler : IRequestHandler<CheckoutCommand, OrderDto>
             throw new InvalidOperationException("Basket does not belong to the requested customer.");
         }
 
+        if (basket.BasketId != request.BasketId || basket.Version != request.BasketVersion)
+        {
+            throw new CheckoutIdempotencyConflictException(
+                "Basket changed before checkout. Refresh the basket and use a new idempotency key.");
+        }
+
+        var checkoutRequestHash = CreateCheckoutRequestHash(basket, request.CouponCode);
+
         var order = new Order(
             Guid.NewGuid(),
             request.CustomerId,
             DateTime.UtcNow,
             OrderStatus.PendingPayment,
             idempotencyKey,
-            _eventOptions.Currency);
+            _eventOptions.Currency,
+            checkoutRequestHash,
+            basket.Version,
+            basket.BasketId);
 
         foreach (var item in basket.Items)
         {
@@ -148,6 +165,8 @@ public class CheckoutHandler : IRequestHandler<CheckoutCommand, OrderDto>
         }
         catch (OrderAlreadyExistsException)
         {
+            await TryReleaseReservationAfterPersistenceFailureAsync(order.Id);
+
             var duplicatedOrder = await _orderRepository.GetByCustomerAndIdempotencyKeyAsync(
                 request.CustomerId,
                 idempotencyKey,
@@ -158,18 +177,13 @@ public class CheckoutHandler : IRequestHandler<CheckoutCommand, OrderDto>
                 throw;
             }
 
+            EnsureMatchingCoupon(duplicatedOrder, request.CouponCode);
+            EnsureMatchingBasketIdentity(duplicatedOrder, request.BasketId, request.BasketVersion);
             return OrderMapper.ToDto(duplicatedOrder);
         }
         catch
         {
-            try
-            {
-                await _inventoryReservationClient.ReleaseAsync(order.Id, cancellationToken);
-            }
-            catch (InventoryUnavailableException exception)
-            {
-                _logger.LogWarning(exception, "Could not release inventory after checkout persistence failed. OrderId: {OrderId}", order.Id);
-            }
+            await TryReleaseReservationAfterPersistenceFailureAsync(order.Id);
 
             throw;
         }
@@ -212,5 +226,80 @@ public class CheckoutHandler : IRequestHandler<CheckoutCommand, OrderDto>
         }
 
         return idempotencyKey;
+    }
+
+    private static string CreateCheckoutRequestHash(BasketDto basket, string? couponCode)
+    {
+        var normalizedCouponCode = string.IsNullOrWhiteSpace(couponCode)
+            ? string.Empty
+            : couponCode.Trim().ToUpperInvariant();
+
+        var canonicalItems = basket.Items!
+            .Select(item => new
+            {
+                ProductId = string.IsNullOrWhiteSpace(item.ProductId)
+                    ? throw new ArgumentException("Basket contains an invalid product id.")
+                    : item.ProductId.Trim().ToUpperInvariant(),
+                item.Quantity
+            })
+            .GroupBy(item => item.ProductId, StringComparer.Ordinal)
+            .OrderBy(group => group.Key, StringComparer.Ordinal)
+            .Select(group => $"{group.Key}:{group.Sum(item => item.Quantity)}");
+
+        var canonicalRequest = $"basketId={basket.BasketId:D}\nbasketVersion={basket.Version}\ncoupon={normalizedCouponCode}\nitems={string.Join(',', canonicalItems)}";
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(canonicalRequest));
+        return Convert.ToHexString(hash).ToLowerInvariant();
+    }
+
+    private static void EnsureMatchingBasketIdentity(Order order, Guid basketId, long basketVersion)
+    {
+        if (string.IsNullOrWhiteSpace(order.CheckoutRequestHash) ||
+            order.CheckoutBasketId != basketId ||
+            order.CheckoutBasketVersion != basketVersion)
+        {
+            throw new CheckoutIdempotencyConflictException(
+                "Idempotency key was already used for a different checkout request.");
+        }
+    }
+
+    private static void EnsureMatchingCoupon(Order order, string? couponCode)
+    {
+        var requestedCouponCode = string.IsNullOrWhiteSpace(couponCode)
+            ? null
+            : couponCode.Trim().ToUpperInvariant();
+
+        if (!string.Equals(order.DiscountCode, requestedCouponCode, StringComparison.Ordinal))
+        {
+            throw new CheckoutIdempotencyConflictException(
+                "Idempotency key was already used with a different coupon code.");
+        }
+    }
+
+    private static void EnsureValidBasketVersion(long basketVersion)
+    {
+        if (basketVersion <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(basketVersion), "BasketVersion must be greater than zero.");
+        }
+    }
+
+    private static void EnsureValidBasketId(Guid basketId)
+    {
+        if (basketId == Guid.Empty)
+        {
+            throw new ArgumentException("BasketId cannot be empty.", nameof(basketId));
+        }
+    }
+
+    private async Task TryReleaseReservationAfterPersistenceFailureAsync(Guid orderId)
+    {
+        try
+        {
+            await _inventoryReservationClient.ReleaseAsync(orderId, CancellationToken.None);
+        }
+        catch (InventoryUnavailableException exception)
+        {
+            _logger.LogWarning(exception, "Could not release inventory after checkout persistence failed. OrderId: {OrderId}", orderId);
+        }
     }
 }

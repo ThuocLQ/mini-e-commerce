@@ -10,6 +10,9 @@ public sealed class Order
     public OrderStatus Status { get; private set; }
     public string Currency { get; }
     public string? IdempotencyKey { get; }
+    public string? CheckoutRequestHash { get; }
+    public long? CheckoutBasketVersion { get; }
+    public Guid? CheckoutBasketId { get; }
     public string? DiscountCode { get; private set; }
     public decimal DiscountAmount { get; private set; }
     public IReadOnlyList<OrderItem> Items => _items;
@@ -22,7 +25,10 @@ public sealed class Order
         DateTime createdAtUtc,
         OrderStatus status,
         string? idempotencyKey = null,
-        string currency = "USD")
+        string currency = "USD",
+        string? checkoutRequestHash = null,
+        long? checkoutBasketVersion = null,
+        Guid? checkoutBasketId = null)
     {
         if (id == Guid.Empty) throw new ArgumentException("Order id cannot be empty.", nameof(id));
         if (customerId == Guid.Empty) throw new ArgumentException("Customer id cannot be empty.", nameof(customerId));
@@ -34,11 +40,33 @@ public sealed class Order
             throw new ArgumentException("Idempotency key cannot exceed 128 characters.", nameof(idempotencyKey));
         }
 
+        checkoutRequestHash = string.IsNullOrWhiteSpace(checkoutRequestHash)
+            ? null
+            : checkoutRequestHash.Trim().ToLowerInvariant();
+        if (checkoutRequestHash is not null &&
+            (checkoutRequestHash.Length != 64 || checkoutRequestHash.Any(character => !Uri.IsHexDigit(character))))
+        {
+            throw new ArgumentException("Checkout request hash must be a SHA-256 hexadecimal value.", nameof(checkoutRequestHash));
+        }
+
+        if (checkoutBasketVersion is <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(checkoutBasketVersion), "Checkout basket version must be greater than zero.");
+        }
+
+        if (checkoutBasketId == Guid.Empty)
+        {
+            throw new ArgumentException("Checkout basket id cannot be empty.", nameof(checkoutBasketId));
+        }
+
         Id = id;
         CustomerId = customerId;
         CreatedAtUtc = createdAtUtc;
         Status = status;
         IdempotencyKey = idempotencyKey;
+        CheckoutRequestHash = checkoutRequestHash;
+        CheckoutBasketVersion = checkoutBasketVersion;
+        CheckoutBasketId = checkoutBasketId;
         Currency = currency.Trim().ToUpperInvariant();
     }
 

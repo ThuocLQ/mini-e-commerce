@@ -374,6 +374,8 @@
                   "pm.test('Basket has items', function () {",
                   "  pm.response.to.have.status(200);",
                   "  const basket = pm.response.json();",
+                  "  pm.collectionVariables.set('basketId', basket.basketId);",
+                  "  pm.collectionVariables.set('basketVersion', String(basket.version));",
                   "  pm.expect(basket.items.length).to.be.greaterThan(0);",
                   "});"
                 ]
@@ -407,7 +409,9 @@
                 "exec": [
                   "pm.test('Quantity updated', function () {",
                   "  pm.response.to.have.status(200);",
-                  "});"
+                  "});",
+                  "pm.collectionVariables.set('basketVersion', String(pm.response.json().version));",
+                  "pm.collectionVariables.set('basketId', pm.response.json().basketId);"
                 ]
               }
             }
@@ -454,7 +458,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"customerId\": \"{{customerId}}\"\n}"
+              "raw": "{\n  \"customerId\": \"{{customerId}}\",\n  \"basketId\": \"{{basketId}}\",\n  \"basketVersion\": {{basketVersion}}\n}"
             },
             "url": {
               "raw": "{{gatewayBaseUrl}}/orders/checkout",
@@ -475,7 +479,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"customerId\": \"{{customerId}}\"\n}"
+              "raw": "{\n  \"customerId\": \"{{customerId}}\",\n  \"basketId\": \"{{basketId}}\",\n  \"basketVersion\": {{basketVersion}}\n}"
             },
             "url": {
               "raw": "{{gatewayBaseUrl}}/orders/checkout",

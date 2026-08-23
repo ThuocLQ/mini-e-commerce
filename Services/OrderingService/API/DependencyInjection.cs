@@ -4,6 +4,7 @@ using OrderingService.Application.Catalog;
 using OrderingService.Application.Discounts;
 using OrderingService.Application.Inventory;
 using OrderingService.Application.Orders;
+using OrderingService.Application.Orders.Checkout;
 using OrderingService.API.Endpoints;
 
 namespace OrderingService.API;
@@ -87,6 +88,12 @@ public static class DependencyInjection
                 }
 
                 if (exception is InsufficientInventoryException)
+                {
+                    await Results.Conflict(new { exception.Message }).ExecuteAsync(context);
+                    return;
+                }
+
+                if (exception is CheckoutIdempotencyConflictException)
                 {
                     await Results.Conflict(new { exception.Message }).ExecuteAsync(context);
                     return;

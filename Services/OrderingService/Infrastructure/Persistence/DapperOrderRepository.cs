@@ -20,7 +20,7 @@ public sealed class DapperOrderRepository : IOrderRepository
         using var connection = _connectionFactory.CreateConnection();
 
         var orderRows = (await connection.QueryAsync<OrderRow>(new CommandDefinition("""
-            SELECT Id, CustomerId, CreatedAtUtc, Status, IdempotencyKey, Currency, DiscountCode, DiscountAmount
+            SELECT Id, CustomerId, CreatedAtUtc, Status, IdempotencyKey, CheckoutRequestHash, CheckoutBasketId, CheckoutBasketVersion, Currency, DiscountCode, DiscountAmount
             FROM Orders
             ORDER BY CreatedAtUtc DESC;
             """, cancellationToken: cancellationToken))).ToList();
@@ -40,7 +40,7 @@ public sealed class DapperOrderRepository : IOrderRepository
         using var connection = _connectionFactory.CreateConnection();
 
         var orderRows = (await connection.QueryAsync<OrderRow>(new CommandDefinition("""
-            SELECT Id, CustomerId, CreatedAtUtc, Status, IdempotencyKey, Currency, DiscountCode, DiscountAmount
+            SELECT Id, CustomerId, CreatedAtUtc, Status, IdempotencyKey, CheckoutRequestHash, CheckoutBasketId, CheckoutBasketVersion, Currency, DiscountCode, DiscountAmount
             FROM Orders
             WHERE CustomerId = @CustomerId
             ORDER BY CreatedAtUtc DESC;
@@ -83,12 +83,12 @@ public sealed class DapperOrderRepository : IOrderRepository
     {
         var sql = transaction is null
             ? """
-              SELECT Id, CustomerId, CreatedAtUtc, Status, IdempotencyKey, Currency, DiscountCode, DiscountAmount
+              SELECT Id, CustomerId, CreatedAtUtc, Status, IdempotencyKey, CheckoutRequestHash, CheckoutBasketId, CheckoutBasketVersion, Currency, DiscountCode, DiscountAmount
               FROM Orders
               WHERE Id = @Id;
               """
             : """
-              SELECT Id, CustomerId, CreatedAtUtc, Status, IdempotencyKey, Currency, DiscountCode, DiscountAmount
+              SELECT Id, CustomerId, CreatedAtUtc, Status, IdempotencyKey, CheckoutRequestHash, CheckoutBasketId, CheckoutBasketVersion, Currency, DiscountCode, DiscountAmount
               FROM Orders
               WHERE Id = @Id
               FOR UPDATE;
@@ -122,7 +122,7 @@ public sealed class DapperOrderRepository : IOrderRepository
         using var connection = _connectionFactory.CreateConnection();
 
         var orderRow = await connection.QuerySingleOrDefaultAsync<OrderRow>(new CommandDefinition("""
-            SELECT Id, CustomerId, CreatedAtUtc, Status, IdempotencyKey, Currency, DiscountCode, DiscountAmount
+            SELECT Id, CustomerId, CreatedAtUtc, Status, IdempotencyKey, CheckoutRequestHash, CheckoutBasketId, CheckoutBasketVersion, Currency, DiscountCode, DiscountAmount
             FROM Orders
             WHERE CustomerId = @CustomerId
               AND IdempotencyKey = @IdempotencyKey;
@@ -243,8 +243,8 @@ public sealed class DapperOrderRepository : IOrderRepository
         CancellationToken cancellationToken)
     {
         await connection.ExecuteAsync(new CommandDefinition("""
-            INSERT INTO Orders (Id, CustomerId, CreatedAtUtc, Status, TotalAmount, Currency, DiscountCode, DiscountAmount, IdempotencyKey)
-            VALUES (@Id, @CustomerId, @CreatedAtUtc, @Status, @TotalAmount, @Currency, @DiscountCode, @DiscountAmount, @IdempotencyKey);
+            INSERT INTO Orders (Id, CustomerId, CreatedAtUtc, Status, TotalAmount, Currency, DiscountCode, DiscountAmount, IdempotencyKey, CheckoutRequestHash, CheckoutBasketId, CheckoutBasketVersion)
+            VALUES (@Id, @CustomerId, @CreatedAtUtc, @Status, @TotalAmount, @Currency, @DiscountCode, @DiscountAmount, @IdempotencyKey, @CheckoutRequestHash, @CheckoutBasketId, @CheckoutBasketVersion);
             """, new
         {
             order.Id,
@@ -255,7 +255,10 @@ public sealed class DapperOrderRepository : IOrderRepository
             order.Currency,
             order.DiscountCode,
             order.DiscountAmount,
-            order.IdempotencyKey
+            order.IdempotencyKey,
+            order.CheckoutRequestHash,
+            order.CheckoutBasketId,
+            order.CheckoutBasketVersion
         }, transaction, cancellationToken: cancellationToken));
 
         foreach (var item in order.Items)
@@ -295,7 +298,10 @@ public sealed class DapperOrderRepository : IOrderRepository
             row.CreatedAtUtc,
             Enum.Parse<OrderStatus>(row.Status),
             row.IdempotencyKey,
-            row.Currency);
+            row.Currency,
+            row.CheckoutRequestHash,
+            row.CheckoutBasketVersion,
+            row.CheckoutBasketId);
 
         foreach (var itemRow in itemRows)
         {
@@ -321,6 +327,9 @@ public sealed class DapperOrderRepository : IOrderRepository
         DateTime CreatedAtUtc,
         string Status,
         string? IdempotencyKey,
+        string? CheckoutRequestHash,
+        Guid? CheckoutBasketId,
+        long? CheckoutBasketVersion,
         string Currency,
         string? DiscountCode,
         decimal DiscountAmount);

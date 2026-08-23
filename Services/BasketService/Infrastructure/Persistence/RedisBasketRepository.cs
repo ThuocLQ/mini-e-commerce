@@ -1,4 +1,6 @@
 using System.Text.Json;
+using System.Security.Cryptography;
+using System.Text;
 using BasketService.Application.Abstractions;
 using BasketService.Domain.Baskets;
 using StackExchange.Redis;
@@ -42,15 +44,19 @@ public sealed class RedisBasketRepository : IBasketRepository
         {
             return new ShoppingCart
             {
-                UserId = userId
+                UserId = userId,
+                BasketId = Guid.NewGuid()
             };
         }
 
-        return JsonSerializer.Deserialize<ShoppingCart>(data.ToString()!)
-               ?? new ShoppingCart
-               {
-                   UserId = userId
-               };
+        var basket = JsonSerializer.Deserialize<ShoppingCart>(data.ToString()!)
+                     ?? new ShoppingCart { UserId = userId, BasketId = Guid.NewGuid() };
+        basket.UserId = userId;
+        basket.BasketId = basket.BasketId == Guid.Empty
+            ? CreateLegacyBasketId(userId)
+            : basket.BasketId;
+
+        return basket;
     }
 
     public async Task<ShoppingCart?> TryUpdateBasketAsync(
@@ -91,5 +97,11 @@ public sealed class RedisBasketRepository : IBasketRepository
     private static string GetKey(string userId)
     {
         return $"basket:{userId}";
+    }
+
+    private static Guid CreateLegacyBasketId(string userId)
+    {
+        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes($"microshop:basket:legacy:{userId}"));
+        return new Guid(bytes[..16]);
     }
 }

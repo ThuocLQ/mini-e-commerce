@@ -4,6 +4,7 @@ namespace BasketService.Application.Baskets;
 
 public sealed record BasketDto(
     string UserId,
+    Guid BasketId,
     IReadOnlyList<BasketItemDto> Items,
     decimal TotalPrice,
     long Version)
@@ -12,6 +13,7 @@ public sealed record BasketDto(
     {
         return new BasketDto(
             basket.UserId,
+            basket.BasketId,
             basket.Items.Select(item => new BasketItemDto(
                 item.ProductId,
                 item.ProductName,
