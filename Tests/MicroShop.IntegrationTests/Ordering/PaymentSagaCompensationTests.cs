@@ -112,6 +112,29 @@ public sealed class PaymentSagaCompensationTests
             message.Type.Contains("InventoryReleaseRequestedIntegrationEvent"));
     }
 
+    [Fact]
+    public async Task PaymentTimedOut_PersistsInventoryReleaseCommandInTheOutbox()
+    {
+        var order = new Order(Guid.NewGuid(), Guid.NewGuid(), DateTime.UtcNow, OrderStatus.PendingPayment);
+        order.AddItem(new OrderItem(Guid.NewGuid(), Guid.NewGuid(), "Product", 10m, 1));
+        var paymentId = Guid.NewGuid();
+        var outboxRepository = new RecordingOutboxRepository();
+        var handler = new ApplyPaymentSagaEventHandler(
+            new InlineUnitOfWork(),
+            new StubOrderRepository(order),
+            new StubSagaRepository(OrderPaymentSaga.Start(order.Id, paymentId, DateTime.UtcNow.AddMinutes(-31), TimeSpan.FromMinutes(30))),
+            outboxRepository);
+
+        await handler.Handle(
+            new ApplyPaymentSagaEventCommand(Guid.NewGuid(), OrderPaymentSagaEventType.PaymentTimedOut, order.Id, paymentId, "Payment timed out."),
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(OrderStatus.Cancelled, order.Status);
+        Assert.Contains(outboxRepository.Messages, message =>
+            message.Transport == OutboxTransport.RabbitMq &&
+            message.Type.Contains("InventoryReleaseRequestedIntegrationEvent"));
+    }
+
     private sealed class InlineUnitOfWork : IOrderingUnitOfWork
     {
         public Task<T> ExecuteAsync<T>(
@@ -171,6 +194,12 @@ public sealed class PaymentSagaCompensationTests
     private sealed class StubSagaRepository(OrderPaymentSaga saga) : IOrderPaymentSagaRepository
     {
         public OrderPaymentSaga? SavedSaga { get; private set; }
+
+        public Task<IReadOnlyList<OrderPaymentSaga>> GetTimedOutAsync(
+            DateTime nowUtc,
+            int batchSize,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<OrderPaymentSaga>>(saga.TimeoutAtUtc <= nowUtc ? [saga] : []);
 
         public Task<OrderPaymentSaga?> GetByOrderIdAsync(
             Guid orderId,

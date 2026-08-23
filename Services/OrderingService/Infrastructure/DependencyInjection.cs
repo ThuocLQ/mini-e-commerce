@@ -8,6 +8,7 @@ using OrderingService.Application.IntegrationEvents;
 using OrderingService.Infrastructure.Clients;
 using OrderingService.Infrastructure.Messaging;
 using OrderingService.Infrastructure.Outbox;
+using OrderingService.Infrastructure.Sagas;
 using OrderingService.Infrastructure.Persistence;
 
 namespace OrderingService.Infrastructure;
@@ -147,6 +148,12 @@ public static class DependencyInjection
 
         services.AddHostedService<OutboxPublisherBackgroundService>();
         services.AddHostedService<OutboxMetricsBackgroundService>();
+        services.AddOptions<PaymentSagaTimeoutOptions>()
+            .Bind(configuration.GetSection(PaymentSagaTimeoutOptions.SectionName))
+            .Validate(options => options.IntervalSeconds > 0, "PaymentSagaTimeout:IntervalSeconds must be positive.")
+            .Validate(options => options.BatchSize is > 0 and <= 1000, "PaymentSagaTimeout:BatchSize must be between 1 and 1000.")
+            .ValidateOnStart();
+        services.AddHostedService<PaymentSagaTimeoutWorker>();
 
         return services;
     }

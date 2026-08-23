@@ -6,6 +6,27 @@ namespace OrderingService.Infrastructure.Persistence;
 
 public sealed class DapperOrderPaymentSagaRepository : IOrderPaymentSagaRepository
 {
+    private readonly IDbConnectionFactory _connectionFactory;
+
+    public DapperOrderPaymentSagaRepository(IDbConnectionFactory connectionFactory) => _connectionFactory = connectionFactory;
+
+    public async Task<IReadOnlyList<OrderPaymentSaga>> GetTimedOutAsync(
+        DateTime nowUtc,
+        int batchSize,
+        CancellationToken cancellationToken = default)
+    {
+        using var connection = _connectionFactory.CreateConnection();
+        var rows = await connection.QueryAsync<OrderPaymentSagaRow>(new CommandDefinition("""
+            SELECT Id, OrderId, PaymentId, State, StartedAtUtc, UpdatedAtUtc, TimeoutAtUtc, LastProcessedEventId, LastError
+            FROM OrderPaymentSagas
+            WHERE State = 'PaymentRequested' AND TimeoutAtUtc <= @NowUtc
+            ORDER BY TimeoutAtUtc
+            LIMIT @BatchSize;
+            """, new { NowUtc = nowUtc, BatchSize = batchSize }, cancellationToken: cancellationToken));
+
+        return rows.Select(Map).ToList();
+    }
+
     public async Task<OrderPaymentSaga?> GetByOrderIdAsync(
         Guid orderId,
         System.Data.IDbTransaction transaction,
