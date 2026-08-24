@@ -25,6 +25,7 @@ public static class DependencyInjection
         services.AddScoped<IOrderingUnitOfWork, DapperOrderingUnitOfWork>();
         services.AddScoped<IOrderRepository, DapperOrderRepository>();
         services.AddScoped<IOrderPaymentSagaRepository, DapperOrderPaymentSagaRepository>();
+        services.AddScoped<IInboxRepository, DapperInboxRepository>();
         services.AddScoped<IOutboxRepository, DapperOutboxRepository>();
         services.AddPostgresReadinessCheck(configuration, "OrderingDb");
         services.AddRabbitMqReadinessCheck(configuration);
@@ -113,6 +114,8 @@ public static class DependencyInjection
 
         services.AddMassTransit(busRegistrationConfigurator =>
         {
+            busRegistrationConfigurator.AddConsumer<InventoryCommittedConsumer>();
+            busRegistrationConfigurator.AddConsumer<InventoryReleasedConsumer>();
             busRegistrationConfigurator.UsingRabbitMq((context, busFactoryConfigurator) =>
             {
                 var rabbitMqOptions = RabbitMqOptionsResolver.Resolve(configuration);
@@ -133,6 +136,8 @@ public static class DependencyInjection
                 });
                 busFactoryConfigurator.Message<InventoryCommitRequestedIntegrationEvent>(messageConfigurator => messageConfigurator.SetEntityName("inventory.commit-requested"));
                 busFactoryConfigurator.Message<InventoryReleaseRequestedIntegrationEvent>(messageConfigurator => messageConfigurator.SetEntityName("inventory.release-requested"));
+                busFactoryConfigurator.Message<InventoryCommittedIntegrationEvent>(messageConfigurator => messageConfigurator.SetEntityName("inventory.committed"));
+                busFactoryConfigurator.Message<InventoryReleasedIntegrationEvent>(messageConfigurator => messageConfigurator.SetEntityName("inventory.released"));
 
                 busFactoryConfigurator.Host(
                     rabbitMqOptions.Host,
@@ -143,6 +148,12 @@ public static class DependencyInjection
                         hostConfigurator.Username(rabbitMqOptions.UserName);
                         hostConfigurator.Password(rabbitMqOptions.Password);
                     });
+
+                busFactoryConfigurator.ReceiveEndpoint("ordering.inventory-settlements", endpoint =>
+                {
+                    endpoint.ConfigureConsumer<InventoryCommittedConsumer>(context);
+                    endpoint.ConfigureConsumer<InventoryReleasedConsumer>(context);
+                });
             });
         });
 

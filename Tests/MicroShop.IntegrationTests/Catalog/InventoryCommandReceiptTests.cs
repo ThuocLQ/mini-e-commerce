@@ -1,5 +1,6 @@
 using CatalogService.Application.Abstractions;
 using CatalogService.Infrastructure.Persistence;
+using CatalogService.Infrastructure.Persistence.Outbox;
 using Dapper;
 using Microsoft.Extensions.Configuration;
 using Testcontainers.PostgreSql;
@@ -42,7 +43,7 @@ public sealed class InventoryCommandReceiptTests
                 """, new { Id = productId }, cancellationToken: cancellationToken));
         }
 
-        var repository = new DapperInventoryReservationRepository(connectionFactory);
+        var repository = new DapperInventoryReservationRepository(connectionFactory, new DapperCatalogOutboxRepository(connectionFactory));
         var reservation = await repository.ReserveAsync(
             orderId,
             [new InventoryReservationItem(productId, 2)],
@@ -64,11 +65,15 @@ public sealed class InventoryCommandReceiptTests
         var receiptCount = await verificationConnection.ExecuteScalarAsync<int>(new CommandDefinition(
             "SELECT COUNT(*) FROM InventoryCommandReceipts WHERE EventId = @EventId;",
             new { EventId = messageId }, cancellationToken: cancellationToken));
+        var outcomeCount = await verificationConnection.ExecuteScalarAsync<int>(new CommandDefinition(
+            "SELECT COUNT(*) FROM CatalogOutboxMessages WHERE CausationId = @CausationId;",
+            new { CausationId = messageId.ToString("D") }, cancellationToken: cancellationToken));
 
         Assert.True(reservation.Succeeded);
         Assert.Equal(8, stock.StockQuantity);
         Assert.Equal(0, stock.ReservedQuantity);
         Assert.Equal("Committed", status);
         Assert.Equal(1, receiptCount);
+        Assert.Equal(1, outcomeCount);
     }
 }

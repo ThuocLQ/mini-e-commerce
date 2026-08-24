@@ -6,5 +6,6 @@ public enum OrderPaymentSagaState
     OrderPaid = 2,
     OrderCancelled = 3,
     TimedOut = 4,
-    CompensationRequired = 5
+    CompensationRequired = 5,
+    InventoryCommitted = 6
 }

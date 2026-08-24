@@ -72,6 +72,12 @@ public sealed class OrderPaymentSaga
         MarkProcessed(eventId, updatedAtUtc, reason);
     }
 
+    public void MarkInventoryCommitted(Guid eventId, DateTime updatedAtUtc)
+    {
+        State = OrderPaymentSagaState.InventoryCommitted;
+        MarkProcessed(eventId, updatedAtUtc, null);
+    }
+
     public void MarkTimedOut(Guid eventId, DateTime updatedAtUtc, string reason)
     {
         State = OrderPaymentSagaState.TimedOut;

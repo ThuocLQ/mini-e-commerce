@@ -38,7 +38,8 @@ public static class OrderIntegrationEventFactory
 
     public static OrderPaymentSagaStateChangedIntegrationEvent CreatePaymentSagaStateChanged(
         OrderPaymentSaga saga,
-        OrderPaymentSagaState previousState)
+        OrderPaymentSagaState previousState,
+        string? causationId = null)
     {
         return new OrderPaymentSagaStateChangedIntegrationEvent
         {
@@ -46,7 +47,8 @@ public static class OrderIntegrationEventFactory
             PaymentId = saga.PaymentId,
             PreviousState = previousState.ToString(),
             CurrentState = saga.State.ToString(),
-            Reason = saga.LastError
+            Reason = saga.LastError,
+            CausationId = causationId
         };
     }
 
