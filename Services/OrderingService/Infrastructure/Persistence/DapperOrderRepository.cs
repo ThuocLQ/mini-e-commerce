@@ -146,6 +146,41 @@ public sealed class DapperOrderRepository : IOrderRepository
         return MapOrder(orderRow, itemRows);
     }
 
+    public async Task<Order?> GetByCustomerAndCheckoutBasketAsync(
+        Guid customerId,
+        Guid basketId,
+        long basketVersion,
+        CancellationToken cancellationToken = default)
+    {
+        using var connection = _connectionFactory.CreateConnection();
+
+        var orderRow = await connection.QuerySingleOrDefaultAsync<OrderRow>(new CommandDefinition("""
+            SELECT Id, CustomerId, CreatedAtUtc, Status, IdempotencyKey, CheckoutRequestHash, CheckoutBasketId, CheckoutBasketVersion, Currency, DiscountCode, DiscountAmount
+            FROM Orders
+            WHERE CustomerId = @CustomerId
+              AND CheckoutBasketId = @BasketId
+              AND CheckoutBasketVersion = @BasketVersion;
+            """, new
+        {
+            CustomerId = customerId,
+            BasketId = basketId,
+            BasketVersion = basketVersion
+        }, cancellationToken: cancellationToken));
+
+        if (orderRow is null)
+        {
+            return null;
+        }
+
+        var itemRows = await connection.QueryAsync<OrderItemRow>(new CommandDefinition("""
+            SELECT Id, OrderId, ProductId, ProductName, UnitPrice, Quantity
+            FROM OrderItems
+            WHERE OrderId = @OrderId;
+            """, new { OrderId = orderRow.Id }, cancellationToken: cancellationToken));
+
+        return MapOrder(orderRow, itemRows);
+    }
+
     public async Task<Order> CreateAsync(
         Order order,
         System.Data.IDbTransaction? transaction = null,

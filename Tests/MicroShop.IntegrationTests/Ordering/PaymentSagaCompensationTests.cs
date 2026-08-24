@@ -173,6 +173,13 @@ public sealed class PaymentSagaCompensationTests
             CancellationToken cancellationToken = default) =>
             Task.FromResult<Order?>(null);
 
+        public Task<Order?> GetByCustomerAndCheckoutBasketAsync(
+            Guid customerId,
+            Guid basketId,
+            long basketVersion,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<Order?>(null);
+
         public Task<Order> CreateAsync(
             Order createdOrder,
             IDbTransaction? transaction = null,

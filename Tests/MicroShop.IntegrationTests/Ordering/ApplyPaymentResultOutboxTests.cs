@@ -43,6 +43,7 @@ public sealed class ApplyPaymentResultOutboxTests
         public Task<Order?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) => Task.FromResult<Order?>(id == order.Id ? order : null);
         public Task<Order?> GetByIdAsync(Guid id, IDbTransaction transaction, CancellationToken cancellationToken = default) => Task.FromResult<Order?>(id == order.Id ? order : null);
         public Task<Order?> GetByCustomerAndIdempotencyKeyAsync(Guid customerId, string idempotencyKey, CancellationToken cancellationToken = default) => Task.FromResult<Order?>(null);
+        public Task<Order?> GetByCustomerAndCheckoutBasketAsync(Guid customerId, Guid basketId, long basketVersion, CancellationToken cancellationToken = default) => Task.FromResult<Order?>(null);
         public Task<Order> CreateAsync(Order createdOrder, IDbTransaction? transaction = null, CancellationToken cancellationToken = default) => Task.FromResult(createdOrder);
         public Task<bool> TryUpdateStatusAsync(Guid orderId, OrderStatus newStatus, IReadOnlyCollection<OrderStatus> expectedCurrentStatuses, IDbTransaction? transaction = null, CancellationToken cancellationToken = default) => Task.FromResult(true);
     }

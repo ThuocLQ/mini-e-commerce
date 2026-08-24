@@ -63,6 +63,19 @@ public class CheckoutHandler : IRequestHandler<CheckoutCommand, OrderDto>
             return OrderMapper.ToDto(existingOrder);
         }
 
+        var existingCheckout = await _orderRepository.GetByCustomerAndCheckoutBasketAsync(
+            request.CustomerId,
+            request.BasketId,
+            request.BasketVersion,
+            cancellationToken);
+
+        if (existingCheckout is not null)
+        {
+            EnsureMatchingCoupon(existingCheckout, request.CouponCode);
+            EnsureMatchingBasketIdentity(existingCheckout, request.BasketId, request.BasketVersion);
+            return OrderMapper.ToDto(existingCheckout);
+        }
+
         var basket = await _basketClient.GetBasketAsync(request.CustomerId, cancellationToken);
 
         if (basket is null || basket.Items is null || basket.Items.Count == 0)
@@ -170,7 +183,12 @@ public class CheckoutHandler : IRequestHandler<CheckoutCommand, OrderDto>
             var duplicatedOrder = await _orderRepository.GetByCustomerAndIdempotencyKeyAsync(
                 request.CustomerId,
                 idempotencyKey,
-                cancellationToken);
+                cancellationToken)
+                ?? await _orderRepository.GetByCustomerAndCheckoutBasketAsync(
+                    request.CustomerId,
+                    request.BasketId,
+                    request.BasketVersion,
+                    cancellationToken);
 
             if (duplicatedOrder is null)
             {

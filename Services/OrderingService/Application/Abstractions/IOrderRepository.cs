@@ -16,6 +16,11 @@ public interface IOrderRepository
         Guid customerId,
         string idempotencyKey,
         CancellationToken cancellationToken = default);
+    Task<Order?> GetByCustomerAndCheckoutBasketAsync(
+        Guid customerId,
+        Guid basketId,
+        long basketVersion,
+        CancellationToken cancellationToken = default);
     Task<Order> CreateAsync(
         Order order,
         IDbTransaction? transaction = null,

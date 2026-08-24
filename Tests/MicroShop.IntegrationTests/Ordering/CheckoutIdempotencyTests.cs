@@ -62,6 +62,25 @@ public sealed class CheckoutIdempotencyTests
     }
 
     [Fact]
+    public async Task SameBasketVersionWithNewKey_ReturnsExistingOrderWithoutReservingInventory()
+    {
+        var customerId = Guid.NewGuid();
+        var productId = Guid.NewGuid();
+        var basket = CreateBasket(customerId, productId, quantity: 2);
+        var existingOrder = CreateOrder(customerId, productId, "checkout-original", CreateHash(basket, couponCode: null), basket.BasketId);
+        var inventory = new RecordingInventoryReservationClient();
+        var handler = CreateHandler(basket, new StubOrderRepository(existingOrder), inventory);
+
+        var result = await handler.Handle(
+            new CheckoutCommand(customerId, "checkout-new-key", null, basket.BasketId, basket.Version),
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(existingOrder.Id, result.Id);
+        Assert.Empty(inventory.ReservedOrderIds);
+        Assert.Empty(inventory.ReleasedOrderIds);
+    }
+
+    [Fact]
     public async Task LegacyOrderWithoutRequestFingerprint_RequiresANewIdempotencyKey()
     {
         var customerId = Guid.NewGuid();
@@ -97,7 +116,8 @@ public sealed class CheckoutIdempotencyTests
         var repository = new StubOrderRepository(
             existingOrder,
             getExistingOnInitialRead: false,
-            throwDuplicateOnCreate: true);
+            throwDuplicateOnCreate: true,
+            getExistingByBasketOnInitialRead: false);
         var inventory = new RecordingInventoryReservationClient();
         var handler = CreateHandler(basket, repository, inventory);
 
@@ -197,9 +217,11 @@ public sealed class CheckoutIdempotencyTests
     private sealed class StubOrderRepository(
         Order existingOrder,
         bool getExistingOnInitialRead = true,
-        bool throwDuplicateOnCreate = false) : IOrderRepository
+        bool throwDuplicateOnCreate = false,
+        bool getExistingByBasketOnInitialRead = true) : IOrderRepository
     {
         private int _idempotencyReads;
+        private bool _createAttempted;
 
         public Task<IReadOnlyList<Order>> GetAllAsync(CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<Order>>([existingOrder]);
         public Task<IReadOnlyList<Order>> GetByCustomerAsync(Guid customerId, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<Order>>([existingOrder]);
@@ -208,11 +230,27 @@ public sealed class CheckoutIdempotencyTests
         public Task<Order?> GetByCustomerAndIdempotencyKeyAsync(Guid customerId, string idempotencyKey, CancellationToken cancellationToken = default)
         {
             _idempotencyReads++;
-            return Task.FromResult<Order?>(getExistingOnInitialRead || _idempotencyReads > 1 ? existingOrder : null);
+            var isMatchingKey = string.Equals(existingOrder.IdempotencyKey, idempotencyKey, StringComparison.Ordinal);
+            return Task.FromResult<Order?>(
+                isMatchingKey && (getExistingOnInitialRead || _idempotencyReads > 1) ? existingOrder : null);
         }
+
+        public Task<Order?> GetByCustomerAndCheckoutBasketAsync(
+            Guid customerId,
+            Guid basketId,
+            long basketVersion,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<Order?>(
+                customerId == existingOrder.CustomerId &&
+                basketId == existingOrder.CheckoutBasketId &&
+                basketVersion == existingOrder.CheckoutBasketVersion &&
+                (getExistingByBasketOnInitialRead || _createAttempted)
+                    ? existingOrder
+                    : null);
 
         public Task<Order> CreateAsync(Order order, IDbTransaction? transaction = null, CancellationToken cancellationToken = default)
         {
+            _createAttempted = true;
             if (throwDuplicateOnCreate)
             {
                 throw new OrderAlreadyExistsException(order.CustomerId, order.IdempotencyKey!);
