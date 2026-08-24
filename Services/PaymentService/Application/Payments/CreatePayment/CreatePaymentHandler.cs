@@ -24,8 +24,18 @@ public sealed class CreatePaymentHandler : IRequestHandler<CreatePaymentCommand,
             throw new ArgumentException("OrderId is required.", nameof(request.OrderId));
         }
 
+        if (request.CustomerId == Guid.Empty)
+        {
+            throw new UnauthorizedAccessException("Authenticated customer id is required.");
+        }
+
         var order = await _orderClient.GetOrderAsync(request.OrderId, cancellationToken)
-            ?? throw new KeyNotFoundException("Order was not found.");
+            ?? throw new PaymentOrderNotAccessibleException(request.OrderId);
+
+        if (order.CustomerId != request.CustomerId)
+        {
+            throw new PaymentOrderNotAccessibleException(request.OrderId);
+        }
 
         var existingPayment = await _repository.GetByOrderIdAsync(request.OrderId, cancellationToken);
         if (existingPayment is not null)

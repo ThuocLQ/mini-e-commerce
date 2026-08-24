@@ -21,7 +21,7 @@ public sealed class CreatePaymentFromOrderTests
         var handler = new CreatePaymentHandler(repository, orderClient);
 
         var result = await handler.Handle(
-            new CreatePaymentCommand(orderId),
+            new CreatePaymentCommand(orderId, customerId),
             TestContext.Current.CancellationToken);
 
         Assert.Equal(orderId, result.OrderId);
@@ -53,12 +53,32 @@ public sealed class CreatePaymentFromOrderTests
         var handler = new CreatePaymentHandler(repository, orderClient);
 
         var result = await handler.Handle(
-            new CreatePaymentCommand(orderId),
+            new CreatePaymentCommand(orderId, existing.CustomerId),
             TestContext.Current.CancellationToken);
 
         Assert.Equal(existing.Id, result.Id);
         Assert.Equal(0, repository.CreateCalls);
         Assert.Equal(1, orderClient.CallCount);
+    }
+
+    [Fact]
+    public async Task CreatePayment_ForAnotherCustomersOrder_IsNotAccessibleAndDoesNotCreatePayment()
+    {
+        var orderId = Guid.NewGuid();
+        var repository = new StubPaymentRepository();
+        var orderClient = new StubOrderPaymentClient(new OrderPaymentSnapshot(
+            orderId,
+            Guid.NewGuid(),
+            125_000m,
+            "VND",
+            "PendingPayment"));
+        var handler = new CreatePaymentHandler(repository, orderClient);
+
+        await Assert.ThrowsAsync<PaymentOrderNotAccessibleException>(() => handler.Handle(
+            new CreatePaymentCommand(orderId, Guid.NewGuid()),
+            TestContext.Current.CancellationToken));
+
+        Assert.Equal(0, repository.CreateCalls);
     }
 
     private sealed class StubOrderPaymentClient(OrderPaymentSnapshot? order) : IOrderPaymentClient

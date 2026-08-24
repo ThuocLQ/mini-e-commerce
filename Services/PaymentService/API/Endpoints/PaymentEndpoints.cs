@@ -16,10 +16,16 @@ public static class PaymentEndpoints
 
         group.MapPost("", async (
             CreatePaymentRequest request,
+            ClaimsPrincipal user,
             ISender sender,
             CancellationToken cancellationToken) =>
         {
-            var command = new CreatePaymentCommand(request.OrderId);
+            if (!Guid.TryParse(user.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var customerId))
+            {
+                return Results.Unauthorized();
+            }
+
+            var command = new CreatePaymentCommand(request.OrderId, customerId);
 
             var result = await sender.Send(command, cancellationToken);
 
