@@ -14,17 +14,17 @@ public interface IPaymentOutboxRepository
         int batchSize,
         int maxRetryCount,
         Guid lockId,
-        DateTime nowUtc,
         TimeSpan lockDuration,
         CancellationToken cancellationToken = default);
 
-    Task MarkAsProcessedAsync(
+    Task<int> ReclaimExpiredLocksAsync(CancellationToken cancellationToken = default);
+
+    Task<bool> MarkAsProcessedAsync(
         Guid messageId,
         Guid lockId,
-        DateTime processedAtUtc,
         CancellationToken cancellationToken = default);
 
-    Task MarkAsFailedAsync(
+    Task<bool> MarkAsFailedAsync(
         Guid messageId,
         Guid lockId,
         string error,

@@ -34,7 +34,6 @@ public sealed class DapperPaymentOutboxRepository : IPaymentOutboxRepository
         int batchSize,
         int maxRetryCount,
         Guid lockId,
-        DateTime nowUtc,
         TimeSpan lockDuration,
         CancellationToken cancellationToken = default)
     {
@@ -46,7 +45,7 @@ public sealed class DapperPaymentOutboxRepository : IPaymentOutboxRepository
                 FROM PaymentOutboxMessages
                 WHERE Status IN ('Pending', 'Failed')
                   AND RetryCount < @MaxRetryCount
-                  AND NextAttemptAtUtc <= @NowUtc
+                  AND NextAttemptAtUtc <= CURRENT_TIMESTAMP
                 ORDER BY OccurredAtUtc
                 LIMIT @BatchSize
                 FOR UPDATE SKIP LOCKED
@@ -54,7 +53,7 @@ public sealed class DapperPaymentOutboxRepository : IPaymentOutboxRepository
             UPDATE PaymentOutboxMessages message
             SET Status = 'Processing',
                 LockedBy = @LockId,
-                LockedUntilUtc = @LockedUntilUtc
+                LockedUntilUtc = CURRENT_TIMESTAMP + make_interval(secs => @LockDurationSeconds)
             FROM claim
             WHERE message.Id = claim.Id
             RETURNING message.Id, message.OccurredAtUtc, message.Type, message.Content, message.Status,
@@ -64,35 +63,52 @@ public sealed class DapperPaymentOutboxRepository : IPaymentOutboxRepository
         {
             BatchSize = batchSize,
             MaxRetryCount = maxRetryCount,
-            NowUtc = nowUtc,
             LockId = lockId,
-            LockedUntilUtc = nowUtc.Add(lockDuration)
+            LockDurationSeconds = checked((int)lockDuration.TotalSeconds)
         }, cancellationToken: cancellationToken));
 
         return rows.Select(Map).ToList();
     }
 
-    public async Task MarkAsProcessedAsync(
+    public async Task<int> ReclaimExpiredLocksAsync(CancellationToken cancellationToken = default)
+    {
+        using var connection = _connectionFactory.CreateConnection();
+
+        return await connection.ExecuteAsync(new CommandDefinition("""
+            UPDATE PaymentOutboxMessages
+            SET Status = 'Failed',
+                RetryCount = RetryCount + 1,
+                Error = 'Dispatcher lease expired before the message was acknowledged.',
+                NextAttemptAtUtc = CURRENT_TIMESTAMP,
+                LockedBy = NULL,
+                LockedUntilUtc = NULL
+            WHERE Status = 'Processing'
+              AND LockedUntilUtc IS NOT NULL
+              AND LockedUntilUtc <= CURRENT_TIMESTAMP;
+            """, cancellationToken: cancellationToken));
+    }
+
+    public async Task<bool> MarkAsProcessedAsync(
         Guid messageId,
         Guid lockId,
-        DateTime processedAtUtc,
         CancellationToken cancellationToken = default)
     {
         using var connection = _connectionFactory.CreateConnection();
 
-        await connection.ExecuteAsync(new CommandDefinition("""
+        return await connection.ExecuteAsync(new CommandDefinition("""
             UPDATE PaymentOutboxMessages
-            SET Status = 'Processed',
-                ProcessedAtUtc = @ProcessedAtUtc,
+                SET Status = 'Processed',
+                ProcessedAtUtc = CURRENT_TIMESTAMP,
                 Error = NULL,
                 LockedBy = NULL,
                 LockedUntilUtc = NULL
             WHERE Id = @MessageId
-              AND LockedBy = @LockId;
-            """, new { MessageId = messageId, LockId = lockId, ProcessedAtUtc = processedAtUtc }, cancellationToken: cancellationToken));
+              AND LockedBy = @LockId
+              AND LockedUntilUtc > CURRENT_TIMESTAMP;
+            """, new { MessageId = messageId, LockId = lockId }, cancellationToken: cancellationToken)) == 1;
     }
 
-    public async Task MarkAsFailedAsync(
+    public async Task<bool> MarkAsFailedAsync(
         Guid messageId,
         Guid lockId,
         string error,
@@ -101,7 +117,7 @@ public sealed class DapperPaymentOutboxRepository : IPaymentOutboxRepository
     {
         using var connection = _connectionFactory.CreateConnection();
 
-        await connection.ExecuteAsync(new CommandDefinition("""
+        return await connection.ExecuteAsync(new CommandDefinition("""
             UPDATE PaymentOutboxMessages
             SET Status = 'Failed',
                 RetryCount = RetryCount + 1,
@@ -110,14 +126,15 @@ public sealed class DapperPaymentOutboxRepository : IPaymentOutboxRepository
                 LockedBy = NULL,
                 LockedUntilUtc = NULL
             WHERE Id = @MessageId
-              AND LockedBy = @LockId;
+              AND LockedBy = @LockId
+              AND LockedUntilUtc > CURRENT_TIMESTAMP;
             """, new
         {
             MessageId = messageId,
             LockId = lockId,
             Error = Truncate(error, 4000),
             NextAttemptAtUtc = nextAttemptAtUtc
-        }, cancellationToken: cancellationToken));
+        }, cancellationToken: cancellationToken)) == 1;
     }
 
     private static Task InsertAsync(
@@ -181,9 +198,9 @@ public sealed class DapperPaymentOutboxRepository : IPaymentOutboxRepository
         DateTime OccurredAtUtc,
         string Type,
         string Content,
+        string Status,
         string? CorrelationId,
         string? CausationId,
-        string Status,
         int RetryCount,
         string? Error,
         DateTime NextAttemptAtUtc,

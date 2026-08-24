@@ -51,12 +51,20 @@ public sealed class PaymentOutboxDispatcherBackgroundService : BackgroundService
         using var scope = _scopeFactory.CreateScope();
         var outboxRepository = scope.ServiceProvider.GetRequiredService<IPaymentOutboxRepository>();
         var sagaClient = scope.ServiceProvider.GetRequiredService<OrderingPaymentSagaClient>();
+        var reclaimedCount = await outboxRepository.ReclaimExpiredLocksAsync(cancellationToken);
+
+        if (reclaimedCount > 0)
+        {
+            MicroShopMetrics.RecordOutboxMessage("PaymentService", "lease_reclaimed", reclaimedCount);
+            _logger.LogWarning(
+                "Reclaimed {ReclaimedCount} expired payment outbox dispatcher leases.",
+                reclaimedCount);
+        }
 
         var messages = await outboxRepository.ClaimPendingAsync(
             _options.BatchSize,
             _options.MaxRetryCount,
             lockId,
-            DateTime.UtcNow,
             TimeSpan.FromSeconds(_options.LockSeconds),
             cancellationToken);
 
@@ -85,11 +93,18 @@ public sealed class PaymentOutboxDispatcherBackgroundService : BackgroundService
                 await DispatchIntegrationEventAsync(sagaClient, message, cancellationToken);
             }
 
-            await outboxRepository.MarkAsProcessedAsync(
+            var markedAsProcessed = await outboxRepository.MarkAsProcessedAsync(
                 message.Id,
                 lockId,
-                DateTime.UtcNow,
                 cancellationToken);
+
+            if (!markedAsProcessed)
+            {
+                _logger.LogWarning(
+                    "Payment outbox lease was lost before message {OutboxMessageId} could be marked as processed.",
+                    message.Id);
+                return;
+            }
 
             MicroShopMetrics.RecordOutboxMessage("PaymentService", "dispatched");
 
@@ -102,12 +117,20 @@ public sealed class PaymentOutboxDispatcherBackgroundService : BackgroundService
         {
             var nextAttemptAtUtc = CalculateNextAttemptAtUtc(message.RetryCount + 1);
 
-            await outboxRepository.MarkAsFailedAsync(
+            var markedAsFailed = await outboxRepository.MarkAsFailedAsync(
                 message.Id,
                 lockId,
                 ex.Message,
                 nextAttemptAtUtc,
                 cancellationToken);
+
+            if (!markedAsFailed)
+            {
+                _logger.LogWarning(
+                    "Payment outbox lease was lost before failed message {OutboxMessageId} could be scheduled for retry.",
+                    message.Id);
+                return;
+            }
 
             MicroShopMetrics.RecordOutboxMessage("PaymentService", "failed");
 
