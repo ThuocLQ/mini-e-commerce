@@ -9,8 +9,8 @@ public sealed class NpgsqlConnectionFactory : IDbConnectionFactory
 
     public NpgsqlConnectionFactory(IConfiguration configuration)
     {
-        _connectionString = configuration.GetConnectionString("CatalogDb")
-            ?? throw new InvalidOperationException("Connection string 'CatalogDb' is missing.");
+        _connectionString = configuration.GetConnectionString("InventoryDb")
+            ?? throw new InvalidOperationException("Connection string 'InventoryDb' is missing.");
     }
 
     public IDbConnection CreateConnection()

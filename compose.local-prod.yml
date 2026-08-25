@@ -211,6 +211,30 @@ services:
       rabbitmq:
         condition: service_healthy
 
+  inventoryservice:
+    <<: *web-service-runtime
+    image: microshop/inventoryservice:local-prod
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        PROJECT_PATH: Services/InventoryService/InventoryService.csproj
+        PROJECT_DLL: InventoryService.dll
+    environment:
+      ASPNETCORE_ENVIRONMENT: Docker
+      ASPNETCORE_HTTP_PORTS: 8080
+      ConnectionStrings__InventoryDb: Host=postgres;Port=5432;Database=inventorydb;Username=microshop;Password=${MICROSHOP_POSTGRES_PASSWORD:?Set MICROSHOP_POSTGRES_PASSWORD in .env.local-prod}
+      InternalApi__Key: ${MICROSHOP_INTERNAL_API_KEY:?Set MICROSHOP_INTERNAL_API_KEY in .env.local-prod}
+      RabbitMq__Host: rabbitmq
+      RabbitMq__VirtualHost: /
+      RabbitMq__UserName: microshop
+      RabbitMq__Password: ${MICROSHOP_RABBITMQ_PASSWORD:?Set MICROSHOP_RABBITMQ_PASSWORD in .env.local-prod}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
   basketservice:
     <<: *web-service-runtime
     image: microshop/basketservice:local-prod
@@ -226,6 +250,7 @@ services:
       ConnectionStrings__Redis: redis:6379
       Redis__ConnectionString: redis:6379
       ServiceUrls__CatalogHttp: http://catalogservice:8080
+      ServiceUrls__InventoryHttp: http://inventoryservice:8080
       ServiceUrls__DiscountHttp: http://discountservice:8080
       ServiceUrls__CatalogGrpc: http://catalogservice:8080
       Jwt__Issuer: MicroShop.IdentityService
@@ -272,6 +297,8 @@ services:
       kafka:
         condition: service_healthy
       basketservice:
+        condition: service_healthy
+      inventoryservice:
         condition: service_healthy
 
   discountservice:

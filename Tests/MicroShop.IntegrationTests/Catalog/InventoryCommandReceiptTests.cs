@@ -1,11 +1,11 @@
-using CatalogService.Application.Abstractions;
-using CatalogService.Infrastructure.Persistence;
-using CatalogService.Infrastructure.Persistence.Outbox;
+using InventoryService.Application.Abstractions;
+using InventoryService.Infrastructure.Persistence;
+using InventoryService.Infrastructure.Persistence.Outbox;
 using Dapper;
 using Microsoft.Extensions.Configuration;
 using Testcontainers.PostgreSql;
 
-namespace MicroShop.IntegrationTests.Catalog;
+namespace MicroShop.IntegrationTests.Inventory;
 
 public sealed class InventoryCommandReceiptTests
 {
@@ -14,7 +14,7 @@ public sealed class InventoryCommandReceiptTests
     {
         var cancellationToken = TestContext.Current.CancellationToken;
         await using var postgres = new PostgreSqlBuilder("postgres:17-alpine")
-            .WithDatabase("catalog_test")
+            .WithDatabase("inventory_test")
             .WithUsername("postgres")
             .WithPassword("postgres")
             .Build();
@@ -24,7 +24,7 @@ public sealed class InventoryCommandReceiptTests
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["ConnectionStrings:CatalogDb"] = postgres.GetConnectionString()
+                ["ConnectionStrings:InventoryDb"] = postgres.GetConnectionString()
             })
             .Build();
 
@@ -38,12 +38,12 @@ public sealed class InventoryCommandReceiptTests
         using (var connection = connectionFactory.CreateConnection())
         {
             await connection.ExecuteAsync(new CommandDefinition("""
-                INSERT INTO Products (Id, Name, Description, Price, StockQuantity, ReservedQuantity)
-                VALUES (@Id, 'Product', '', 10, 10, 0);
-                """, new { Id = productId }, cancellationToken: cancellationToken));
+                INSERT INTO InventoryItems (ProductId, StockQuantity, ReservedQuantity, UpdatedAtUtc)
+                VALUES (@ProductId, 10, 0, CURRENT_TIMESTAMP);
+                """, new { ProductId = productId }, cancellationToken: cancellationToken));
         }
 
-        var repository = new DapperInventoryReservationRepository(connectionFactory, new DapperCatalogOutboxRepository(connectionFactory));
+        var repository = new DapperInventoryReservationRepository(connectionFactory, new DapperInventoryOutboxRepository(connectionFactory));
         var reservation = await repository.ReserveAsync(
             orderId,
             [new InventoryReservationItem(productId, 2)],
@@ -56,8 +56,8 @@ public sealed class InventoryCommandReceiptTests
         using var verificationConnection = connectionFactory.CreateConnection();
         var stock = await verificationConnection.QuerySingleAsync<(int StockQuantity, int ReservedQuantity)>(new CommandDefinition("""
             SELECT StockQuantity, ReservedQuantity
-            FROM Products
-            WHERE Id = @ProductId;
+            FROM InventoryItems
+            WHERE ProductId = @ProductId;
             """, new { ProductId = productId }, cancellationToken: cancellationToken));
         var status = await verificationConnection.ExecuteScalarAsync<string>(new CommandDefinition(
             "SELECT Status FROM InventoryReservations WHERE OrderId = @OrderId;",
@@ -66,7 +66,7 @@ public sealed class InventoryCommandReceiptTests
             "SELECT COUNT(*) FROM InventoryCommandReceipts WHERE EventId = @EventId;",
             new { EventId = messageId }, cancellationToken: cancellationToken));
         var outcomeCount = await verificationConnection.ExecuteScalarAsync<int>(new CommandDefinition(
-            "SELECT COUNT(*) FROM CatalogOutboxMessages WHERE CausationId = @CausationId;",
+            "SELECT COUNT(*) FROM InventoryOutboxMessages WHERE CausationId = @CausationId;",
             new { CausationId = messageId.ToString("D") }, cancellationToken: cancellationToken));
 
         Assert.True(reservation.Succeeded);

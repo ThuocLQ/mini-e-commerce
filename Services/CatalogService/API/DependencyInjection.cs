@@ -76,7 +76,6 @@ public static class DependencyInjection
     public static IEndpointRouteBuilder MapApiEndpoints(this IEndpointRouteBuilder app)
     {
         app.MapProductEndpoints();
-        app.MapInventoryEndpoints();
         app.MapGrpcService<CatalogGrpcService>();
 
         return app;

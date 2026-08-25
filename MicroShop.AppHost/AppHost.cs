@@ -10,6 +10,7 @@ var postgres = builder.AddPostgres("Postgres")
     .WithDataVolume("microshop-postgres-data");
 
 var catalogDb = postgres.AddDatabase("CatalogDb", "catalogdb");
+var inventoryDb = postgres.AddDatabase("InventoryDb", "inventorydb");
 var orderingDb = postgres.AddDatabase("OrderingDb", "orderingdb");
 var discountDb = postgres.AddDatabase("DiscountDb", "discountdb");
 var identityDb = postgres.AddDatabase("IdentityDb", "identitydb");
@@ -33,6 +34,7 @@ var mongodb = builder.AddContainer("MongoDB", "mongo", "7")
     .WithVolume("microshop-mongodb-data", "/data/db");
 
 IResourceBuilder<ProjectResource>? catalog = null;
+IResourceBuilder<ProjectResource>? inventory = null;
 IResourceBuilder<ProjectResource>? basket = null;
 IResourceBuilder<ProjectResource>? identity = null;
 IResourceBuilder<ProjectResource>? ordering = null;
@@ -44,7 +46,15 @@ if (runFull || runOrderFlow)
 {
     catalog = builder.AddProject<Projects.CatalogService>("CatalogService", launchProfileName: "https")
         .WithReference(catalogDb)
-        .WaitFor(catalogDb);
+        .WithReference(rabbit)
+        .WaitFor(catalogDb)
+        .WaitFor(rabbit);
+
+    inventory = builder.AddProject<Projects.InventoryService>("InventoryService", launchProfileName: "https")
+        .WithReference(inventoryDb)
+        .WithReference(rabbit)
+        .WaitFor(inventoryDb)
+        .WaitFor(rabbit);
 
     basket = builder.AddProject<Projects.BasketService>("BasketService", launchProfileName: "https")
         .WithReference(redis)
@@ -57,11 +67,17 @@ if (runFull || runOrderFlow)
     ordering = builder.AddProject<Projects.OrderingService>("OrderingService", launchProfileName: "https")
         .WithReference(orderingDb)
         .WithReference(rabbit)
+        .WithReference(catalog)
+        .WithReference(inventory)
         .WithReference(basket)
         .WaitFor(orderingDb)
         .WaitFor(rabbit)
+        .WaitFor(catalog)
+        .WaitFor(inventory)
         .WaitFor(basket)
         .WithEnvironment("ServiceUrls__BasketHttp", "https+http://BasketService")
+        .WithEnvironment("ServiceUrls__CatalogHttp", "https+http://CatalogService")
+        .WithEnvironment("ServiceUrls__InventoryHttp", "https+http://InventoryService")
         .WithEnvironment("KafkaOutbox__BootstrapServers", "localhost:9092")
         .WithEnvironment("KafkaOutbox__Topic", "microshop.order-events");
 

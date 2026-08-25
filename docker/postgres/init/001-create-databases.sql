@@ -1,4 +1,5 @@
 CREATE DATABASE catalogdb OWNER microshop;
+CREATE DATABASE inventorydb OWNER microshop;
 CREATE DATABASE orderingdb OWNER microshop;
 CREATE DATABASE discountdb OWNER microshop;
 CREATE DATABASE identitydb OWNER microshop;

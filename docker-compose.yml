@@ -152,6 +152,33 @@ services:
     networks:
       - microshop-network
 
+  inventoryservice:
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        PROJECT_PATH: Services/InventoryService/InventoryService.csproj
+        PROJECT_DLL: InventoryService.dll
+    container_name: microshop-inventoryservice
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_HTTP_PORTS: 8080
+      ConnectionStrings__InventoryDb: Host=postgres;Port=5432;Database=inventorydb;Username=microshop;Password=microshop
+      InternalApi__Key: microshop-development-internal-api-key
+      RabbitMq__Host: rabbitmq
+      RabbitMq__VirtualHost: /
+      RabbitMq__UserName: microshop
+      RabbitMq__Password: microshop
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    ports:
+      - "5098:8080"
+    networks:
+      - microshop-network
+
   basketservice:
     build:
       context: .
@@ -190,6 +217,8 @@ services:
       ASPNETCORE_HTTP_PORTS: 8080
       ConnectionStrings__OrderingDb: Host=postgres;Port=5432;Database=orderingdb;Username=microshop;Password=microshop
       ServiceUrls__BasketHttp: http://basketservice:8080
+      ServiceUrls__CatalogHttp: http://catalogservice:8080
+      ServiceUrls__InventoryHttp: http://inventoryservice:8080
       OrderEvents__Currency: USD
       RabbitMq__Host: rabbitmq
       RabbitMq__VirtualHost: /
@@ -205,6 +234,8 @@ services:
       kafka:
         condition: service_healthy
       basketservice:
+        condition: service_started
+      inventoryservice:
         condition: service_started
     ports:
       - "5028:8080"

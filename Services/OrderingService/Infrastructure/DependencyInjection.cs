@@ -37,7 +37,9 @@ public static class DependencyInjection
         var catalogBaseUrl = configuration["ServiceUrls:CatalogHttp"]
                              ?? throw new InvalidOperationException("ServiceUrls:CatalogHttp is missing.");
         var discountBaseUrl = configuration["ServiceUrls:DiscountHttp"]
-                              ?? throw new InvalidOperationException("ServiceUrls:DiscountHttp is missing.");
+                             ?? throw new InvalidOperationException("ServiceUrls:DiscountHttp is missing.");
+        var inventoryBaseUrl = configuration["ServiceUrls:InventoryHttp"]
+                              ?? throw new InvalidOperationException("ServiceUrls:InventoryHttp is missing.");
         var internalApiKey = configuration["InternalApi:Key"]
                              ?? throw new InvalidOperationException("InternalApi:Key is missing.");
         if (!environment.IsDevelopment() &&
@@ -68,7 +70,7 @@ public static class DependencyInjection
 
         services.AddHttpClient<IInventoryReservationClient, HttpInventoryReservationClient>(client =>
         {
-            client.BaseAddress = new Uri(catalogBaseUrl);
+            client.BaseAddress = new Uri(inventoryBaseUrl);
             client.Timeout = TimeSpan.FromSeconds(5);
             client.DefaultRequestHeaders.Add("X-MicroShop-Internal-Key", internalApiKey);
         });

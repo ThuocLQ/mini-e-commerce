@@ -23,7 +23,7 @@ public sealed class HttpInventoryReservationClient : IInventoryReservationClient
 
             response.EnsureSuccessStatusCode();
             return await response.Content.ReadFromJsonAsync<InventoryReservationResponse>(cancellationToken: cancellationToken)
-                   ?? throw new HttpRequestException("CatalogService returned an invalid inventory reservation response.");
+                   ?? throw new HttpRequestException("InventoryService returned an invalid inventory reservation response.");
         }
         catch (Exception ex) when (!cancellationToken.IsCancellationRequested && ex is HttpRequestException or TaskCanceledException)
         {

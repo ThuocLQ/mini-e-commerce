@@ -1,6 +1,4 @@
 using CatalogService.Application.Abstractions;
-using CatalogService.Infrastructure.Inventory;
-using CatalogService.Infrastructure.Messaging;
 using CatalogService.Infrastructure.Persistence;
 using CatalogService.Infrastructure.Persistence.Outbox;
 using CatalogService.Infrastructure.Outbox;
@@ -21,9 +19,7 @@ public static class DependencyInjection
         services.AddSingleton<IDatabaseInitializer, PostgresDatabaseInitializer>();
         services.AddScoped<IProductRepository, DapperProductRepository>();
         services.AddScoped<ICatalogUnitOfWork, DapperCatalogUnitOfWork>();
-        services.AddScoped<IInventoryReservationRepository, DapperInventoryReservationRepository>();
         services.AddScoped<ICatalogOutboxRepository, DapperCatalogOutboxRepository>();
-        services.AddHostedService<ExpiredInventoryReservationWorker>();
         services.AddHostedService<CatalogOutboxPublisherBackgroundService>();
         services.AddPostgresReadinessCheck(configuration, "CatalogDb");
         services.AddRabbitMqReadinessCheck(configuration);
@@ -46,18 +42,8 @@ public static class DependencyInjection
 
         services.AddMassTransit(configurator =>
         {
-            configurator.AddConsumer<InventoryCommitRequestedConsumer>();
-            configurator.AddConsumer<InventoryReleaseRequestedConsumer>();
             configurator.UsingRabbitMq((context, bus) =>
             {
-                bus.Message<InventoryCommitRequestedIntegrationEvent>(message =>
-                    message.SetEntityName("inventory.commit-requested"));
-                bus.Message<InventoryReleaseRequestedIntegrationEvent>(message =>
-                    message.SetEntityName("inventory.release-requested"));
-                bus.Message<InventoryCommittedIntegrationEvent>(message =>
-                    message.SetEntityName("inventory.committed"));
-                bus.Message<InventoryReleasedIntegrationEvent>(message =>
-                    message.SetEntityName("inventory.released"));
                 bus.Message<InventoryItemProvisionRequestedIntegrationEvent>(message =>
                     message.SetEntityName("inventory.item-provision-requested"));
 
@@ -65,11 +51,6 @@ public static class DependencyInjection
                 {
                     host.Username(rabbitMqUserName);
                     host.Password(rabbitMqPassword);
-                });
-                bus.ReceiveEndpoint("catalog.inventory-commands", endpoint =>
-                {
-                    endpoint.ConfigureConsumer<InventoryCommitRequestedConsumer>(context);
-                    endpoint.ConfigureConsumer<InventoryReleaseRequestedConsumer>(context);
                 });
             });
         });

@@ -9,8 +9,8 @@ public sealed class PostgresDatabaseInitializer : IDatabaseInitializer
 
     public PostgresDatabaseInitializer(IConfiguration configuration)
     {
-        _connectionString = configuration.GetConnectionString("CatalogDb")
-            ?? throw new InvalidOperationException("Connection string 'CatalogDb' is missing.");
+        _connectionString = configuration.GetConnectionString("InventoryDb")
+            ?? throw new InvalidOperationException("Connection string 'InventoryDb' is missing.");
     }
 
     public Task InitializeAsync(CancellationToken cancellationToken = default)
@@ -27,7 +27,7 @@ public sealed class PostgresDatabaseInitializer : IDatabaseInitializer
 
         if (!result.Successful)
         {
-            throw new InvalidOperationException("Catalog database migration failed.", result.Error);
+            throw new InvalidOperationException("Inventory database migration failed.", result.Error);
         }
 
         return Task.CompletedTask;
