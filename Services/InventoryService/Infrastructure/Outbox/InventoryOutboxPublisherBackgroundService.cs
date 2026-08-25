@@ -128,6 +128,14 @@ public sealed class InventoryOutboxPublisherBackgroundService : BackgroundServic
             return;
         }
 
+        if (message.Type is nameof(InventoryAvailabilityChangedIntegrationEvent) or "BuildingBlocks.Contracts.Events.Inventory.InventoryAvailabilityChangedIntegrationEvent")
+        {
+            var integrationEvent = JsonSerializer.Deserialize<InventoryAvailabilityChangedIntegrationEvent>(message.Content, JsonOptions)
+                ?? throw new InvalidOperationException($"Cannot deserialize inventory outbox message {message.Id} to {nameof(InventoryAvailabilityChangedIntegrationEvent)}.");
+            await PublishWithCorrelationAsync(publishEndpoint, integrationEvent, cancellationToken);
+            return;
+        }
+
         throw new NotSupportedException($"Unsupported inventory outbox message type: {message.Type}");
     }
 

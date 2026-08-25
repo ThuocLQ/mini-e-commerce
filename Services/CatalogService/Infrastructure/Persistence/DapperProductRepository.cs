@@ -78,11 +78,34 @@ public sealed class DapperProductRepository : IProductRepository
         using var connection = CreateConnection();
         var affectedRows = await connection.ExecuteAsync(new CommandDefinition("""
             UPDATE Products
-            SET StockQuantity = @StockQuantity
+            SET StockQuantity = @StockQuantity,
+                InventorySnapshotUpdatedAtUtc = CURRENT_TIMESTAMP
             WHERE Id = @Id
             """, new { Id = id, StockQuantity = stockQuantity }, cancellationToken: cancellationToken));
 
         return affectedRows == 0 ? null : await GetByIdAsync(id, cancellationToken);
+    }
+
+    public async Task<bool> UpdateInventoryAvailabilitySnapshotAsync(
+        string id,
+        int availableQuantity,
+        DateTime inventoryUpdatedAtUtc,
+        CancellationToken cancellationToken = default)
+    {
+        using var connection = CreateConnection();
+
+        return await connection.ExecuteAsync(new CommandDefinition("""
+            UPDATE Products
+            SET StockQuantity = @AvailableQuantity,
+                InventorySnapshotUpdatedAtUtc = @InventoryUpdatedAtUtc
+            WHERE Id = @Id
+              AND (InventorySnapshotUpdatedAtUtc IS NULL OR InventorySnapshotUpdatedAtUtc <= @InventoryUpdatedAtUtc);
+            """, new
+        {
+            Id = id,
+            AvailableQuantity = availableQuantity,
+            InventoryUpdatedAtUtc = inventoryUpdatedAtUtc
+        }, cancellationToken: cancellationToken)) == 1;
     }
 
     public async Task<bool> DeleteAsync(string id, CancellationToken cancellationToken = default)

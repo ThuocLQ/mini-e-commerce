@@ -3,6 +3,7 @@ using CatalogService.Infrastructure.Persistence;
 using CatalogService.Infrastructure.Persistence.Outbox;
 using CatalogService.Infrastructure.Outbox;
 using CatalogService.Infrastructure.Clients;
+using CatalogService.Infrastructure.Messaging;
 using BuildingBlocks.Contracts.Events.Inventory;
 using MassTransit;
 using Microsoft.Extensions.Configuration;
@@ -54,15 +55,23 @@ public static class DependencyInjection
 
         services.AddMassTransit(configurator =>
         {
+            configurator.AddConsumer<InventoryAvailabilityChangedConsumer>();
             configurator.UsingRabbitMq((context, bus) =>
             {
                 bus.Message<InventoryItemProvisionRequestedIntegrationEvent>(message =>
                     message.SetEntityName("inventory.item-provision-requested"));
+                bus.Message<InventoryAvailabilityChangedIntegrationEvent>(message =>
+                    message.SetEntityName("inventory.availability-changed"));
 
                 bus.Host(rabbitMqHost, rabbitMqVirtualHost, host =>
                 {
                     host.Username(rabbitMqUserName);
                     host.Password(rabbitMqPassword);
+                });
+
+                bus.ReceiveEndpoint("catalog.inventory-snapshots", endpoint =>
+                {
+                    endpoint.ConfigureConsumer<InventoryAvailabilityChangedConsumer>(context);
                 });
             });
         });

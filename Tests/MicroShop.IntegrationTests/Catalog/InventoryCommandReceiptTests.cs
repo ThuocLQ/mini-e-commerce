@@ -59,11 +59,17 @@ public sealed class InventoryCommandReceiptTests
             FROM InventoryReservations
             WHERE Status = 'Reserved';
             """, cancellationToken: cancellationToken));
+        var availabilityEventCount = await verificationConnection.ExecuteScalarAsync<int>(new CommandDefinition("""
+            SELECT COUNT(*)
+            FROM InventoryOutboxMessages
+            WHERE Type = 'BuildingBlocks.Contracts.Events.Inventory.InventoryAvailabilityChangedIntegrationEvent';
+            """, cancellationToken: cancellationToken));
 
         Assert.Equal(1, results.Count(result => result.Succeeded));
         Assert.Equal(2, stock.StockQuantity);
         Assert.Equal(2, stock.ReservedQuantity);
         Assert.Equal(1, activeReservationCount);
+        Assert.Equal(1, availabilityEventCount);
     }
 
     [Fact]
@@ -122,15 +128,25 @@ public sealed class InventoryCommandReceiptTests
         var receiptCount = await verificationConnection.ExecuteScalarAsync<int>(new CommandDefinition(
             "SELECT COUNT(*) FROM InventoryCommandReceipts WHERE EventId = @EventId;",
             new { EventId = messageId }, cancellationToken: cancellationToken));
-        var outcomeCount = await verificationConnection.ExecuteScalarAsync<int>(new CommandDefinition(
-            "SELECT COUNT(*) FROM InventoryOutboxMessages WHERE CausationId = @CausationId;",
+        var committedOutcomeCount = await verificationConnection.ExecuteScalarAsync<int>(new CommandDefinition("""
+            SELECT COUNT(*)
+            FROM InventoryOutboxMessages
+            WHERE Type = 'BuildingBlocks.Contracts.Events.Inventory.InventoryCommittedIntegrationEvent'
+              AND CausationId = @CausationId;
+            """,
             new { CausationId = messageId.ToString("D") }, cancellationToken: cancellationToken));
+        var availabilityEventCount = await verificationConnection.ExecuteScalarAsync<int>(new CommandDefinition("""
+            SELECT COUNT(*)
+            FROM InventoryOutboxMessages
+            WHERE Type = 'BuildingBlocks.Contracts.Events.Inventory.InventoryAvailabilityChangedIntegrationEvent';
+            """, cancellationToken: cancellationToken));
 
         Assert.True(reservation.Succeeded);
         Assert.Equal(8, stock.StockQuantity);
         Assert.Equal(0, stock.ReservedQuantity);
         Assert.Equal("Committed", status);
         Assert.Equal(1, receiptCount);
-        Assert.Equal(1, outcomeCount);
+        Assert.Equal(1, committedOutcomeCount);
+        Assert.Equal(2, availabilityEventCount);
     }
 }

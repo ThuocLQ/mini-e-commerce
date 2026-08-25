@@ -1,4 +1,5 @@
 using CatalogService.Application.Products.CreateProduct;
+using CatalogService.Domain.Products;
 using CatalogService.Infrastructure.Persistence;
 using CatalogService.Infrastructure.Persistence.Outbox;
 using Dapper;
@@ -52,5 +53,50 @@ public sealed class CatalogProductProvisioningTests
 
         Assert.Equal(1, productCount);
         Assert.Equal(1, eventCount);
+    }
+
+    [Fact]
+    public async Task InventoryAvailabilitySnapshot_DoesNotAllowAnOlderEventToOverwriteNewerStock()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var postgres = new PostgreSqlBuilder("postgres:17-alpine")
+            .WithDatabase("catalog_inventory_snapshot_test")
+            .WithUsername("postgres")
+            .WithPassword("postgres")
+            .Build();
+
+        await postgres.StartAsync(cancellationToken);
+
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["ConnectionStrings:CatalogDb"] = postgres.GetConnectionString()
+            })
+            .Build();
+
+        var connectionFactory = new NpgsqlConnectionFactory(configuration);
+        await new PostgresDatabaseInitializer(configuration).InitializeAsync(cancellationToken);
+
+        var repository = new DapperProductRepository(connectionFactory);
+        var product = new Product("snapshot-product-001", "Snapshot product", "Catalog snapshot test", 9.99m, 20);
+        await repository.CreateAsync(product, cancellationToken);
+
+        var latestSnapshotAtUtc = DateTime.UtcNow;
+        var latestApplied = await repository.UpdateInventoryAvailabilitySnapshotAsync(
+            product.Id,
+            8,
+            latestSnapshotAtUtc,
+            cancellationToken);
+        var staleApplied = await repository.UpdateInventoryAvailabilitySnapshotAsync(
+            product.Id,
+            20,
+            latestSnapshotAtUtc.AddSeconds(-1),
+            cancellationToken);
+        var stored = await repository.GetByIdAsync(product.Id, cancellationToken);
+
+        Assert.True(latestApplied);
+        Assert.False(staleApplied);
+        Assert.NotNull(stored);
+        Assert.Equal(8, stored.StockQuantity);
     }
 }

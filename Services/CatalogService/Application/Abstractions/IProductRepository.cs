@@ -11,6 +11,7 @@ public interface IProductRepository
     Task<Product> CreateAsync(Product product, IDbTransaction transaction, CancellationToken cancellationToken = default);
     Task<Product?> UpdateAsync(Product product, CancellationToken cancellationToken = default);
     Task<Product?> UpdateStockSnapshotAsync(string id, int stockQuantity, CancellationToken cancellationToken = default);
+    Task<bool> UpdateInventoryAvailabilitySnapshotAsync(string id, int availableQuantity, DateTime inventoryUpdatedAtUtc, CancellationToken cancellationToken = default);
     Task<bool> DeleteAsync(string id, CancellationToken cancellationToken = default);
     
     Task<IReadOnlyList<Product>> GetAllAsync(CancellationToken cancellationToken = default);

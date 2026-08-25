@@ -38,7 +38,7 @@ public sealed class DapperInventoryReservationRepository : IInventoryReservation
 
         var productIds = items.Select(item => item.ProductId).ToArray();
         var products = (await connection.QueryAsync<StockRow>(new CommandDefinition("""
-            SELECT ProductId, StockQuantity, ReservedQuantity
+            SELECT ProductId, StockQuantity, ReservedQuantity, UpdatedAtUtc
             FROM InventoryItems
             WHERE ProductId = ANY(@ProductIds)
             ORDER BY ProductId
@@ -73,6 +73,13 @@ public sealed class DapperInventoryReservationRepository : IInventoryReservation
                 UPDATE InventoryItems SET ReservedQuantity = ReservedQuantity + @Quantity, UpdatedAtUtc = CURRENT_TIMESTAMP WHERE ProductId = @ProductId;
                 """, new { OrderId = orderId, item.ProductId, item.Quantity }, transaction, cancellationToken: cancellationToken));
         }
+
+        await AddAvailabilityChangedEventsAsync(
+            connection,
+            transaction,
+            items.Select(item => item.ProductId).Distinct(StringComparer.OrdinalIgnoreCase).ToArray(),
+            causationId: null,
+            cancellationToken);
 
         transaction.Commit();
         return new InventoryReservationResult(true);
@@ -174,6 +181,13 @@ public sealed class DapperInventoryReservationRepository : IInventoryReservation
             "UPDATE InventoryReservations SET Status = @TargetStatus, UpdatedAtUtc = @Now WHERE OrderId = @OrderId",
             new { OrderId = orderId, TargetStatus = targetStatus, Now = DateTime.UtcNow }, transaction, cancellationToken: cancellationToken));
 
+        await AddAvailabilityChangedEventsAsync(
+            connection,
+            transaction,
+            items.Select(item => item.ProductId).Distinct(StringComparer.OrdinalIgnoreCase).ToArray(),
+            messageId,
+            cancellationToken);
+
         IntegrationEvent outcome = targetStatus == "Committed"
             ? new InventoryCommittedIntegrationEvent { OrderId = orderId, CorrelationId = CorrelationContext.CorrelationId, CausationId = messageId?.ToString("D") }
             : new InventoryReleasedIntegrationEvent { OrderId = orderId, Reason = messageId is null ? "ReservationExpired" : "PaymentFlow", CorrelationId = CorrelationContext.CorrelationId, CausationId = messageId?.ToString("D") };
@@ -191,6 +205,46 @@ public sealed class DapperInventoryReservationRepository : IInventoryReservation
         transaction.Commit();
     }
 
-    private sealed record StockRow(string ProductId, int StockQuantity, int ReservedQuantity);
+    private async Task AddAvailabilityChangedEventsAsync(
+        IDbConnection connection,
+        IDbTransaction transaction,
+        IReadOnlyCollection<string> productIds,
+        Guid? causationId,
+        CancellationToken cancellationToken)
+    {
+        var items = await connection.QueryAsync<StockRow>(new CommandDefinition("""
+            SELECT ProductId, StockQuantity, ReservedQuantity, UpdatedAtUtc
+            FROM InventoryItems
+            WHERE ProductId = ANY(@ProductIds)
+            ORDER BY ProductId;
+            """, new { ProductIds = productIds.ToArray() }, transaction, cancellationToken: cancellationToken));
+
+        foreach (var item in items)
+        {
+            var availabilityEvent = new InventoryAvailabilityChangedIntegrationEvent
+            {
+                ProductId = item.ProductId,
+                StockQuantity = item.StockQuantity,
+                ReservedQuantity = item.ReservedQuantity,
+                AvailableQuantity = item.StockQuantity - item.ReservedQuantity,
+                InventoryUpdatedAtUtc = item.UpdatedAtUtc,
+                CorrelationId = CorrelationContext.CorrelationId,
+                CausationId = causationId?.ToString("D")
+            };
+
+            await _outboxRepository.AddAsync(new InventoryOutboxMessage
+            {
+                Id = availabilityEvent.EventId,
+                OccurredAtUtc = availabilityEvent.OccurredAtUtc,
+                Type = availabilityEvent.GetType().FullName!,
+                Content = JsonSerializer.Serialize(availabilityEvent, new JsonSerializerOptions(JsonSerializerDefaults.Web)),
+                CorrelationId = availabilityEvent.CorrelationId,
+                CausationId = availabilityEvent.CausationId,
+                NextAttemptAtUtc = availabilityEvent.OccurredAtUtc
+            }, transaction, cancellationToken);
+        }
+    }
+
+    private sealed record StockRow(string ProductId, int StockQuantity, int ReservedQuantity, DateTime UpdatedAtUtc);
 }
 

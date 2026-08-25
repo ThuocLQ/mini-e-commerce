@@ -46,6 +46,7 @@ public static class DependencyInjection
                 bus.Message<InventoryCommittedIntegrationEvent>(message => message.SetEntityName("inventory.committed"));
                 bus.Message<InventoryReleasedIntegrationEvent>(message => message.SetEntityName("inventory.released"));
                 bus.Message<InventoryItemProvisionRequestedIntegrationEvent>(message => message.SetEntityName("inventory.item-provision-requested"));
+                bus.Message<InventoryAvailabilityChangedIntegrationEvent>(message => message.SetEntityName("inventory.availability-changed"));
                 bus.Host(host, virtualHost, hostConfigurator =>
                 {
                     hostConfigurator.Username(userName);
