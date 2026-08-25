@@ -100,13 +100,20 @@ if (runFull)
 {
     discount = builder.AddProject<Projects.DiscountService>("DiscountService", launchProfileName: "https")
         .WithReference(discountDb)
-        .WaitFor(discountDb);
+        .WithReference(rabbit)
+        .WaitFor(discountDb)
+        .WaitFor(rabbit);
+
+    ordering!.WithReference(discount)
+        .WaitFor(discount);
 
     payment = builder.AddProject<Projects.PaymentService>("PaymentService", launchProfileName: "https")
         .WithReference(paymentDb)
         .WithReference(ordering!)
+        .WithReference(rabbit)
         .WaitFor(paymentDb)
         .WaitFor(ordering!)
+        .WaitFor(rabbit)
         .WithEnvironment("ServiceUrls__OrderingHttp", "https+http://OrderingService");
 }
 
