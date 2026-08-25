@@ -56,6 +56,10 @@ if (runFull || runOrderFlow)
         .WaitFor(inventoryDb)
         .WaitFor(rabbit);
 
+    catalog.WithReference(inventory)
+        .WaitFor(inventory)
+        .WithEnvironment("ServiceUrls__InventoryHttp", "https+http://InventoryService");
+
     basket = builder.AddProject<Projects.BasketService>("BasketService", launchProfileName: "https")
         .WithReference(redis)
         .WaitFor(redis);

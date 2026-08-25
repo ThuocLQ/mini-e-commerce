@@ -73,13 +73,13 @@ public sealed class DapperProductRepository : IProductRepository
         return await GetByIdAsync(product.Id, cancellationToken);
     }
 
-    public async Task<Product?> SetStockQuantityAsync(string id, int stockQuantity, CancellationToken cancellationToken = default)
+    public async Task<Product?> UpdateStockSnapshotAsync(string id, int stockQuantity, CancellationToken cancellationToken = default)
     {
         using var connection = CreateConnection();
         var affectedRows = await connection.ExecuteAsync(new CommandDefinition("""
             UPDATE Products
             SET StockQuantity = @StockQuantity
-            WHERE Id = @Id AND @StockQuantity >= ReservedQuantity
+            WHERE Id = @Id
             """, new { Id = id, StockQuantity = stockQuantity }, cancellationToken: cancellationToken));
 
         return affectedRows == 0 ? null : await GetByIdAsync(id, cancellationToken);

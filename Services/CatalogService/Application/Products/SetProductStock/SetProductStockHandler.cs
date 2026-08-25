@@ -6,7 +6,13 @@ namespace CatalogService.Application.Products.SetProductStock;
 public sealed class SetProductStockHandler : IRequestHandler<SetProductStockCommand, ProductDto?>
 {
     private readonly IProductRepository _repository;
-    public SetProductStockHandler(IProductRepository repository) => _repository = repository;
+    private readonly IInventoryStockClient _inventoryClient;
+
+    public SetProductStockHandler(IProductRepository repository, IInventoryStockClient inventoryClient)
+    {
+        _repository = repository;
+        _inventoryClient = inventoryClient;
+    }
 
     public async Task<ProductDto?> Handle(SetProductStockCommand request, CancellationToken cancellationToken)
     {
@@ -15,12 +21,16 @@ public sealed class SetProductStockHandler : IRequestHandler<SetProductStockComm
             throw new ArgumentException("A product id and a non-negative stock quantity are required.");
         }
 
-        var product = await _repository.SetStockQuantityAsync(request.Id, request.StockQuantity, cancellationToken);
+        var product = await _repository.GetByIdAsync(request.Id, cancellationToken);
         if (product is null)
         {
-            throw new InvalidOperationException("Product was not found or the requested stock is below the currently reserved quantity.");
+            return null;
         }
 
-        return ProductMapper.ToDto(product);
+        await _inventoryClient.SetStockAsync(product.Id, request.StockQuantity, cancellationToken);
+        var updatedSnapshot = await _repository.UpdateStockSnapshotAsync(product.Id, request.StockQuantity, cancellationToken)
+            ?? throw new InvalidOperationException("Catalog product disappeared after inventory stock was updated.");
+
+        return ProductMapper.ToDto(updatedSnapshot);
     }
 }

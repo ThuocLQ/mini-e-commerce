@@ -154,6 +154,8 @@ services:
       Jwt__Issuer: MicroShop.IdentityService
       Jwt__Audience: MicroShop.Client
       Jwt__SecretKey: microshop-development-secret-key-must-be-long-enough
+      InternalApi__Key: microshop-development-internal-api-key
+      ServiceUrls__InventoryHttp: http://inventoryservice:8080
       RabbitMq__Host: rabbitmq
       RabbitMq__VirtualHost: /
       RabbitMq__UserName: microshop
@@ -165,6 +167,8 @@ services:
         condition: service_completed_successfully
       rabbitmq:
         condition: service_healthy
+      inventoryservice:
+        condition: service_started
     ports:
       - "5045:8080"
     networks:

@@ -2,6 +2,7 @@ using CatalogService.Application.Abstractions;
 using CatalogService.Infrastructure.Persistence;
 using CatalogService.Infrastructure.Persistence.Outbox;
 using CatalogService.Infrastructure.Outbox;
+using CatalogService.Infrastructure.Clients;
 using BuildingBlocks.Contracts.Events.Inventory;
 using MassTransit;
 using Microsoft.Extensions.Configuration;
@@ -23,6 +24,17 @@ public static class DependencyInjection
         services.AddHostedService<CatalogOutboxPublisherBackgroundService>();
         services.AddPostgresReadinessCheck(configuration, "CatalogDb");
         services.AddRabbitMqReadinessCheck(configuration);
+
+        var inventoryBaseUrl = configuration["ServiceUrls:InventoryHttp"]
+            ?? throw new InvalidOperationException("ServiceUrls:InventoryHttp is missing.");
+        var internalApiKey = configuration["InternalApi:Key"]
+            ?? throw new InvalidOperationException("InternalApi:Key is missing.");
+        services.AddHttpClient<IInventoryStockClient, HttpInventoryStockClient>(client =>
+        {
+            client.BaseAddress = new Uri(inventoryBaseUrl);
+            client.Timeout = TimeSpan.FromSeconds(5);
+            client.DefaultRequestHeaders.Add("X-MicroShop-Internal-Key", internalApiKey);
+        });
 
         services
             .AddOptions<CatalogOutboxPublisherOptions>()
