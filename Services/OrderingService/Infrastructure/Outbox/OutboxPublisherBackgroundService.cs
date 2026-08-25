@@ -269,17 +269,48 @@ public sealed class OutboxPublisherBackgroundService : BackgroundService
         }
 
         var paymentCaptureRequestedTypeName = typeof(PaymentCaptureRequestedIntegrationEvent).FullName;
-        if (message.Type is nameof(PaymentCaptureRequestedIntegrationEvent) || message.Type == paymentCaptureRequestedTypeName)
+        var paymentVoidRequestedTypeName = typeof(PaymentVoidRequestedIntegrationEvent).FullName;
+        var paymentRefundRequestedTypeName = typeof(PaymentRefundRequestedIntegrationEvent).FullName;
+        if (message.Type is nameof(PaymentCaptureRequestedIntegrationEvent) or nameof(PaymentVoidRequestedIntegrationEvent) or nameof(PaymentRefundRequestedIntegrationEvent)
+            || message.Type == paymentCaptureRequestedTypeName
+            || message.Type == paymentVoidRequestedTypeName
+            || message.Type == paymentRefundRequestedTypeName)
         {
-            var integrationEvent = JsonSerializer.Deserialize<PaymentCaptureRequestedIntegrationEvent>(message.Content, JsonOptions)
-                ?? throw new InvalidOperationException($"Cannot deserialize outbox message {message.Id} to {nameof(PaymentCaptureRequestedIntegrationEvent)}.");
-
-            using (CorrelationContext.BeginScope(integrationEvent.CorrelationId))
+            if (message.Type is nameof(PaymentCaptureRequestedIntegrationEvent) || message.Type == paymentCaptureRequestedTypeName)
             {
-                await publishEndpoint.Publish(integrationEvent, publishContext =>
+                var integrationEvent = JsonSerializer.Deserialize<PaymentCaptureRequestedIntegrationEvent>(message.Content, JsonOptions)
+                    ?? throw new InvalidOperationException($"Cannot deserialize outbox message {message.Id} to {nameof(PaymentCaptureRequestedIntegrationEvent)}.");
+                using (CorrelationContext.BeginScope(integrationEvent.CorrelationId))
                 {
-                    SetCorrelationHeaders(publishContext, integrationEvent.CorrelationId, integrationEvent.CausationId);
-                }, cancellationToken);
+                    await publishEndpoint.Publish(integrationEvent, publishContext =>
+                    {
+                        SetCorrelationHeaders(publishContext, integrationEvent.CorrelationId, integrationEvent.CausationId);
+                    }, cancellationToken);
+                }
+            }
+            else if (message.Type is nameof(PaymentVoidRequestedIntegrationEvent) || message.Type == paymentVoidRequestedTypeName)
+            {
+                var integrationEvent = JsonSerializer.Deserialize<PaymentVoidRequestedIntegrationEvent>(message.Content, JsonOptions)
+                    ?? throw new InvalidOperationException($"Cannot deserialize outbox message {message.Id} to {nameof(PaymentVoidRequestedIntegrationEvent)}.");
+                using (CorrelationContext.BeginScope(integrationEvent.CorrelationId))
+                {
+                    await publishEndpoint.Publish(integrationEvent, publishContext =>
+                    {
+                        SetCorrelationHeaders(publishContext, integrationEvent.CorrelationId, integrationEvent.CausationId);
+                    }, cancellationToken);
+                }
+            }
+            else
+            {
+                var integrationEvent = JsonSerializer.Deserialize<PaymentRefundRequestedIntegrationEvent>(message.Content, JsonOptions)
+                    ?? throw new InvalidOperationException($"Cannot deserialize outbox message {message.Id} to {nameof(PaymentRefundRequestedIntegrationEvent)}.");
+                using (CorrelationContext.BeginScope(integrationEvent.CorrelationId))
+                {
+                    await publishEndpoint.Publish(integrationEvent, publishContext =>
+                    {
+                        SetCorrelationHeaders(publishContext, integrationEvent.CorrelationId, integrationEvent.CausationId);
+                    }, cancellationToken);
+                }
             }
 
             return;

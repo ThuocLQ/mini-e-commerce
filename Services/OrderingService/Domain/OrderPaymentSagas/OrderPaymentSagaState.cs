@@ -10,5 +10,8 @@ public enum OrderPaymentSagaState
     OrderCancelled = 6,
     TimedOut = 7,
     CompensationRequired = 8,
-    OrderRefunded = 9
+    OrderRefunded = 9,
+    VoidRequested = 10,
+    RefundRequested = 11,
+    CompensationCompleted = 12
 }

@@ -103,24 +103,42 @@ public sealed class ApplyInventorySettlementEventHandler
         System.Data.IDbTransaction transaction,
         CancellationToken cancellationToken)
     {
-        if (saga.State != OrderPaymentSagaState.CaptureRequested)
+        if (saga.State == OrderPaymentSagaState.CaptureRequested)
         {
-            return Task.CompletedTask;
+            return _outboxRepository.AddAsync(
+                OutboxMessageFactory.Create(new PaymentCaptureRequestedIntegrationEvent
+                {
+                    PaymentId = saga.PaymentId,
+                    OrderId = order.Id,
+                    CustomerId = order.CustomerId,
+                    Amount = order.TotalAmount,
+                    Currency = order.Currency,
+                    CorrelationId = order.Id.ToString("N"),
+                    CausationId = causationEventId.ToString("D")
+                }),
+                transaction,
+                cancellationToken);
         }
 
-        return _outboxRepository.AddAsync(
-            OutboxMessageFactory.Create(new PaymentCaptureRequestedIntegrationEvent
-            {
-                PaymentId = saga.PaymentId,
-                OrderId = order.Id,
-                CustomerId = order.CustomerId,
-                Amount = order.TotalAmount,
-                Currency = order.Currency,
-                CorrelationId = order.Id.ToString("N"),
-                CausationId = causationEventId.ToString("D")
-            }),
-            transaction,
-            cancellationToken);
+        if (saga.State == OrderPaymentSagaState.VoidRequested)
+        {
+            return _outboxRepository.AddAsync(
+                OutboxMessageFactory.Create(new PaymentVoidRequestedIntegrationEvent
+                {
+                    PaymentId = saga.PaymentId,
+                    OrderId = order.Id,
+                    CustomerId = order.CustomerId,
+                    Amount = order.TotalAmount,
+                    Currency = order.Currency,
+                    Reason = saga.LastError ?? "Inventory reservation was released.",
+                    CorrelationId = order.Id.ToString("N"),
+                    CausationId = causationEventId.ToString("D")
+                }),
+                transaction,
+                cancellationToken);
+        }
+
+        return Task.CompletedTask;
     }
 
     private static void ApplySettlement(
@@ -150,10 +168,18 @@ public sealed class ApplyInventorySettlementEventHandler
                 return;
 
             case OrderInventorySettlementEventType.InventoryReleased:
-                if (saga.State is OrderPaymentSagaState.OrderPaid
-                    or OrderPaymentSagaState.InventoryCommitted
-                    or OrderPaymentSagaState.PaymentAuthorized
-                    or OrderPaymentSagaState.CaptureRequested)
+                if (saga.State is OrderPaymentSagaState.PaymentAuthorized or OrderPaymentSagaState.CaptureRequested)
+                {
+                    saga.MarkVoidRequested(
+                        request.EventId,
+                        updatedAtUtc,
+                        string.IsNullOrWhiteSpace(request.Reason)
+                            ? "Inventory reservation was released before capture completed."
+                            : request.Reason);
+                    return;
+                }
+
+                if (saga.State is OrderPaymentSagaState.OrderPaid or OrderPaymentSagaState.InventoryCommitted)
                 {
                     saga.MarkCompensationRequired(
                         request.EventId,

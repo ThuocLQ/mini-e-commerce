@@ -1,5 +1,6 @@
 using MediatR;
 using BuildingBlocks.Contracts.Events.Inventory;
+using BuildingBlocks.Contracts.Events.Payments;
 using OrderingService.Application.Abstractions;
 using OrderingService.Application.IntegrationEvents;
 using OrderingService.Application.Outbox;
@@ -76,6 +77,7 @@ public sealed class ApplyPaymentSagaEventHandler : IRequestHandler<ApplyPaymentS
                 var sagaStateChangedEvent = OrderIntegrationEventFactory.CreatePaymentSagaStateChanged(currentSaga, previousSagaState);
                 await _outboxRepository.AddAsync(OutboxMessageFactory.Create(sagaStateChangedEvent), transaction, cancellationToken);
                 await AddInventoryCommandAsync(currentSaga, request.EventType, transaction, cancellationToken);
+                await AddPaymentOperationCommandAsync(order, currentSaga, request.EventId, transaction, cancellationToken);
             }
 
             await _sagaRepository.UpsertAsync(currentSaga, transaction, cancellationToken);
@@ -113,6 +115,46 @@ public sealed class ApplyPaymentSagaEventHandler : IRequestHandler<ApplyPaymentS
                 Reason = saga.LastError ?? saga.State.ToString()
             };
             return _outboxRepository.AddAsync(OutboxMessageFactory.Create(command), transaction, cancellationToken);
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private Task AddPaymentOperationCommandAsync(
+        Order order,
+        OrderPaymentSaga saga,
+        Guid causationEventId,
+        System.Data.IDbTransaction transaction,
+        CancellationToken cancellationToken)
+    {
+        if (saga.State == OrderPaymentSagaState.VoidRequested)
+        {
+            return _outboxRepository.AddAsync(OutboxMessageFactory.Create(new PaymentVoidRequestedIntegrationEvent
+            {
+                PaymentId = saga.PaymentId,
+                OrderId = order.Id,
+                CustomerId = order.CustomerId,
+                Amount = order.TotalAmount,
+                Currency = order.Currency,
+                Reason = saga.LastError ?? "Payment saga requested void.",
+                CorrelationId = order.Id.ToString("N"),
+                CausationId = causationEventId.ToString("D")
+            }), transaction, cancellationToken);
+        }
+
+        if (saga.State == OrderPaymentSagaState.RefundRequested)
+        {
+            return _outboxRepository.AddAsync(OutboxMessageFactory.Create(new PaymentRefundRequestedIntegrationEvent
+            {
+                PaymentId = saga.PaymentId,
+                OrderId = order.Id,
+                CustomerId = order.CustomerId,
+                Amount = order.TotalAmount,
+                Currency = order.Currency,
+                Reason = saga.LastError ?? "Payment saga requested refund.",
+                CorrelationId = order.Id.ToString("N"),
+                CausationId = causationEventId.ToString("D")
+            }), transaction, cancellationToken);
         }
 
         return Task.CompletedTask;
@@ -164,7 +206,11 @@ public sealed class ApplyPaymentSagaEventHandler : IRequestHandler<ApplyPaymentS
         if (saga.State is OrderPaymentSagaState.PaymentAuthorized
             or OrderPaymentSagaState.InventoryCommitted
             or OrderPaymentSagaState.CaptureRequested
-            or OrderPaymentSagaState.OrderPaid)
+            or OrderPaymentSagaState.OrderPaid
+            or OrderPaymentSagaState.VoidRequested
+            or OrderPaymentSagaState.RefundRequested
+            or OrderPaymentSagaState.OrderRefunded
+            or OrderPaymentSagaState.CompensationCompleted)
         {
             saga.RecordIgnoredEvent(request.EventId, updatedAtUtc);
             return;
@@ -193,17 +239,21 @@ public sealed class ApplyPaymentSagaEventHandler : IRequestHandler<ApplyPaymentS
         System.Data.IDbTransaction transaction,
         CancellationToken cancellationToken)
     {
-        if (saga.State is OrderPaymentSagaState.OrderPaid or OrderPaymentSagaState.CompensationRequired ||
+        if (saga.State is OrderPaymentSagaState.OrderPaid
+            or OrderPaymentSagaState.RefundRequested
+            or OrderPaymentSagaState.OrderRefunded
+            or OrderPaymentSagaState.CompensationCompleted
+            or OrderPaymentSagaState.CompensationRequired ||
             order.Status == OrderStatus.Paid)
         {
             saga.RecordIgnoredEvent(request.EventId, updatedAtUtc);
             return;
         }
 
-        if (saga.State is OrderPaymentSagaState.OrderCancelled or OrderPaymentSagaState.TimedOut ||
+        if (saga.State is OrderPaymentSagaState.OrderCancelled or OrderPaymentSagaState.TimedOut or OrderPaymentSagaState.VoidRequested ||
             order.Status == OrderStatus.Cancelled)
         {
-            saga.MarkCompensationRequired(
+            saga.MarkRefundRequested(
                 request.EventId,
                 updatedAtUtc,
                 "Payment was captured after the order was cancelled or timed out.");
@@ -275,9 +325,35 @@ public sealed class ApplyPaymentSagaEventHandler : IRequestHandler<ApplyPaymentS
         System.Data.IDbTransaction transaction,
         CancellationToken cancellationToken)
     {
-        if (saga.State == OrderPaymentSagaState.OrderRefunded || order.Status == OrderStatus.Refunded)
+        if (saga.State is OrderPaymentSagaState.OrderRefunded or OrderPaymentSagaState.CompensationCompleted ||
+            order.Status == OrderStatus.Refunded)
         {
             saga.RecordIgnoredEvent(request.EventId, updatedAtUtc);
+            return;
+        }
+
+        if (saga.State == OrderPaymentSagaState.RefundRequested)
+        {
+            var compensationPreviousStatus = order.Status;
+            if (order.Status is OrderStatus.Pending or OrderStatus.PendingPayment)
+            {
+                if (order.Cancel())
+                {
+                    var updated = await _orderRepository.TryUpdateStatusAsync(
+                        order.Id,
+                        order.Status,
+                        [compensationPreviousStatus],
+                        transaction,
+                        cancellationToken);
+
+                    if (!updated)
+                    {
+                        throw new InvalidOperationException("Order status changed before compensation refund was applied.");
+                    }
+                }
+            }
+
+            saga.MarkCompensationCompleted(request.EventId, updatedAtUtc, request.FailureReason);
             return;
         }
 
@@ -420,6 +496,12 @@ public sealed class ApplyPaymentSagaEventHandler : IRequestHandler<ApplyPaymentS
         if (saga.State is OrderPaymentSagaState.OrderCancelled or OrderPaymentSagaState.TimedOut)
         {
             saga.RecordIgnoredEvent(request.EventId, updatedAtUtc);
+            return;
+        }
+
+        if (saga.State is OrderPaymentSagaState.PaymentAuthorized or OrderPaymentSagaState.CaptureRequested)
+        {
+            saga.MarkVoidRequested(request.EventId, updatedAtUtc, "Payment timed out before capture completed.");
             return;
         }
 

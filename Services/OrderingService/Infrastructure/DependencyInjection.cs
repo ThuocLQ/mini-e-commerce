@@ -140,6 +140,8 @@ public static class DependencyInjection
                 busFactoryConfigurator.Message<InventoryCommittedIntegrationEvent>(messageConfigurator => messageConfigurator.SetEntityName("inventory.committed"));
                 busFactoryConfigurator.Message<InventoryReleasedIntegrationEvent>(messageConfigurator => messageConfigurator.SetEntityName("inventory.released"));
                 busFactoryConfigurator.Message<PaymentCaptureRequestedIntegrationEvent>(messageConfigurator => messageConfigurator.SetEntityName("payment.capture-requested"));
+                busFactoryConfigurator.Message<PaymentVoidRequestedIntegrationEvent>(messageConfigurator => messageConfigurator.SetEntityName("payment.void-requested"));
+                busFactoryConfigurator.Message<PaymentRefundRequestedIntegrationEvent>(messageConfigurator => messageConfigurator.SetEntityName("payment.refund-requested"));
 
                 busFactoryConfigurator.Host(
                     rabbitMqOptions.Host,

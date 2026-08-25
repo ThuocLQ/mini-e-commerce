@@ -87,6 +87,24 @@ public sealed class OrderPaymentSaga
         MarkProcessed(eventId, updatedAtUtc, null);
     }
 
+    public void MarkVoidRequested(Guid eventId, DateTime updatedAtUtc, string? reason)
+    {
+        State = OrderPaymentSagaState.VoidRequested;
+        MarkProcessed(eventId, updatedAtUtc, reason);
+    }
+
+    public void MarkRefundRequested(Guid eventId, DateTime updatedAtUtc, string? reason)
+    {
+        State = OrderPaymentSagaState.RefundRequested;
+        MarkProcessed(eventId, updatedAtUtc, reason);
+    }
+
+    public void MarkCompensationCompleted(Guid eventId, DateTime updatedAtUtc, string? reason = null)
+    {
+        State = OrderPaymentSagaState.CompensationCompleted;
+        MarkProcessed(eventId, updatedAtUtc, reason);
+    }
+
     public void MarkInventoryCommitted(Guid eventId, DateTime updatedAtUtc)
     {
         State = OrderPaymentSagaState.InventoryCommitted;

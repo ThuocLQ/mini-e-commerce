@@ -96,6 +96,8 @@ public static class DependencyInjection
         services.AddMassTransit(busRegistrationConfigurator =>
         {
             busRegistrationConfigurator.AddConsumer<PaymentCaptureRequestedConsumer>();
+            busRegistrationConfigurator.AddConsumer<PaymentVoidRequestedConsumer>();
+            busRegistrationConfigurator.AddConsumer<PaymentRefundRequestedConsumer>();
             busRegistrationConfigurator.UsingRabbitMq((context, busFactoryConfigurator) =>
             {
                 var rabbitMqOptions = RabbitMqOptionsResolver.Resolve(configuration);
@@ -103,6 +105,14 @@ public static class DependencyInjection
                 busFactoryConfigurator.Message<PaymentCaptureRequestedIntegrationEvent>(messageConfigurator =>
                 {
                     messageConfigurator.SetEntityName("payment.capture-requested");
+                });
+                busFactoryConfigurator.Message<PaymentVoidRequestedIntegrationEvent>(messageConfigurator =>
+                {
+                    messageConfigurator.SetEntityName("payment.void-requested");
+                });
+                busFactoryConfigurator.Message<PaymentRefundRequestedIntegrationEvent>(messageConfigurator =>
+                {
+                    messageConfigurator.SetEntityName("payment.refund-requested");
                 });
 
                 busFactoryConfigurator.Host(
@@ -118,6 +128,14 @@ public static class DependencyInjection
                 busFactoryConfigurator.ReceiveEndpoint("payment.capture-requests", endpoint =>
                 {
                     endpoint.ConfigureConsumer<PaymentCaptureRequestedConsumer>(context);
+                });
+                busFactoryConfigurator.ReceiveEndpoint("payment.void-requests", endpoint =>
+                {
+                    endpoint.ConfigureConsumer<PaymentVoidRequestedConsumer>(context);
+                });
+                busFactoryConfigurator.ReceiveEndpoint("payment.refund-requests", endpoint =>
+                {
+                    endpoint.ConfigureConsumer<PaymentRefundRequestedConsumer>(context);
                 });
             });
         });

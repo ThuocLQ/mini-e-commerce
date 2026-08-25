@@ -1,6 +1,8 @@
 using System.Data;
 using PaymentService.Application.Abstractions;
 using PaymentService.Application.Payments.RequestCapture;
+using PaymentService.Application.Payments.RequestRefund;
+using PaymentService.Application.Payments.RequestVoid;
 using PaymentService.Domain.Payments;
 
 namespace MicroShop.IntegrationTests.Payment;
@@ -59,6 +61,46 @@ public sealed class PaymentCaptureRequestTests
 
         Assert.Empty(inbox.EventIds);
         Assert.Equal(PaymentStatus.Authorized, payment.Status);
+    }
+
+    [Fact]
+    public async Task VoidRequest_IsAppliedOnceFromAuthorizedPayment()
+    {
+        var payment = CreateAuthorizedPayment();
+        var repository = new StubPaymentRepository(payment);
+        var handler = new RequestPaymentVoidHandler(new InlineUnitOfWork(), repository, new RecordingInboxRepository());
+        var command = new RequestPaymentVoidCommand(
+            Guid.NewGuid(), payment.Id, payment.OrderId, payment.CustomerId, payment.Amount, payment.Currency,
+            "Checkout timed out.", DateTime.UtcNow);
+
+        var first = await handler.Handle(command, TestContext.Current.CancellationToken);
+        var replay = await handler.Handle(command, TestContext.Current.CancellationToken);
+
+        Assert.True(first.VoidWasRequested);
+        Assert.True(replay.WasAlreadyProcessed);
+        Assert.Equal(PaymentStatus.VoidPending, payment.Status);
+        Assert.Equal(1, repository.TransactionalUpdateCalls);
+    }
+
+    [Fact]
+    public async Task RefundRequest_IsAppliedOnceFromCapturedPayment()
+    {
+        var payment = CreateAuthorizedPayment();
+        payment.RequestCapture(DateTime.UtcNow.AddSeconds(-1));
+        payment.MarkCaptured("provider-transaction-001", DateTime.UtcNow);
+        var repository = new StubPaymentRepository(payment);
+        var handler = new RequestPaymentRefundHandler(new InlineUnitOfWork(), repository, new RecordingInboxRepository());
+        var command = new RequestPaymentRefundCommand(
+            Guid.NewGuid(), payment.Id, payment.OrderId, payment.CustomerId, payment.Amount, payment.Currency,
+            "Capture completed after timeout.", DateTime.UtcNow);
+
+        var first = await handler.Handle(command, TestContext.Current.CancellationToken);
+        var replay = await handler.Handle(command, TestContext.Current.CancellationToken);
+
+        Assert.True(first.RefundWasRequested);
+        Assert.True(replay.WasAlreadyProcessed);
+        Assert.Equal(PaymentStatus.RefundPending, payment.Status);
+        Assert.Equal(1, repository.TransactionalUpdateCalls);
     }
 
     private static PaymentService.Domain.Payments.Payment CreateAuthorizedPayment()

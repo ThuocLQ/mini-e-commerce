@@ -216,6 +216,56 @@ public sealed class PaymentSagaCompensationTests
         Assert.Contains(outboxRepository.Messages, message => message.Transport == OutboxTransport.Kafka && message.Type == "OrderRefunded");
     }
 
+    [Fact]
+    public async Task PaymentTimeout_AfterAuthorization_RequestsVoidWithoutCancellingOrderEarly()
+    {
+        var order = new Order(Guid.NewGuid(), Guid.NewGuid(), DateTime.UtcNow, OrderStatus.PendingPayment);
+        order.AddItem(new OrderItem(Guid.NewGuid(), Guid.NewGuid(), "Product", 10m, 1));
+        var paymentId = Guid.NewGuid();
+        var saga = OrderPaymentSaga.Start(order.Id, paymentId, DateTime.UtcNow.AddMinutes(-31), TimeSpan.FromMinutes(30));
+        saga.MarkPaymentAuthorized(Guid.NewGuid(), DateTime.UtcNow.AddMinutes(-30));
+        var outbox = new RecordingOutboxRepository();
+        var handler = new ApplyPaymentSagaEventHandler(new InlineUnitOfWork(), new StubOrderRepository(order), new StubSagaRepository(saga), outbox);
+
+        var result = await handler.Handle(
+            new ApplyPaymentSagaEventCommand(Guid.NewGuid(), OrderPaymentSagaEventType.PaymentTimedOut, order.Id, paymentId, "Timed out."),
+            TestContext.Current.CancellationToken);
+
+        Assert.NotNull(result);
+        Assert.Equal(OrderStatus.PendingPayment, order.Status);
+        Assert.Equal(nameof(OrderPaymentSagaState.VoidRequested), result.State);
+        Assert.Equal(2, outbox.Messages.Count);
+        Assert.Contains(outbox.Messages, message => message.Type.Contains("PaymentVoidRequestedIntegrationEvent"));
+    }
+
+    [Fact]
+    public async Task CapturedAfterVoidRequest_RequestsRefundThenCancelsAfterRefund()
+    {
+        var order = new Order(Guid.NewGuid(), Guid.NewGuid(), DateTime.UtcNow, OrderStatus.PendingPayment);
+        order.AddItem(new OrderItem(Guid.NewGuid(), Guid.NewGuid(), "Product", 10m, 1));
+        var paymentId = Guid.NewGuid();
+        var saga = OrderPaymentSaga.Start(order.Id, paymentId, DateTime.UtcNow, TimeSpan.FromMinutes(30));
+        saga.MarkVoidRequested(Guid.NewGuid(), DateTime.UtcNow, "Timed out.");
+        var outbox = new RecordingOutboxRepository();
+        var handler = new ApplyPaymentSagaEventHandler(new InlineUnitOfWork(), new StubOrderRepository(order), new StubSagaRepository(saga), outbox);
+
+        var captureResult = await handler.Handle(
+            new ApplyPaymentSagaEventCommand(Guid.NewGuid(), OrderPaymentSagaEventType.PaymentCaptured, order.Id, paymentId, null),
+            TestContext.Current.CancellationToken);
+
+        Assert.NotNull(captureResult);
+        Assert.Equal(nameof(OrderPaymentSagaState.RefundRequested), captureResult.State);
+        Assert.Contains(outbox.Messages, message => message.Type.Contains("PaymentRefundRequestedIntegrationEvent"));
+
+        var refundResult = await handler.Handle(
+            new ApplyPaymentSagaEventCommand(Guid.NewGuid(), OrderPaymentSagaEventType.PaymentRefunded, order.Id, paymentId, "Refunded after timeout."),
+            TestContext.Current.CancellationToken);
+
+        Assert.NotNull(refundResult);
+        Assert.Equal(OrderStatus.Cancelled, order.Status);
+        Assert.Equal(nameof(OrderPaymentSagaState.CompensationCompleted), refundResult.State);
+    }
+
     private sealed class InlineUnitOfWork : IOrderingUnitOfWork
     {
         public Task<T> ExecuteAsync<T>(
