@@ -22,7 +22,10 @@ public sealed class PaymentWebhookHandler : IRequestHandler<PaymentWebhookComman
         var normalizedStatus = request.Status.Trim().ToUpperInvariant();
         var status = normalizedStatus switch
         {
-            "SUCCEEDED" => PaymentStatus.Succeeded,
+            "AUTHORIZED" => PaymentStatus.Authorized,
+            "CAPTURED" or "SUCCEEDED" => PaymentStatus.Captured,
+            "VOIDED" => PaymentStatus.Voided,
+            "REFUNDED" => PaymentStatus.Refunded,
             "FAILED" => PaymentStatus.Failed,
             _ => throw new InvalidOperationException($"Unsupported payment webhook status '{request.Status}'.")
         };

@@ -18,20 +18,24 @@ public sealed class InventorySettlementSagaTests
         var outbox = new RecordingOutboxRepository();
         var handler = CreateHandler(order, saga, inbox, outbox);
         var eventId = Guid.NewGuid();
+        var expectedCommandEventId = Guid.NewGuid();
+        saga.ExpectInventorySettlement(expectedCommandEventId);
 
         var first = await handler.Handle(
             new ApplyInventorySettlementEventCommand(
                 eventId,
                 OrderInventorySettlementEventType.InventoryCommitted,
                 order.Id,
-                null),
+                null,
+                expectedCommandEventId),
             TestContext.Current.CancellationToken);
         var replay = await handler.Handle(
             new ApplyInventorySettlementEventCommand(
                 eventId,
                 OrderInventorySettlementEventType.InventoryCommitted,
                 order.Id,
-                null),
+                null,
+                expectedCommandEventId),
             TestContext.Current.CancellationToken);
 
         Assert.NotNull(first);
@@ -66,6 +70,62 @@ public sealed class InventorySettlementSagaTests
         Assert.Equal(eventId, result.LastProcessedEventId);
         Assert.Equal("ReservationExpired", result.LastError);
         Assert.Single(outbox.Messages);
+    }
+
+    [Fact]
+    public async Task InventoryCommitted_AfterAuthorization_RequestsCaptureExactlyOnce()
+    {
+        var order = new Order(Guid.NewGuid(), Guid.NewGuid(), DateTime.UtcNow.AddMinutes(-5), OrderStatus.PendingPayment, currency: "VND");
+        order.AddItem(new OrderItem(Guid.NewGuid(), Guid.NewGuid(), "Product", 125_000m, 1));
+        var saga = OrderPaymentSaga.Start(order.Id, Guid.NewGuid(), DateTime.UtcNow.AddMinutes(-4), TimeSpan.FromMinutes(30));
+        saga.MarkPaymentAuthorized(Guid.NewGuid(), DateTime.UtcNow.AddMinutes(-3));
+        var inbox = new RecordingInboxRepository();
+        var outbox = new RecordingOutboxRepository();
+        var handler = CreateHandler(order, saga, inbox, outbox);
+        var eventId = Guid.NewGuid();
+        var expectedCommandEventId = Guid.NewGuid();
+        saga.ExpectInventorySettlement(expectedCommandEventId);
+
+        var first = await handler.Handle(
+            new ApplyInventorySettlementEventCommand(eventId, OrderInventorySettlementEventType.InventoryCommitted, order.Id, null, expectedCommandEventId),
+            TestContext.Current.CancellationToken);
+        var replay = await handler.Handle(
+            new ApplyInventorySettlementEventCommand(eventId, OrderInventorySettlementEventType.InventoryCommitted, order.Id, null, expectedCommandEventId),
+            TestContext.Current.CancellationToken);
+
+        Assert.NotNull(first);
+        Assert.NotNull(replay);
+        Assert.Equal(nameof(OrderPaymentSagaState.CaptureRequested), first.State);
+        Assert.Equal(nameof(OrderPaymentSagaState.CaptureRequested), replay.State);
+        Assert.Equal(2, outbox.Messages.Count);
+        Assert.Contains(outbox.Messages, message => message.Type.Contains("PaymentCaptureRequestedIntegrationEvent"));
+        Assert.Contains(outbox.Messages, message => message.Type.Contains("OrderPaymentSagaStateChangedIntegrationEvent"));
+    }
+
+    [Fact]
+    public async Task InventoryCommitted_WithUnexpectedCausation_IsIgnored()
+    {
+        var order = new Order(Guid.NewGuid(), Guid.NewGuid(), DateTime.UtcNow.AddMinutes(-5), OrderStatus.PendingPayment);
+        order.AddItem(new OrderItem(Guid.NewGuid(), Guid.NewGuid(), "Product", 10m, 1));
+        var saga = OrderPaymentSaga.Start(order.Id, Guid.NewGuid(), DateTime.UtcNow.AddMinutes(-4), TimeSpan.FromMinutes(30));
+        saga.MarkPaymentAuthorized(Guid.NewGuid(), DateTime.UtcNow.AddMinutes(-3));
+        saga.ExpectInventorySettlement(Guid.NewGuid());
+        var outbox = new RecordingOutboxRepository();
+        var handler = CreateHandler(order, saga, new RecordingInboxRepository(), outbox);
+
+        var result = await handler.Handle(
+            new ApplyInventorySettlementEventCommand(
+                Guid.NewGuid(),
+                OrderInventorySettlementEventType.InventoryCommitted,
+                order.Id,
+                null,
+                Guid.NewGuid()),
+            TestContext.Current.CancellationToken);
+
+        Assert.NotNull(result);
+        Assert.Equal(nameof(OrderPaymentSagaState.PaymentAuthorized), result.State);
+        Assert.Contains("causation", result.LastError, StringComparison.OrdinalIgnoreCase);
+        Assert.Empty(outbox.Messages);
     }
 
     private static ApplyInventorySettlementEventHandler CreateHandler(

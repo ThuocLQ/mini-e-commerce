@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using MassTransit;
 using BuildingBlocks.Contracts.Events.Orders;
 using BuildingBlocks.Contracts.Events.Inventory;
+using BuildingBlocks.Contracts.Events.Payments;
 using OrderingService.Application.Abstractions;
 using OrderingService.Application.IntegrationEvents;
 using OrderingService.Infrastructure.Clients;
@@ -138,6 +139,7 @@ public static class DependencyInjection
                 busFactoryConfigurator.Message<InventoryReleaseRequestedIntegrationEvent>(messageConfigurator => messageConfigurator.SetEntityName("inventory.release-requested"));
                 busFactoryConfigurator.Message<InventoryCommittedIntegrationEvent>(messageConfigurator => messageConfigurator.SetEntityName("inventory.committed"));
                 busFactoryConfigurator.Message<InventoryReleasedIntegrationEvent>(messageConfigurator => messageConfigurator.SetEntityName("inventory.released"));
+                busFactoryConfigurator.Message<PaymentCaptureRequestedIntegrationEvent>(messageConfigurator => messageConfigurator.SetEntityName("payment.capture-requested"));
 
                 busFactoryConfigurator.Host(
                     rabbitMqOptions.Host,

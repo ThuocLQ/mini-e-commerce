@@ -17,7 +17,7 @@ public sealed class DapperOrderPaymentSagaRepository : IOrderPaymentSagaReposito
     {
         using var connection = _connectionFactory.CreateConnection();
         var rows = await connection.QueryAsync<OrderPaymentSagaRow>(new CommandDefinition("""
-            SELECT Id, OrderId, PaymentId, State, StartedAtUtc, UpdatedAtUtc, TimeoutAtUtc, LastProcessedEventId, LastError
+            SELECT Id, OrderId, PaymentId, State, StartedAtUtc, UpdatedAtUtc, TimeoutAtUtc, LastProcessedEventId, ExpectedInventoryCommandEventId, LastError
             FROM OrderPaymentSagas
             WHERE State = 'PaymentRequested' AND TimeoutAtUtc <= @NowUtc
             ORDER BY TimeoutAtUtc
@@ -33,7 +33,7 @@ public sealed class DapperOrderPaymentSagaRepository : IOrderPaymentSagaReposito
         CancellationToken cancellationToken = default)
     {
         var row = await transaction.Connection!.QuerySingleOrDefaultAsync<OrderPaymentSagaRow>(new CommandDefinition("""
-            SELECT Id, OrderId, PaymentId, State, StartedAtUtc, UpdatedAtUtc, TimeoutAtUtc, LastProcessedEventId, LastError
+            SELECT Id, OrderId, PaymentId, State, StartedAtUtc, UpdatedAtUtc, TimeoutAtUtc, LastProcessedEventId, ExpectedInventoryCommandEventId, LastError
             FROM OrderPaymentSagas
             WHERE OrderId = @OrderId
             FOR UPDATE;
@@ -57,6 +57,7 @@ public sealed class DapperOrderPaymentSagaRepository : IOrderPaymentSagaReposito
                 UpdatedAtUtc,
                 TimeoutAtUtc,
                 LastProcessedEventId,
+                ExpectedInventoryCommandEventId,
                 LastError)
             VALUES (
                 @Id,
@@ -67,6 +68,7 @@ public sealed class DapperOrderPaymentSagaRepository : IOrderPaymentSagaReposito
                 @UpdatedAtUtc,
                 @TimeoutAtUtc,
                 @LastProcessedEventId,
+                @ExpectedInventoryCommandEventId,
                 @LastError)
             ON CONFLICT (OrderId) DO UPDATE
             SET PaymentId = EXCLUDED.PaymentId,
@@ -74,6 +76,7 @@ public sealed class DapperOrderPaymentSagaRepository : IOrderPaymentSagaReposito
                 UpdatedAtUtc = EXCLUDED.UpdatedAtUtc,
                 TimeoutAtUtc = EXCLUDED.TimeoutAtUtc,
                 LastProcessedEventId = EXCLUDED.LastProcessedEventId,
+                ExpectedInventoryCommandEventId = EXCLUDED.ExpectedInventoryCommandEventId,
                 LastError = EXCLUDED.LastError;
             """, ToParameters(saga), transaction, cancellationToken: cancellationToken));
     }
@@ -90,6 +93,7 @@ public sealed class DapperOrderPaymentSagaRepository : IOrderPaymentSagaReposito
             saga.UpdatedAtUtc,
             saga.TimeoutAtUtc,
             saga.LastProcessedEventId,
+            saga.ExpectedInventoryCommandEventId,
             saga.LastError
         };
     }
@@ -105,6 +109,7 @@ public sealed class DapperOrderPaymentSagaRepository : IOrderPaymentSagaReposito
             row.UpdatedAtUtc,
             row.TimeoutAtUtc,
             row.LastProcessedEventId,
+            row.ExpectedInventoryCommandEventId,
             row.LastError);
     }
 
@@ -117,5 +122,6 @@ public sealed class DapperOrderPaymentSagaRepository : IOrderPaymentSagaReposito
         DateTime UpdatedAtUtc,
         DateTime TimeoutAtUtc,
         Guid? LastProcessedEventId,
+        Guid? ExpectedInventoryCommandEventId,
         string? LastError);
 }

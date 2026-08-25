@@ -13,5 +13,9 @@ public enum OrderPaymentSagaEventType
 {
     PaymentSucceeded = 1,
     PaymentFailed = 2,
-    PaymentTimedOut = 3
+    PaymentTimedOut = 3,
+    PaymentAuthorized = 4,
+    PaymentCaptured = 5,
+    PaymentVoided = 6,
+    PaymentRefunded = 7
 }

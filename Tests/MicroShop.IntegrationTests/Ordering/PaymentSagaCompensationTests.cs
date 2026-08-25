@@ -135,6 +135,87 @@ public sealed class PaymentSagaCompensationTests
             message.Type.Contains("InventoryReleaseRequestedIntegrationEvent"));
     }
 
+    [Fact]
+    public async Task PaymentAuthorized_PersistsInventoryCommitWithoutMarkingOrderPaid()
+    {
+        var order = new Order(Guid.NewGuid(), Guid.NewGuid(), DateTime.UtcNow, OrderStatus.PendingPayment);
+        order.AddItem(new OrderItem(Guid.NewGuid(), Guid.NewGuid(), "Product", 10m, 1));
+        var paymentId = Guid.NewGuid();
+        var saga = OrderPaymentSaga.Start(order.Id, paymentId, DateTime.UtcNow, TimeSpan.FromMinutes(30));
+        var outboxRepository = new RecordingOutboxRepository();
+        var handler = new ApplyPaymentSagaEventHandler(
+            new InlineUnitOfWork(),
+            new StubOrderRepository(order),
+            new StubSagaRepository(saga),
+            outboxRepository);
+
+        var result = await handler.Handle(
+            new ApplyPaymentSagaEventCommand(Guid.NewGuid(), OrderPaymentSagaEventType.PaymentAuthorized, order.Id, paymentId, null),
+            TestContext.Current.CancellationToken);
+
+        Assert.NotNull(result);
+        Assert.Equal(OrderStatus.PendingPayment, order.Status);
+        Assert.Equal(nameof(OrderPaymentSagaState.PaymentAuthorized), result.State);
+        Assert.Equal(2, outboxRepository.Messages.Count);
+        Assert.Contains(outboxRepository.Messages, message =>
+            message.Transport == OutboxTransport.RabbitMq &&
+            message.Type.Contains("InventoryCommitRequestedIntegrationEvent"));
+    }
+
+    [Fact]
+    public async Task PaymentCaptured_AfterCaptureRequest_MarksOrderPaid()
+    {
+        var order = new Order(Guid.NewGuid(), Guid.NewGuid(), DateTime.UtcNow, OrderStatus.PendingPayment);
+        order.AddItem(new OrderItem(Guid.NewGuid(), Guid.NewGuid(), "Product", 10m, 1));
+        var paymentId = Guid.NewGuid();
+        var saga = OrderPaymentSaga.Start(order.Id, paymentId, DateTime.UtcNow, TimeSpan.FromMinutes(30));
+        saga.MarkPaymentAuthorized(Guid.NewGuid(), DateTime.UtcNow);
+        saga.MarkCaptureRequested(Guid.NewGuid(), DateTime.UtcNow);
+        var outboxRepository = new RecordingOutboxRepository();
+        var handler = new ApplyPaymentSagaEventHandler(
+            new InlineUnitOfWork(),
+            new StubOrderRepository(order),
+            new StubSagaRepository(saga),
+            outboxRepository);
+
+        var result = await handler.Handle(
+            new ApplyPaymentSagaEventCommand(Guid.NewGuid(), OrderPaymentSagaEventType.PaymentCaptured, order.Id, paymentId, null),
+            TestContext.Current.CancellationToken);
+
+        Assert.NotNull(result);
+        Assert.Equal(OrderStatus.Paid, order.Status);
+        Assert.Equal(nameof(OrderPaymentSagaState.OrderPaid), result.State);
+        Assert.Equal(3, outboxRepository.Messages.Count);
+        Assert.Contains(outboxRepository.Messages, message => message.Transport == OutboxTransport.Kafka && message.Type == "OrderPaid");
+    }
+
+    [Fact]
+    public async Task PaymentRefunded_AfterOrderPaid_MarksOrderRefunded()
+    {
+        var order = new Order(Guid.NewGuid(), Guid.NewGuid(), DateTime.UtcNow, OrderStatus.PendingPayment);
+        order.AddItem(new OrderItem(Guid.NewGuid(), Guid.NewGuid(), "Product", 10m, 1));
+        order.MarkPaid();
+        var paymentId = Guid.NewGuid();
+        var saga = OrderPaymentSaga.Start(order.Id, paymentId, DateTime.UtcNow, TimeSpan.FromMinutes(30));
+        saga.MarkOrderPaid(Guid.NewGuid(), DateTime.UtcNow);
+        var outboxRepository = new RecordingOutboxRepository();
+        var handler = new ApplyPaymentSagaEventHandler(
+            new InlineUnitOfWork(),
+            new StubOrderRepository(order),
+            new StubSagaRepository(saga),
+            outboxRepository);
+
+        var result = await handler.Handle(
+            new ApplyPaymentSagaEventCommand(Guid.NewGuid(), OrderPaymentSagaEventType.PaymentRefunded, order.Id, paymentId, "Provider refund completed."),
+            TestContext.Current.CancellationToken);
+
+        Assert.NotNull(result);
+        Assert.Equal(OrderStatus.Refunded, order.Status);
+        Assert.Equal(nameof(OrderPaymentSagaState.OrderRefunded), result.State);
+        Assert.Equal(3, outboxRepository.Messages.Count);
+        Assert.Contains(outboxRepository.Messages, message => message.Transport == OutboxTransport.Kafka && message.Type == "OrderRefunded");
+    }
+
     private sealed class InlineUnitOfWork : IOrderingUnitOfWork
     {
         public Task<T> ExecuteAsync<T>(

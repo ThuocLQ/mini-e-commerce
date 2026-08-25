@@ -1,3 +1,4 @@
+using BuildingBlocks.Contracts.Events.Payments;
 using MediatR;
 using OrderingService.Application.Abstractions;
 using OrderingService.Application.IntegrationEvents;
@@ -64,7 +65,19 @@ public sealed class ApplyInventorySettlementEventHandler
             var previousState = currentSaga.State;
             var updatedAtUtc = DateTime.UtcNow;
 
-            ApplySettlement(request, currentSaga, updatedAtUtc);
+            if (request.EventType == OrderInventorySettlementEventType.InventoryCommitted &&
+                (currentSaga.ExpectedInventoryCommandEventId is null ||
+                 request.CausationEventId != currentSaga.ExpectedInventoryCommandEventId))
+            {
+                currentSaga.RecordIgnoredEvent(
+                    request.EventId,
+                    updatedAtUtc,
+                    "InventoryCommitted causation does not match the expected inventory command.");
+            }
+            else
+            {
+                ApplySettlement(request, currentSaga, updatedAtUtc);
+            }
 
             if (currentSaga.State != previousState)
             {
@@ -73,6 +86,7 @@ public sealed class ApplyInventorySettlementEventHandler
                     previousState,
                     request.EventId.ToString("D"));
                 await _outboxRepository.AddAsync(OutboxMessageFactory.Create(stateChangedEvent), transaction, cancellationToken);
+                await AddPaymentCommandAsync(order, currentSaga, request.EventId, transaction, cancellationToken);
             }
 
             await _sagaRepository.UpsertAsync(currentSaga, transaction, cancellationToken);
@@ -80,6 +94,33 @@ public sealed class ApplyInventorySettlementEventHandler
         }, cancellationToken);
 
         return saga is null ? null : OrderPaymentSagaMapper.ToDto(saga);
+    }
+
+    private Task AddPaymentCommandAsync(
+        OrderingService.Domain.Orders.Order order,
+        OrderPaymentSaga saga,
+        Guid causationEventId,
+        System.Data.IDbTransaction transaction,
+        CancellationToken cancellationToken)
+    {
+        if (saga.State != OrderPaymentSagaState.CaptureRequested)
+        {
+            return Task.CompletedTask;
+        }
+
+        return _outboxRepository.AddAsync(
+            OutboxMessageFactory.Create(new PaymentCaptureRequestedIntegrationEvent
+            {
+                PaymentId = saga.PaymentId,
+                OrderId = order.Id,
+                CustomerId = order.CustomerId,
+                Amount = order.TotalAmount,
+                Currency = order.Currency,
+                CorrelationId = order.Id.ToString("N"),
+                CausationId = causationEventId.ToString("D")
+            }),
+            transaction,
+            cancellationToken);
     }
 
     private static void ApplySettlement(
@@ -90,6 +131,12 @@ public sealed class ApplyInventorySettlementEventHandler
         switch (request.EventType)
         {
             case OrderInventorySettlementEventType.InventoryCommitted:
+                if (saga.State == OrderPaymentSagaState.PaymentAuthorized)
+                {
+                    saga.MarkCaptureRequested(request.EventId, updatedAtUtc);
+                    return;
+                }
+
                 if (saga.State == OrderPaymentSagaState.OrderPaid)
                 {
                     saga.MarkInventoryCommitted(request.EventId, updatedAtUtc);
@@ -103,7 +150,10 @@ public sealed class ApplyInventorySettlementEventHandler
                 return;
 
             case OrderInventorySettlementEventType.InventoryReleased:
-                if (saga.State is OrderPaymentSagaState.OrderPaid or OrderPaymentSagaState.InventoryCommitted)
+                if (saga.State is OrderPaymentSagaState.OrderPaid
+                    or OrderPaymentSagaState.InventoryCommitted
+                    or OrderPaymentSagaState.PaymentAuthorized
+                    or OrderPaymentSagaState.CaptureRequested)
                 {
                     saga.MarkCompensationRequired(
                         request.EventId,

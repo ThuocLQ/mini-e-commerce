@@ -2,6 +2,7 @@ using System.Text.Json;
 using BuildingBlocks.Contracts.Correlation;
 using BuildingBlocks.Contracts.Events.Orders;
 using BuildingBlocks.Contracts.Events.Inventory;
+using BuildingBlocks.Contracts.Events.Payments;
 using Confluent.Kafka;
 using MassTransit;
 using Microsoft.Extensions.Options;
@@ -264,6 +265,23 @@ public sealed class OutboxPublisherBackgroundService : BackgroundService
                     }, cancellationToken);
                 }
             }
+            return;
+        }
+
+        var paymentCaptureRequestedTypeName = typeof(PaymentCaptureRequestedIntegrationEvent).FullName;
+        if (message.Type is nameof(PaymentCaptureRequestedIntegrationEvent) || message.Type == paymentCaptureRequestedTypeName)
+        {
+            var integrationEvent = JsonSerializer.Deserialize<PaymentCaptureRequestedIntegrationEvent>(message.Content, JsonOptions)
+                ?? throw new InvalidOperationException($"Cannot deserialize outbox message {message.Id} to {nameof(PaymentCaptureRequestedIntegrationEvent)}.");
+
+            using (CorrelationContext.BeginScope(integrationEvent.CorrelationId))
+            {
+                await publishEndpoint.Publish(integrationEvent, publishContext =>
+                {
+                    SetCorrelationHeaders(publishContext, integrationEvent.CorrelationId, integrationEvent.CausationId);
+                }, cancellationToken);
+            }
+
             return;
         }
 

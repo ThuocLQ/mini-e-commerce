@@ -6,7 +6,8 @@ public sealed record ApplyInventorySettlementEventCommand(
     Guid EventId,
     OrderInventorySettlementEventType EventType,
     Guid OrderId,
-    string? Reason) : IRequest<OrderPaymentSagaDto?>;
+    string? Reason,
+    Guid? CausationEventId = null) : IRequest<OrderPaymentSagaDto?>;
 
 public enum OrderInventorySettlementEventType
 {

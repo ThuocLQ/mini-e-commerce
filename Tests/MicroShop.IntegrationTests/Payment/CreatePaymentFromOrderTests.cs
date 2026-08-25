@@ -1,3 +1,4 @@
+using System.Data;
 using PaymentService.Application.Abstractions;
 using PaymentService.Application.Payments.CreatePayment;
 using PaymentService.Domain.Payments;
@@ -114,6 +115,12 @@ public sealed class CreatePaymentFromOrderTests
             CancellationToken cancellationToken = default) =>
             Task.FromResult(_payment?.Id == id ? _payment : null);
 
+        public Task<PaymentService.Domain.Payments.Payment?> GetByIdAsync(
+            Guid id,
+            IDbTransaction transaction,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(_payment?.Id == id ? _payment : null);
+
         public Task<PaymentService.Domain.Payments.Payment?> GetByOrderIdAsync(
             Guid orderId,
             CancellationToken cancellationToken = default) =>
@@ -121,6 +128,15 @@ public sealed class CreatePaymentFromOrderTests
 
         public Task<bool> UpdateAsync(
             PaymentService.Domain.Payments.Payment payment,
+            CancellationToken cancellationToken = default)
+        {
+            _payment = payment;
+            return Task.FromResult(true);
+        }
+
+        public Task<bool> UpdateAsync(
+            PaymentService.Domain.Payments.Payment payment,
+            IDbTransaction transaction,
             CancellationToken cancellationToken = default)
         {
             _payment = payment;

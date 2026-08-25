@@ -148,6 +148,46 @@ public sealed class PaymentOutboxDispatcherBackgroundService : BackgroundService
         PaymentOutboxMessage message,
         CancellationToken cancellationToken)
     {
+        if (message.Type is nameof(PaymentAuthorizedIntegrationEvent) ||
+            message.Type == typeof(PaymentAuthorizedIntegrationEvent).FullName)
+        {
+            var integrationEvent = JsonSerializer.Deserialize<PaymentAuthorizedIntegrationEvent>(message.Content, JsonOptions)
+                ?? throw new InvalidOperationException($"Cannot deserialize outbox message {message.Id} to {nameof(PaymentAuthorizedIntegrationEvent)}.");
+
+            await sagaClient.ApplyPaymentAuthorizedAsync(integrationEvent, cancellationToken);
+            return;
+        }
+
+        if (message.Type is nameof(PaymentCapturedIntegrationEvent) ||
+            message.Type == typeof(PaymentCapturedIntegrationEvent).FullName)
+        {
+            var integrationEvent = JsonSerializer.Deserialize<PaymentCapturedIntegrationEvent>(message.Content, JsonOptions)
+                ?? throw new InvalidOperationException($"Cannot deserialize outbox message {message.Id} to {nameof(PaymentCapturedIntegrationEvent)}.");
+
+            await sagaClient.ApplyPaymentCapturedAsync(integrationEvent, cancellationToken);
+            return;
+        }
+
+        if (message.Type is nameof(PaymentVoidedIntegrationEvent) ||
+            message.Type == typeof(PaymentVoidedIntegrationEvent).FullName)
+        {
+            var integrationEvent = JsonSerializer.Deserialize<PaymentVoidedIntegrationEvent>(message.Content, JsonOptions)
+                ?? throw new InvalidOperationException($"Cannot deserialize outbox message {message.Id} to {nameof(PaymentVoidedIntegrationEvent)}.");
+
+            await sagaClient.ApplyPaymentVoidedAsync(integrationEvent, cancellationToken);
+            return;
+        }
+
+        if (message.Type is nameof(PaymentRefundedIntegrationEvent) ||
+            message.Type == typeof(PaymentRefundedIntegrationEvent).FullName)
+        {
+            var integrationEvent = JsonSerializer.Deserialize<PaymentRefundedIntegrationEvent>(message.Content, JsonOptions)
+                ?? throw new InvalidOperationException($"Cannot deserialize outbox message {message.Id} to {nameof(PaymentRefundedIntegrationEvent)}.");
+
+            await sagaClient.ApplyPaymentRefundedAsync(integrationEvent, cancellationToken);
+            return;
+        }
+
         if (message.Type is nameof(PaymentSucceededIntegrationEvent) ||
             message.Type == typeof(PaymentSucceededIntegrationEvent).FullName)
         {

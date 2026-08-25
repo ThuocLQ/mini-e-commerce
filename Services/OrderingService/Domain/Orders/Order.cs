@@ -164,4 +164,20 @@ public sealed class Order
         Status = OrderStatus.Cancelled;
         return true;
     }
+
+    public bool MarkRefunded()
+    {
+        if (Status == OrderStatus.Refunded)
+        {
+            return false;
+        }
+
+        if (Status != OrderStatus.Paid)
+        {
+            throw new InvalidOperationException($"Order cannot be refunded while it is {Status}.");
+        }
+
+        Status = OrderStatus.Refunded;
+        return true;
+    }
 }

@@ -40,6 +40,54 @@ public sealed class OrderingPaymentSagaClient
             cancellationToken);
     }
 
+    public Task ApplyPaymentAuthorizedAsync(
+        PaymentAuthorizedIntegrationEvent integrationEvent,
+        CancellationToken cancellationToken) =>
+        SendAsync(
+            integrationEvent.OrderId,
+            new ApplyPaymentSagaEventRequest(
+                integrationEvent.EventId,
+                integrationEvent.PaymentId,
+                "PaymentAuthorized",
+                null),
+            cancellationToken);
+
+    public Task ApplyPaymentCapturedAsync(
+        PaymentCapturedIntegrationEvent integrationEvent,
+        CancellationToken cancellationToken) =>
+        SendAsync(
+            integrationEvent.OrderId,
+            new ApplyPaymentSagaEventRequest(
+                integrationEvent.EventId,
+                integrationEvent.PaymentId,
+                "PaymentCaptured",
+                null),
+            cancellationToken);
+
+    public Task ApplyPaymentVoidedAsync(
+        PaymentVoidedIntegrationEvent integrationEvent,
+        CancellationToken cancellationToken) =>
+        SendAsync(
+            integrationEvent.OrderId,
+            new ApplyPaymentSagaEventRequest(
+                integrationEvent.EventId,
+                integrationEvent.PaymentId,
+                "PaymentVoided",
+                integrationEvent.Reason),
+            cancellationToken);
+
+    public Task ApplyPaymentRefundedAsync(
+        PaymentRefundedIntegrationEvent integrationEvent,
+        CancellationToken cancellationToken) =>
+        SendAsync(
+            integrationEvent.OrderId,
+            new ApplyPaymentSagaEventRequest(
+                integrationEvent.EventId,
+                integrationEvent.PaymentId,
+                "PaymentRefunded",
+                integrationEvent.Reason),
+            cancellationToken);
+
     public async Task ApplyPaymentFailedAsync(
         PaymentFailedIntegrationEvent integrationEvent,
         CancellationToken cancellationToken)

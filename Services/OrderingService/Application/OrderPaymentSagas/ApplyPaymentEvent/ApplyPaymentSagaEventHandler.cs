@@ -75,7 +75,7 @@ public sealed class ApplyPaymentSagaEventHandler : IRequestHandler<ApplyPaymentS
             {
                 var sagaStateChangedEvent = OrderIntegrationEventFactory.CreatePaymentSagaStateChanged(currentSaga, previousSagaState);
                 await _outboxRepository.AddAsync(OutboxMessageFactory.Create(sagaStateChangedEvent), transaction, cancellationToken);
-                await AddInventoryCommandAsync(currentSaga, transaction, cancellationToken);
+                await AddInventoryCommandAsync(currentSaga, request.EventType, transaction, cancellationToken);
             }
 
             await _sagaRepository.UpsertAsync(currentSaga, transaction, cancellationToken);
@@ -91,16 +91,31 @@ public sealed class ApplyPaymentSagaEventHandler : IRequestHandler<ApplyPaymentS
         return OrderPaymentSagaMapper.ToDto(saga);
     }
 
-    private Task AddInventoryCommandAsync(OrderPaymentSaga saga, System.Data.IDbTransaction transaction, CancellationToken cancellationToken)
+    private Task AddInventoryCommandAsync(
+        OrderPaymentSaga saga,
+        OrderPaymentSagaEventType eventType,
+        System.Data.IDbTransaction transaction,
+        CancellationToken cancellationToken)
     {
-        return saga.State switch
+        if (saga.State == OrderPaymentSagaState.PaymentAuthorized ||
+            saga.State == OrderPaymentSagaState.OrderPaid && eventType == OrderPaymentSagaEventType.PaymentSucceeded)
         {
-            OrderPaymentSagaState.OrderPaid => _outboxRepository.AddAsync(
-                OutboxMessageFactory.Create(new InventoryCommitRequestedIntegrationEvent { OrderId = saga.OrderId }), transaction, cancellationToken),
-            OrderPaymentSagaState.OrderCancelled or OrderPaymentSagaState.TimedOut => _outboxRepository.AddAsync(
-                OutboxMessageFactory.Create(new InventoryReleaseRequestedIntegrationEvent { OrderId = saga.OrderId, Reason = saga.LastError ?? saga.State.ToString() }), transaction, cancellationToken),
-            _ => Task.CompletedTask
-        };
+            var command = new InventoryCommitRequestedIntegrationEvent { OrderId = saga.OrderId };
+            saga.ExpectInventorySettlement(command.EventId);
+            return _outboxRepository.AddAsync(OutboxMessageFactory.Create(command), transaction, cancellationToken);
+        }
+
+        if (saga.State is OrderPaymentSagaState.OrderCancelled or OrderPaymentSagaState.TimedOut)
+        {
+            var command = new InventoryReleaseRequestedIntegrationEvent
+            {
+                OrderId = saga.OrderId,
+                Reason = saga.LastError ?? saga.State.ToString()
+            };
+            return _outboxRepository.AddAsync(OutboxMessageFactory.Create(command), transaction, cancellationToken);
+        }
+
+        return Task.CompletedTask;
     }
 
     private async Task ApplyEventAsync(
@@ -114,6 +129,18 @@ public sealed class ApplyPaymentSagaEventHandler : IRequestHandler<ApplyPaymentS
 
         switch (request.EventType)
         {
+            case OrderPaymentSagaEventType.PaymentAuthorized:
+                ApplyPaymentAuthorized(request, order, saga, updatedAtUtc);
+                break;
+            case OrderPaymentSagaEventType.PaymentCaptured:
+                await ApplyPaymentCapturedAsync(request, order, saga, updatedAtUtc, transaction, cancellationToken);
+                break;
+            case OrderPaymentSagaEventType.PaymentVoided:
+                await ApplyPaymentVoidedAsync(request, order, saga, updatedAtUtc, transaction, cancellationToken);
+                break;
+            case OrderPaymentSagaEventType.PaymentRefunded:
+                await ApplyPaymentRefundedAsync(request, order, saga, updatedAtUtc, transaction, cancellationToken);
+                break;
             case OrderPaymentSagaEventType.PaymentSucceeded:
                 await ApplyPaymentSucceededAsync(request, order, saga, updatedAtUtc, transaction, cancellationToken);
                 break;
@@ -126,6 +153,160 @@ public sealed class ApplyPaymentSagaEventHandler : IRequestHandler<ApplyPaymentS
             default:
                 throw new InvalidOperationException($"Unsupported payment saga event type '{request.EventType}'.");
         }
+    }
+
+    private static void ApplyPaymentAuthorized(
+        ApplyPaymentSagaEventCommand request,
+        Order order,
+        OrderPaymentSaga saga,
+        DateTime updatedAtUtc)
+    {
+        if (saga.State is OrderPaymentSagaState.PaymentAuthorized
+            or OrderPaymentSagaState.InventoryCommitted
+            or OrderPaymentSagaState.CaptureRequested
+            or OrderPaymentSagaState.OrderPaid)
+        {
+            saga.RecordIgnoredEvent(request.EventId, updatedAtUtc);
+            return;
+        }
+
+        if (saga.State is OrderPaymentSagaState.OrderCancelled
+            or OrderPaymentSagaState.TimedOut
+            or OrderPaymentSagaState.CompensationRequired
+            || order.Status == OrderStatus.Cancelled)
+        {
+            saga.MarkCompensationRequired(
+                request.EventId,
+                updatedAtUtc,
+                "Payment was authorized after the order had reached a terminal state.");
+            return;
+        }
+
+        saga.MarkPaymentAuthorized(request.EventId, updatedAtUtc);
+    }
+
+    private async Task ApplyPaymentCapturedAsync(
+        ApplyPaymentSagaEventCommand request,
+        Order order,
+        OrderPaymentSaga saga,
+        DateTime updatedAtUtc,
+        System.Data.IDbTransaction transaction,
+        CancellationToken cancellationToken)
+    {
+        if (saga.State is OrderPaymentSagaState.OrderPaid or OrderPaymentSagaState.CompensationRequired ||
+            order.Status == OrderStatus.Paid)
+        {
+            saga.RecordIgnoredEvent(request.EventId, updatedAtUtc);
+            return;
+        }
+
+        if (saga.State is OrderPaymentSagaState.OrderCancelled or OrderPaymentSagaState.TimedOut ||
+            order.Status == OrderStatus.Cancelled)
+        {
+            saga.MarkCompensationRequired(
+                request.EventId,
+                updatedAtUtc,
+                "Payment was captured after the order was cancelled or timed out.");
+            return;
+        }
+
+        if (saga.State != OrderPaymentSagaState.CaptureRequested)
+        {
+            saga.MarkCompensationRequired(
+                request.EventId,
+                updatedAtUtc,
+                "Payment was captured without a durable inventory-commit and capture-request transition.");
+            return;
+        }
+
+        var previousStatus = order.Status;
+        if (order.MarkPaid())
+        {
+            var updated = await _orderRepository.TryUpdateStatusAsync(
+                order.Id,
+                order.Status,
+                [previousStatus],
+                transaction,
+                cancellationToken);
+
+            if (!updated)
+            {
+                throw new InvalidOperationException("Order status changed before PaymentCaptured was applied.");
+            }
+        }
+
+        saga.MarkOrderPaid(request.EventId, updatedAtUtc);
+    }
+
+    private async Task ApplyPaymentVoidedAsync(
+        ApplyPaymentSagaEventCommand request,
+        Order order,
+        OrderPaymentSaga saga,
+        DateTime updatedAtUtc,
+        System.Data.IDbTransaction transaction,
+        CancellationToken cancellationToken)
+    {
+        if (saga.State is OrderPaymentSagaState.OrderPaid
+            or OrderPaymentSagaState.OrderRefunded
+            or OrderPaymentSagaState.CompensationRequired
+            || order.Status is OrderStatus.Paid or OrderStatus.Refunded)
+        {
+            saga.MarkCompensationRequired(
+                request.EventId,
+                updatedAtUtc,
+                "Payment was voided after the order had already been paid.");
+            return;
+        }
+
+        await ApplyPaymentFailedAsync(
+            request with { EventType = OrderPaymentSagaEventType.PaymentFailed, FailureReason = request.FailureReason ?? "Payment authorization was voided." },
+            order,
+            saga,
+            updatedAtUtc,
+            transaction,
+            cancellationToken);
+    }
+
+    private async Task ApplyPaymentRefundedAsync(
+        ApplyPaymentSagaEventCommand request,
+        Order order,
+        OrderPaymentSaga saga,
+        DateTime updatedAtUtc,
+        System.Data.IDbTransaction transaction,
+        CancellationToken cancellationToken)
+    {
+        if (saga.State == OrderPaymentSagaState.OrderRefunded || order.Status == OrderStatus.Refunded)
+        {
+            saga.RecordIgnoredEvent(request.EventId, updatedAtUtc);
+            return;
+        }
+
+        if (saga.State != OrderPaymentSagaState.OrderPaid || order.Status != OrderStatus.Paid)
+        {
+            saga.MarkCompensationRequired(
+                request.EventId,
+                updatedAtUtc,
+                "Payment was refunded before the order was durably marked as paid.");
+            return;
+        }
+
+        var previousStatus = order.Status;
+        if (order.MarkRefunded())
+        {
+            var updated = await _orderRepository.TryUpdateStatusAsync(
+                order.Id,
+                order.Status,
+                [previousStatus],
+                transaction,
+                cancellationToken);
+
+            if (!updated)
+            {
+                throw new InvalidOperationException("Order status changed before PaymentRefunded was applied.");
+            }
+        }
+
+        saga.MarkOrderRefunded(request.EventId, updatedAtUtc);
     }
 
     private async Task ApplyPaymentSucceededAsync(

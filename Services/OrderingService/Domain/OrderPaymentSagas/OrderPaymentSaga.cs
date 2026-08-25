@@ -10,6 +10,7 @@ public sealed class OrderPaymentSaga
     public DateTime UpdatedAtUtc { get; private set; }
     public DateTime TimeoutAtUtc { get; }
     public Guid? LastProcessedEventId { get; private set; }
+    public Guid? ExpectedInventoryCommandEventId { get; private set; }
     public string? LastError { get; private set; }
 
     public OrderPaymentSaga(
@@ -21,6 +22,7 @@ public sealed class OrderPaymentSaga
         DateTime updatedAtUtc,
         DateTime timeoutAtUtc,
         Guid? lastProcessedEventId = null,
+        Guid? expectedInventoryCommandEventId = null,
         string? lastError = null)
     {
         if (id == Guid.Empty) throw new ArgumentException("Saga id cannot be empty.", nameof(id));
@@ -36,6 +38,7 @@ public sealed class OrderPaymentSaga
         UpdatedAtUtc = updatedAtUtc;
         TimeoutAtUtc = timeoutAtUtc;
         LastProcessedEventId = lastProcessedEventId;
+        ExpectedInventoryCommandEventId = expectedInventoryCommandEventId;
         LastError = string.IsNullOrWhiteSpace(lastError) ? null : lastError.Trim();
     }
 
@@ -66,15 +69,44 @@ public sealed class OrderPaymentSaga
         MarkProcessed(eventId, updatedAtUtc, null);
     }
 
+    public void MarkPaymentAuthorized(Guid eventId, DateTime updatedAtUtc)
+    {
+        State = OrderPaymentSagaState.PaymentAuthorized;
+        MarkProcessed(eventId, updatedAtUtc, null);
+    }
+
     public void MarkOrderCancelled(Guid eventId, DateTime updatedAtUtc, string? reason)
     {
         State = OrderPaymentSagaState.OrderCancelled;
         MarkProcessed(eventId, updatedAtUtc, reason);
     }
 
+    public void MarkOrderRefunded(Guid eventId, DateTime updatedAtUtc)
+    {
+        State = OrderPaymentSagaState.OrderRefunded;
+        MarkProcessed(eventId, updatedAtUtc, null);
+    }
+
     public void MarkInventoryCommitted(Guid eventId, DateTime updatedAtUtc)
     {
         State = OrderPaymentSagaState.InventoryCommitted;
+        MarkProcessed(eventId, updatedAtUtc, null);
+    }
+
+    public void ExpectInventorySettlement(Guid inventoryCommandEventId)
+    {
+        if (inventoryCommandEventId == Guid.Empty)
+        {
+            throw new ArgumentException("Inventory command event id cannot be empty.", nameof(inventoryCommandEventId));
+        }
+
+        ExpectedInventoryCommandEventId = inventoryCommandEventId;
+    }
+
+    public void MarkCaptureRequested(Guid eventId, DateTime updatedAtUtc)
+    {
+        State = OrderPaymentSagaState.CaptureRequested;
+        ExpectedInventoryCommandEventId = null;
         MarkProcessed(eventId, updatedAtUtc, null);
     }
 

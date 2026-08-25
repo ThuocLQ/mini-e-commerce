@@ -90,6 +90,7 @@ public static class OrderIntegrationEventFactory
     {
         OrderStatus.Pending or OrderStatus.PendingPayment => "OrderCreated",
         OrderStatus.Paid => "OrderPaid",
+        OrderStatus.Refunded => "OrderRefunded",
         OrderStatus.PaymentFailed => "OrderPaymentFailed",
         OrderStatus.Cancelled => "OrderCancelled",
         _ => throw new InvalidOperationException($"Order status '{status}' has no projection event type.")
@@ -100,6 +101,7 @@ public static class OrderIntegrationEventFactory
         OrderStatus.Pending or OrderStatus.PendingPayment => 1,
         OrderStatus.Paid or OrderStatus.PaymentFailed => 2,
         OrderStatus.Cancelled => 3,
+        OrderStatus.Refunded => 4,
         _ => throw new InvalidOperationException($"Order status '{status}' has no projection sequence.")
     };
 }

@@ -23,7 +23,7 @@ public static class PaymentSagaEndpoints
             {
                 return Results.BadRequest(new
                 {
-                    Error = "EventType must be 'PaymentSucceeded', 'PaymentFailed', or 'PaymentTimedOut'."
+                    Error = "EventType must be 'PaymentAuthorized', 'PaymentCaptured', 'PaymentVoided', 'PaymentRefunded', 'PaymentSucceeded', 'PaymentFailed', or 'PaymentTimedOut'."
                 });
             }
 
@@ -52,6 +52,18 @@ public static class PaymentSagaEndpoints
         var normalized = eventType.Trim();
         normalized = normalized.Equals("Succeeded", StringComparison.OrdinalIgnoreCase)
             ? nameof(OrderPaymentSagaEventType.PaymentSucceeded)
+            : normalized;
+        normalized = normalized.Equals("Authorized", StringComparison.OrdinalIgnoreCase)
+            ? nameof(OrderPaymentSagaEventType.PaymentAuthorized)
+            : normalized;
+        normalized = normalized.Equals("Captured", StringComparison.OrdinalIgnoreCase)
+            ? nameof(OrderPaymentSagaEventType.PaymentCaptured)
+            : normalized;
+        normalized = normalized.Equals("Voided", StringComparison.OrdinalIgnoreCase)
+            ? nameof(OrderPaymentSagaEventType.PaymentVoided)
+            : normalized;
+        normalized = normalized.Equals("Refunded", StringComparison.OrdinalIgnoreCase)
+            ? nameof(OrderPaymentSagaEventType.PaymentRefunded)
             : normalized;
         normalized = normalized.Equals("Failed", StringComparison.OrdinalIgnoreCase)
             ? nameof(OrderPaymentSagaEventType.PaymentFailed)

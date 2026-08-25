@@ -107,17 +107,19 @@ public sealed class DapperPaymentWebhookRepository : IPaymentWebhookRepository
 
         try
         {
-            if (status == PaymentStatus.Succeeded)
-            {
-                payment.MarkSucceeded(normalizedProviderTransactionId, DateTime.UtcNow);
-            }
-            else
-            {
-                payment.MarkFailed(failureReason ?? "Payment failed by provider.", DateTime.UtcNow);
-            }
+            var statusBeforeWebhook = payment.Status;
+            ApplyWebhookStatus(
+                payment,
+                status,
+                normalizedProviderTransactionId,
+                failureReason,
+                receivedAtUtc);
 
-            await UpdatePaymentAsync(payment, transaction, cancellationToken);
-            await AddOutboxMessageAsync(payment, status, normalizedProviderEventId, transaction, cancellationToken);
+            if (payment.Status != statusBeforeWebhook)
+            {
+                await UpdatePaymentAsync(payment, transaction, cancellationToken);
+                await AddOutboxMessageAsync(payment, status, normalizedProviderEventId, transaction, cancellationToken);
+            }
             await MarkWebhookProcessedAsync(normalizedProviderEventId, DateTime.UtcNow, transaction, cancellationToken);
 
             transaction.Commit();
@@ -191,7 +193,9 @@ public sealed class DapperPaymentWebhookRepository : IPaymentWebhookRepository
         using var connection = _connectionFactory.CreateConnection();
 
         var row = await connection.QuerySingleOrDefaultAsync<PaymentRow>(new CommandDefinition("""
-            SELECT Id, OrderId, CustomerId, Amount, Currency, Status, ProviderTransactionId, FailureReason, CreatedAtUtc, CompletedAtUtc
+            SELECT Id, OrderId, CustomerId, Amount, Currency, Status, ProviderTransactionId, FailureReason, CreatedAtUtc, CompletedAtUtc,
+                   AuthorizedAtUtc, CaptureRequestedAtUtc, CapturedAtUtc, VoidRequestedAtUtc, VoidedAtUtc,
+                   RefundRequestedAtUtc, RefundedAtUtc
             FROM Payments
             WHERE Id = @PaymentId;
             """, new { PaymentId = paymentId }, cancellationToken: cancellationToken));
@@ -274,7 +278,9 @@ public sealed class DapperPaymentWebhookRepository : IPaymentWebhookRepository
         CancellationToken cancellationToken)
     {
         var row = await transaction.Connection!.QuerySingleOrDefaultAsync<PaymentRow>(new CommandDefinition("""
-            SELECT Id, OrderId, CustomerId, Amount, Currency, Status, ProviderTransactionId, FailureReason, CreatedAtUtc, CompletedAtUtc
+            SELECT Id, OrderId, CustomerId, Amount, Currency, Status, ProviderTransactionId, FailureReason, CreatedAtUtc, CompletedAtUtc,
+                   AuthorizedAtUtc, CaptureRequestedAtUtc, CapturedAtUtc, VoidRequestedAtUtc, VoidedAtUtc,
+                   RefundRequestedAtUtc, RefundedAtUtc
             FROM Payments
             WHERE Id = @PaymentId
             FOR UPDATE;
@@ -293,7 +299,14 @@ public sealed class DapperPaymentWebhookRepository : IPaymentWebhookRepository
             SET Status = @Status,
                 ProviderTransactionId = @ProviderTransactionId,
                 FailureReason = @FailureReason,
-                CompletedAtUtc = @CompletedAtUtc
+                CompletedAtUtc = @CompletedAtUtc,
+                AuthorizedAtUtc = @AuthorizedAtUtc,
+                CaptureRequestedAtUtc = @CaptureRequestedAtUtc,
+                CapturedAtUtc = @CapturedAtUtc,
+                VoidRequestedAtUtc = @VoidRequestedAtUtc,
+                VoidedAtUtc = @VoidedAtUtc,
+                RefundRequestedAtUtc = @RefundRequestedAtUtc,
+                RefundedAtUtc = @RefundedAtUtc
             WHERE Id = @Id;
             """, ToParameters(payment), transaction, cancellationToken: cancellationToken));
     }
@@ -305,8 +318,55 @@ public sealed class DapperPaymentWebhookRepository : IPaymentWebhookRepository
         System.Data.IDbTransaction transaction,
         CancellationToken cancellationToken)
     {
-        var message = status == PaymentStatus.Succeeded
-            ? PaymentOutboxMessageFactory.Create(new PaymentSucceededIntegrationEvent
+        var message = status switch
+        {
+            PaymentStatus.Authorized => PaymentOutboxMessageFactory.Create(new PaymentAuthorizedIntegrationEvent
+            {
+                PaymentId = payment.Id,
+                OrderId = payment.OrderId,
+                CustomerId = payment.CustomerId,
+                Amount = payment.Amount,
+                Currency = payment.Currency,
+                ProviderTransactionId = payment.ProviderTransactionId ?? string.Empty,
+                CorrelationId = payment.OrderId.ToString("N"),
+                CausationId = providerEventId
+            }),
+            PaymentStatus.Captured => PaymentOutboxMessageFactory.Create(new PaymentCapturedIntegrationEvent
+            {
+                PaymentId = payment.Id,
+                OrderId = payment.OrderId,
+                CustomerId = payment.CustomerId,
+                Amount = payment.Amount,
+                Currency = payment.Currency,
+                ProviderTransactionId = payment.ProviderTransactionId ?? string.Empty,
+                CorrelationId = payment.OrderId.ToString("N"),
+                CausationId = providerEventId
+            }),
+            PaymentStatus.Voided => PaymentOutboxMessageFactory.Create(new PaymentVoidedIntegrationEvent
+            {
+                PaymentId = payment.Id,
+                OrderId = payment.OrderId,
+                CustomerId = payment.CustomerId,
+                Amount = payment.Amount,
+                Currency = payment.Currency,
+                ProviderTransactionId = payment.ProviderTransactionId ?? string.Empty,
+                Reason = payment.FailureReason ?? string.Empty,
+                CorrelationId = payment.OrderId.ToString("N"),
+                CausationId = providerEventId
+            }),
+            PaymentStatus.Refunded => PaymentOutboxMessageFactory.Create(new PaymentRefundedIntegrationEvent
+            {
+                PaymentId = payment.Id,
+                OrderId = payment.OrderId,
+                CustomerId = payment.CustomerId,
+                Amount = payment.Amount,
+                Currency = payment.Currency,
+                ProviderTransactionId = payment.ProviderTransactionId ?? string.Empty,
+                Reason = payment.FailureReason ?? string.Empty,
+                CorrelationId = payment.OrderId.ToString("N"),
+                CausationId = providerEventId
+            }),
+            PaymentStatus.Failed => PaymentOutboxMessageFactory.Create(new PaymentFailedIntegrationEvent
             {
                 PaymentId = payment.Id,
                 OrderId = payment.OrderId,
@@ -314,18 +374,12 @@ public sealed class DapperPaymentWebhookRepository : IPaymentWebhookRepository
                 Amount = payment.Amount,
                 Currency = payment.Currency,
                 ProviderEventId = providerEventId,
-                ProviderTransactionId = payment.ProviderTransactionId ?? string.Empty
-            })
-            : PaymentOutboxMessageFactory.Create(new PaymentFailedIntegrationEvent
-            {
-                PaymentId = payment.Id,
-                OrderId = payment.OrderId,
-                CustomerId = payment.CustomerId,
-                Amount = payment.Amount,
-                Currency = payment.Currency,
-                ProviderEventId = providerEventId,
-                FailureReason = payment.FailureReason ?? "Payment failed."
-            });
+                FailureReason = payment.FailureReason ?? "Payment failed.",
+                CorrelationId = payment.OrderId.ToString("N"),
+                CausationId = providerEventId
+            }),
+            _ => throw new InvalidOperationException($"Unsupported payment webhook status '{status}'.")
+        };
 
         await InsertOutboxMessageAsync(message, transaction, cancellationToken);
     }
@@ -405,7 +459,14 @@ public sealed class DapperPaymentWebhookRepository : IPaymentWebhookRepository
             Status = payment.Status.ToString(),
             payment.ProviderTransactionId,
             payment.FailureReason,
-            payment.CompletedAtUtc
+            payment.CompletedAtUtc,
+            payment.AuthorizedAtUtc,
+            payment.CaptureRequestedAtUtc,
+            payment.CapturedAtUtc,
+            payment.VoidRequestedAtUtc,
+            payment.VoidedAtUtc,
+            payment.RefundRequestedAtUtc,
+            payment.RefundedAtUtc
         };
     }
 
@@ -421,7 +482,14 @@ public sealed class DapperPaymentWebhookRepository : IPaymentWebhookRepository
             row.CreatedAtUtc,
             row.ProviderTransactionId,
             row.FailureReason,
-            row.CompletedAtUtc);
+            row.CompletedAtUtc,
+            row.AuthorizedAtUtc,
+            row.CaptureRequestedAtUtc,
+            row.CapturedAtUtc,
+            row.VoidRequestedAtUtc,
+            row.VoidedAtUtc,
+            row.RefundRequestedAtUtc,
+            row.RefundedAtUtc);
     }
 
     private static string Truncate(string value, int maxLength)
@@ -439,7 +507,43 @@ public sealed class DapperPaymentWebhookRepository : IPaymentWebhookRepository
         string? ProviderTransactionId,
         string? FailureReason,
         DateTime CreatedAtUtc,
-        DateTime? CompletedAtUtc);
+        DateTime? CompletedAtUtc,
+        DateTime? AuthorizedAtUtc,
+        DateTime? CaptureRequestedAtUtc,
+        DateTime? CapturedAtUtc,
+        DateTime? VoidRequestedAtUtc,
+        DateTime? VoidedAtUtc,
+        DateTime? RefundRequestedAtUtc,
+        DateTime? RefundedAtUtc);
+
+    private static void ApplyWebhookStatus(
+        Payment payment,
+        PaymentStatus status,
+        string providerTransactionId,
+        string? failureReason,
+        DateTime occurredAtUtc)
+    {
+        switch (status)
+        {
+            case PaymentStatus.Authorized:
+                payment.MarkAuthorized(providerTransactionId, occurredAtUtc);
+                break;
+            case PaymentStatus.Captured:
+                payment.MarkCaptured(providerTransactionId, occurredAtUtc);
+                break;
+            case PaymentStatus.Voided:
+                payment.MarkVoided(occurredAtUtc);
+                break;
+            case PaymentStatus.Refunded:
+                payment.MarkRefunded(occurredAtUtc);
+                break;
+            case PaymentStatus.Failed:
+                payment.MarkFailed(failureReason ?? "Payment failed by provider.", occurredAtUtc);
+                break;
+            default:
+                throw new InvalidOperationException($"Unsupported payment webhook status '{status}'.");
+        }
+    }
 
     private sealed record WebhookLogRow(
         string ProviderEventId,

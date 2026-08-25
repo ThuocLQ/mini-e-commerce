@@ -1,0 +1,3 @@
+namespace BuildingBlocks.Contracts.Events.Payments;
+
+public sealed record PaymentAuthorizedIntegrationEvent : PaymentOperationCompletedIntegrationEvent;

@@ -4,6 +4,9 @@ using PaymentService.Infrastructure.Observability;
 using PaymentService.Infrastructure.Outbox;
 using PaymentService.Infrastructure.Persistence;
 using PaymentService.Infrastructure.Clients;
+using BuildingBlocks.Contracts.Events.Payments;
+using MassTransit;
+using PaymentService.Infrastructure.Messaging;
 
 namespace PaymentService.Infrastructure;
 
@@ -16,11 +19,14 @@ public static class DependencyInjection
     {
         services.AddSingleton<IDbConnectionFactory, NpgsqlConnectionFactory>();
         services.AddSingleton<IDatabaseInitializer, PostgresDatabaseInitializer>();
+        services.AddScoped<IPaymentUnitOfWork, DapperPaymentUnitOfWork>();
         services.AddScoped<IPaymentRepository, DapperPaymentRepository>();
+        services.AddScoped<IPaymentInboxRepository, DapperPaymentInboxRepository>();
         services.AddScoped<IPaymentWebhookRepository, DapperPaymentWebhookRepository>();
         services.AddScoped<IPaymentOutboxRepository, DapperPaymentOutboxRepository>();
         services.AddSingleton<IPaymentMetrics, PaymentMetrics>();
         services.AddPostgresReadinessCheck(configuration, "PaymentDb");
+        services.AddRabbitMqReadinessCheck(configuration);
 
         var orderingBaseUrl = configuration["ServiceUrls:OrderingHttp"]
                               ?? throw new InvalidOperationException("ServiceUrls:OrderingHttp is missing.");
@@ -58,6 +64,24 @@ public static class DependencyInjection
             .ValidateOnStart();
 
         services
+            .AddOptions<RabbitMqOptions>()
+            .Configure(options =>
+            {
+                var resolvedOptions = RabbitMqOptionsResolver.Resolve(configuration);
+                options.Host = resolvedOptions.Host;
+                options.Port = resolvedOptions.Port;
+                options.VirtualHost = resolvedOptions.VirtualHost;
+                options.UserName = resolvedOptions.UserName;
+                options.Password = resolvedOptions.Password;
+            })
+            .Validate(options => !string.IsNullOrWhiteSpace(options.Host), "RabbitMq:Host is required.")
+            .Validate(options => options.Port > 0, "RabbitMq:Port is required.")
+            .Validate(options => !string.IsNullOrWhiteSpace(options.VirtualHost), "RabbitMq:VirtualHost is required.")
+            .Validate(options => !string.IsNullOrWhiteSpace(options.UserName), "RabbitMq:UserName is required.")
+            .Validate(options => !string.IsNullOrWhiteSpace(options.Password), "RabbitMq:Password is required.")
+            .ValidateOnStart();
+
+        services
             .AddOptions<OrderingSagaClientOptions>()
             .Bind(configuration.GetSection(OrderingSagaClientOptions.SectionName))
             .Validate(options => !string.IsNullOrWhiteSpace(options.OrderingHttp), "ServiceUrls:OrderingHttp is required.")
@@ -67,6 +91,35 @@ public static class DependencyInjection
         {
             client.BaseAddress = new Uri(orderingBaseUrl);
             client.Timeout = TimeSpan.FromSeconds(5);
+        });
+
+        services.AddMassTransit(busRegistrationConfigurator =>
+        {
+            busRegistrationConfigurator.AddConsumer<PaymentCaptureRequestedConsumer>();
+            busRegistrationConfigurator.UsingRabbitMq((context, busFactoryConfigurator) =>
+            {
+                var rabbitMqOptions = RabbitMqOptionsResolver.Resolve(configuration);
+
+                busFactoryConfigurator.Message<PaymentCaptureRequestedIntegrationEvent>(messageConfigurator =>
+                {
+                    messageConfigurator.SetEntityName("payment.capture-requested");
+                });
+
+                busFactoryConfigurator.Host(
+                    rabbitMqOptions.Host,
+                    rabbitMqOptions.Port,
+                    rabbitMqOptions.VirtualHost,
+                    hostConfigurator =>
+                    {
+                        hostConfigurator.Username(rabbitMqOptions.UserName);
+                        hostConfigurator.Password(rabbitMqOptions.Password);
+                    });
+
+                busFactoryConfigurator.ReceiveEndpoint("payment.capture-requests", endpoint =>
+                {
+                    endpoint.ConfigureConsumer<PaymentCaptureRequestedConsumer>(context);
+                });
+            });
         });
 
         services.AddHostedService<PaymentOutboxDispatcherBackgroundService>();
