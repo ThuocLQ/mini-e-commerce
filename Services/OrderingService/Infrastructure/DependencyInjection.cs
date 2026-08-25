@@ -4,6 +4,7 @@ using MassTransit;
 using BuildingBlocks.Contracts.Events.Orders;
 using BuildingBlocks.Contracts.Events.Inventory;
 using BuildingBlocks.Contracts.Events.Payments;
+using BuildingBlocks.Contracts.Events.Discounts;
 using OrderingService.Application.Abstractions;
 using OrderingService.Application.IntegrationEvents;
 using OrderingService.Infrastructure.Clients;
@@ -62,6 +63,7 @@ public static class DependencyInjection
         {
             client.BaseAddress = new Uri(discountBaseUrl);
             client.Timeout = TimeSpan.FromSeconds(5);
+            client.DefaultRequestHeaders.Add("X-MicroShop-Internal-Key", internalApiKey);
         });
 
         services.AddHttpClient<IInventoryReservationClient, HttpInventoryReservationClient>(client =>
@@ -142,6 +144,8 @@ public static class DependencyInjection
                 busFactoryConfigurator.Message<PaymentCaptureRequestedIntegrationEvent>(messageConfigurator => messageConfigurator.SetEntityName("payment.capture-requested"));
                 busFactoryConfigurator.Message<PaymentVoidRequestedIntegrationEvent>(messageConfigurator => messageConfigurator.SetEntityName("payment.void-requested"));
                 busFactoryConfigurator.Message<PaymentRefundRequestedIntegrationEvent>(messageConfigurator => messageConfigurator.SetEntityName("payment.refund-requested"));
+                busFactoryConfigurator.Message<PromotionRedeemRequestedIntegrationEvent>(messageConfigurator => messageConfigurator.SetEntityName("promotion.redeem-requested"));
+                busFactoryConfigurator.Message<PromotionReleaseRequestedIntegrationEvent>(messageConfigurator => messageConfigurator.SetEntityName("promotion.release-requested"));
 
                 busFactoryConfigurator.Host(
                     rabbitMqOptions.Host,

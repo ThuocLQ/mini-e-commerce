@@ -130,17 +130,58 @@ public sealed class CheckoutIdempotencyTests
         Assert.Equal(lostAttemptOrderId, Assert.Single(inventory.ReleasedOrderIds));
     }
 
+    [Fact]
+    public async Task CouponReservation_IsAttachedToTheCreatedOrder()
+    {
+        var customerId = Guid.NewGuid();
+        var productId = Guid.NewGuid();
+        var basket = CreateBasket(customerId, productId, quantity: 1);
+        var repository = new StubOrderRepository(CreateOrder(customerId, productId, "other-checkout", new string('a', 64), Guid.NewGuid()));
+        var discount = new RecordingDiscountClient(isReserved: true);
+        var handler = CreateHandler(basket, repository, new RecordingInventoryReservationClient(), discount);
+
+        await handler.Handle(
+            new CheckoutCommand(customerId, "coupon-checkout", "SAVE10", basket.BasketId, basket.Version),
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(discount.ReservationId, repository.LastCreatedOrder!.DiscountReservationId);
+        Assert.Equal("SAVE10", repository.LastCreatedOrder.DiscountCode);
+        Assert.Equal(9m, repository.LastCreatedOrder.TotalAmount);
+    }
+
+    [Fact]
+    public async Task InventoryRejection_ReleasesTheCouponReservation()
+    {
+        var customerId = Guid.NewGuid();
+        var productId = Guid.NewGuid();
+        var basket = CreateBasket(customerId, productId, quantity: 1);
+        var repository = new StubOrderRepository(CreateOrder(customerId, productId, "other-checkout", new string('a', 64), Guid.NewGuid()));
+        var discount = new RecordingDiscountClient(isReserved: true);
+        var handler = CreateHandler(
+            basket,
+            repository,
+            new RecordingInventoryReservationClient(succeeds: false),
+            discount);
+
+        await Assert.ThrowsAsync<InsufficientInventoryException>(() => handler.Handle(
+            new CheckoutCommand(customerId, "coupon-inventory-rejected", "SAVE10", basket.BasketId, basket.Version),
+            TestContext.Current.CancellationToken));
+
+        Assert.Equal((discount.ReservationId, "Inventory reservation was rejected."), Assert.Single(discount.Releases));
+    }
+
     private static CheckoutHandler CreateHandler(
         BasketDto basket,
         IOrderRepository orderRepository,
-        IInventoryReservationClient inventoryClient)
+        IInventoryReservationClient inventoryClient,
+        IDiscountClient? discountClient = null)
     {
         return new CheckoutHandler(
             new StubBasketClient(basket),
             orderRepository,
             new StubOutboxRepository(),
             new StubCatalogProductSnapshotClient(),
-            new StubDiscountClient(),
+            discountClient ?? new StubDiscountClient(),
             inventoryClient,
             new InlineUnitOfWork(),
             Options.Create(new OrderEventOptions { Currency = "USD" }),
@@ -192,9 +233,35 @@ public sealed class CheckoutIdempotencyTests
     {
         public Task<DiscountApplicationResult> ApplyAsync(string couponCode, decimal orderAmount, CancellationToken cancellationToken = default) =>
             Task.FromResult(new DiscountApplicationResult(couponCode, false, 0m, orderAmount, "Coupon is not configured for this test."));
+
+        public Task<DiscountReservationResult> ReserveAsync(string couponCode, Guid orderId, Guid customerId, decimal orderAmount, DateTime expiresAtUtc, CancellationToken cancellationToken = default) =>
+            Task.FromResult(new DiscountReservationResult(false, null, couponCode, 0m, orderAmount, "Coupon is not configured for this test."));
+
+        public Task RedeemAsync(Guid reservationId, Guid orderId, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task ReleaseAsync(Guid reservationId, Guid orderId, string reason, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 
-    private sealed class RecordingInventoryReservationClient : IInventoryReservationClient
+    private sealed class RecordingDiscountClient(bool isReserved) : IDiscountClient
+    {
+        public Guid ReservationId { get; } = Guid.NewGuid();
+        public List<(Guid ReservationId, string Reason)> Releases { get; } = [];
+
+        public Task<DiscountApplicationResult> ApplyAsync(string couponCode, decimal orderAmount, CancellationToken cancellationToken = default) =>
+            Task.FromResult(new DiscountApplicationResult(couponCode, false, 0m, orderAmount, "Unused by checkout."));
+
+        public Task<DiscountReservationResult> ReserveAsync(string couponCode, Guid orderId, Guid customerId, decimal orderAmount, DateTime expiresAtUtc, CancellationToken cancellationToken = default) =>
+            Task.FromResult(new DiscountReservationResult(isReserved, isReserved ? ReservationId : null, couponCode, isReserved ? 1m : 0m, isReserved ? orderAmount - 1m : orderAmount, isReserved ? "Reserved." : "Rejected."));
+
+        public Task RedeemAsync(Guid reservationId, Guid orderId, CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task ReleaseAsync(Guid reservationId, Guid orderId, string reason, CancellationToken cancellationToken = default)
+        {
+            Releases.Add((reservationId, reason));
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class RecordingInventoryReservationClient(bool succeeds = true) : IInventoryReservationClient
     {
         public List<Guid> ReservedOrderIds { get; } = [];
         public List<Guid> ReleasedOrderIds { get; } = [];
@@ -202,7 +269,7 @@ public sealed class CheckoutIdempotencyTests
         public Task<InventoryReservationResponse> ReserveAsync(Guid orderId, IReadOnlyList<InventoryReservationItem> items, DateTime expiresAtUtc, CancellationToken cancellationToken = default)
         {
             ReservedOrderIds.Add(orderId);
-            return Task.FromResult(new InventoryReservationResponse(true, null));
+            return Task.FromResult(new InventoryReservationResponse(succeeds, succeeds ? null : "Insufficient stock."));
         }
 
         public Task ReleaseAsync(Guid orderId, CancellationToken cancellationToken = default)
@@ -222,6 +289,7 @@ public sealed class CheckoutIdempotencyTests
     {
         private int _idempotencyReads;
         private bool _createAttempted;
+        public Order? LastCreatedOrder { get; private set; }
 
         public Task<IReadOnlyList<Order>> GetAllAsync(CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<Order>>([existingOrder]);
         public Task<IReadOnlyList<Order>> GetByCustomerAsync(Guid customerId, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<Order>>([existingOrder]);
@@ -256,6 +324,7 @@ public sealed class CheckoutIdempotencyTests
                 throw new OrderAlreadyExistsException(order.CustomerId, order.IdempotencyKey!);
             }
 
+            LastCreatedOrder = order;
             return Task.FromResult(order);
         }
 

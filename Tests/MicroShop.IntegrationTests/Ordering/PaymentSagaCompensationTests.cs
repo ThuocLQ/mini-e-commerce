@@ -93,6 +93,8 @@ public sealed class PaymentSagaCompensationTests
     {
         var order = new Order(Guid.NewGuid(), Guid.NewGuid(), DateTime.UtcNow, OrderStatus.PendingPayment);
         order.AddItem(new OrderItem(Guid.NewGuid(), Guid.NewGuid(), "Product", 10m, 1));
+        order.ApplyDiscount("SAVE10", 1m);
+        order.AttachDiscountReservation(Guid.NewGuid());
         var paymentId = Guid.NewGuid();
         var outboxRepository = new RecordingOutboxRepository();
         var handler = new ApplyPaymentSagaEventHandler(
@@ -106,10 +108,13 @@ public sealed class PaymentSagaCompensationTests
             TestContext.Current.CancellationToken);
 
         Assert.Equal(OrderStatus.Cancelled, order.Status);
-        Assert.Equal(4, outboxRepository.Messages.Count);
+        Assert.Equal(5, outboxRepository.Messages.Count);
         Assert.Contains(outboxRepository.Messages, message =>
             message.Transport == OutboxTransport.RabbitMq &&
             message.Type.Contains("InventoryReleaseRequestedIntegrationEvent"));
+        Assert.Contains(outboxRepository.Messages, message =>
+            message.Transport == OutboxTransport.RabbitMq &&
+            message.Type.Contains("PromotionReleaseRequestedIntegrationEvent"));
     }
 
     [Fact]
@@ -167,6 +172,8 @@ public sealed class PaymentSagaCompensationTests
     {
         var order = new Order(Guid.NewGuid(), Guid.NewGuid(), DateTime.UtcNow, OrderStatus.PendingPayment);
         order.AddItem(new OrderItem(Guid.NewGuid(), Guid.NewGuid(), "Product", 10m, 1));
+        order.ApplyDiscount("SAVE10", 1m);
+        order.AttachDiscountReservation(Guid.NewGuid());
         var paymentId = Guid.NewGuid();
         var saga = OrderPaymentSaga.Start(order.Id, paymentId, DateTime.UtcNow, TimeSpan.FromMinutes(30));
         saga.MarkPaymentAuthorized(Guid.NewGuid(), DateTime.UtcNow);
@@ -185,8 +192,11 @@ public sealed class PaymentSagaCompensationTests
         Assert.NotNull(result);
         Assert.Equal(OrderStatus.Paid, order.Status);
         Assert.Equal(nameof(OrderPaymentSagaState.OrderPaid), result.State);
-        Assert.Equal(3, outboxRepository.Messages.Count);
+        Assert.Equal(4, outboxRepository.Messages.Count);
         Assert.Contains(outboxRepository.Messages, message => message.Transport == OutboxTransport.Kafka && message.Type == "OrderPaid");
+        Assert.Contains(outboxRepository.Messages, message =>
+            message.Transport == OutboxTransport.RabbitMq &&
+            message.Type.Contains("PromotionRedeemRequestedIntegrationEvent"));
     }
 
     [Fact]

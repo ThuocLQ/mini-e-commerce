@@ -5,6 +5,7 @@ using System.Text;
 using OrderingService.Application.Abstractions;
 using OrderingService.Application.Baskets;
 using OrderingService.Application.Inventory;
+using OrderingService.Application.Discounts;
 using OrderingService.Application.IntegrationEvents;
 using OrderingService.Application.Orders;
 using OrderingService.Application.Outbox;
@@ -135,18 +136,22 @@ public class CheckoutHandler : IRequestHandler<CheckoutCommand, OrderDto>
 
         if (!string.IsNullOrWhiteSpace(request.CouponCode))
         {
-            var discount = await _discountClient.ApplyAsync(
+            var discount = await _discountClient.ReserveAsync(
                 request.CouponCode.Trim(),
+                order.Id,
+                request.CustomerId,
                 order.SubtotalAmount,
+                DateTime.UtcNow.AddMinutes(30),
                 cancellationToken);
 
-            if (!discount.IsValid || discount.DiscountAmount <= 0 ||
+            if (!discount.IsReserved || discount.ReservationId is null || discount.DiscountAmount <= 0 ||
                 discount.FinalAmount != order.SubtotalAmount - discount.DiscountAmount)
             {
                 throw new ArgumentException(discount.Message);
             }
 
             order.ApplyDiscount(discount.CouponCode, discount.DiscountAmount);
+            order.AttachDiscountReservation(discount.ReservationId.Value);
         }
 
         var reservation = await _inventoryReservationClient.ReserveAsync(
@@ -156,6 +161,7 @@ public class CheckoutHandler : IRequestHandler<CheckoutCommand, OrderDto>
             cancellationToken);
         if (!reservation.Succeeded)
         {
+            await TryReleaseDiscountReservationAsync(order, "Inventory reservation was rejected.");
             throw new InsufficientInventoryException(reservation.FailureReason);
         }
 
@@ -179,6 +185,7 @@ public class CheckoutHandler : IRequestHandler<CheckoutCommand, OrderDto>
         catch (OrderAlreadyExistsException)
         {
             await TryReleaseReservationAfterPersistenceFailureAsync(order.Id);
+            await TryReleaseDiscountReservationAsync(order, "Order persistence found a duplicate checkout.");
 
             var duplicatedOrder = await _orderRepository.GetByCustomerAndIdempotencyKeyAsync(
                 request.CustomerId,
@@ -202,6 +209,7 @@ public class CheckoutHandler : IRequestHandler<CheckoutCommand, OrderDto>
         catch
         {
             await TryReleaseReservationAfterPersistenceFailureAsync(order.Id);
+            await TryReleaseDiscountReservationAsync(order, "Order persistence failed.");
 
             throw;
         }
@@ -318,6 +326,23 @@ public class CheckoutHandler : IRequestHandler<CheckoutCommand, OrderDto>
         catch (InventoryUnavailableException exception)
         {
             _logger.LogWarning(exception, "Could not release inventory after checkout persistence failed. OrderId: {OrderId}", orderId);
+        }
+    }
+
+    private async Task TryReleaseDiscountReservationAsync(Order order, string reason)
+    {
+        if (order.DiscountReservationId is not { } reservationId)
+        {
+            return;
+        }
+
+        try
+        {
+            await _discountClient.ReleaseAsync(reservationId, order.Id, reason, CancellationToken.None);
+        }
+        catch (DiscountUnavailableException exception)
+        {
+            _logger.LogWarning(exception, "Could not release discount reservation after checkout failure. OrderId: {OrderId}", order.Id);
         }
     }
 }

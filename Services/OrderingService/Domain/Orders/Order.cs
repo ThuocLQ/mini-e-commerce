@@ -15,6 +15,7 @@ public sealed class Order
     public Guid? CheckoutBasketId { get; }
     public string? DiscountCode { get; private set; }
     public decimal DiscountAmount { get; private set; }
+    public Guid? DiscountReservationId { get; private set; }
     public IReadOnlyList<OrderItem> Items => _items;
     public decimal SubtotalAmount => _items.Sum(item => item.TotalPrice);
     public decimal TotalAmount => SubtotalAmount - DiscountAmount;
@@ -89,6 +90,21 @@ public sealed class Order
 
         DiscountCode = couponCode.Trim().ToUpperInvariant();
         DiscountAmount = decimal.Round(discountAmount, 2, MidpointRounding.AwayFromZero);
+    }
+
+    public void AttachDiscountReservation(Guid reservationId)
+    {
+        if (reservationId == Guid.Empty)
+        {
+            throw new ArgumentException("Discount reservation id is required.", nameof(reservationId));
+        }
+
+        if (string.IsNullOrWhiteSpace(DiscountCode) || DiscountAmount <= 0)
+        {
+            throw new InvalidOperationException("A discount must be applied before attaching its reservation.");
+        }
+
+        DiscountReservationId = reservationId;
     }
 
     public bool MarkPendingPayment()

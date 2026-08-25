@@ -1,6 +1,7 @@
 using MediatR;
 using BuildingBlocks.Contracts.Events.Inventory;
 using BuildingBlocks.Contracts.Events.Payments;
+using BuildingBlocks.Contracts.Events.Discounts;
 using OrderingService.Application.Abstractions;
 using OrderingService.Application.IntegrationEvents;
 using OrderingService.Application.Outbox;
@@ -70,6 +71,7 @@ public sealed class ApplyPaymentSagaEventHandler : IRequestHandler<ApplyPaymentS
                 var projectionEvent = OrderIntegrationEventFactory.CreateOrderProjectionStatusChanged(order, previousOrderStatus);
                 await _outboxRepository.AddAsync(OutboxMessageFactory.Create(statusChangedEvent), transaction, cancellationToken);
                 await _outboxRepository.AddAsync(OutboxMessageFactory.CreateKafka(projectionEvent), transaction, cancellationToken);
+                await AddPromotionSettlementCommandAsync(order, request.EventId, transaction, cancellationToken);
             }
 
             if (currentSaga.State != previousSagaState)
@@ -152,6 +154,43 @@ public sealed class ApplyPaymentSagaEventHandler : IRequestHandler<ApplyPaymentS
                 Amount = order.TotalAmount,
                 Currency = order.Currency,
                 Reason = saga.LastError ?? "Payment saga requested refund.",
+                CorrelationId = order.Id.ToString("N"),
+                CausationId = causationEventId.ToString("D")
+            }), transaction, cancellationToken);
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private Task AddPromotionSettlementCommandAsync(
+        Order order,
+        Guid causationEventId,
+        System.Data.IDbTransaction transaction,
+        CancellationToken cancellationToken)
+    {
+        if (order.DiscountReservationId is not { } reservationId)
+        {
+            return Task.CompletedTask;
+        }
+
+        if (order.Status == OrderStatus.Paid)
+        {
+            return _outboxRepository.AddAsync(OutboxMessageFactory.Create(new PromotionRedeemRequestedIntegrationEvent
+            {
+                ReservationId = reservationId,
+                OrderId = order.Id,
+                CorrelationId = order.Id.ToString("N"),
+                CausationId = causationEventId.ToString("D")
+            }), transaction, cancellationToken);
+        }
+
+        if (order.Status == OrderStatus.Cancelled)
+        {
+            return _outboxRepository.AddAsync(OutboxMessageFactory.Create(new PromotionReleaseRequestedIntegrationEvent
+            {
+                ReservationId = reservationId,
+                OrderId = order.Id,
+                Reason = "Order was cancelled before payment capture completed.",
                 CorrelationId = order.Id.ToString("N"),
                 CausationId = causationEventId.ToString("D")
             }), transaction, cancellationToken);

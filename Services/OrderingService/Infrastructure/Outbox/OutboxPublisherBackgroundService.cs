@@ -3,6 +3,7 @@ using BuildingBlocks.Contracts.Correlation;
 using BuildingBlocks.Contracts.Events.Orders;
 using BuildingBlocks.Contracts.Events.Inventory;
 using BuildingBlocks.Contracts.Events.Payments;
+using BuildingBlocks.Contracts.Events.Discounts;
 using Confluent.Kafka;
 using MassTransit;
 using Microsoft.Extensions.Options;
@@ -304,6 +305,40 @@ public sealed class OutboxPublisherBackgroundService : BackgroundService
             {
                 var integrationEvent = JsonSerializer.Deserialize<PaymentRefundRequestedIntegrationEvent>(message.Content, JsonOptions)
                     ?? throw new InvalidOperationException($"Cannot deserialize outbox message {message.Id} to {nameof(PaymentRefundRequestedIntegrationEvent)}.");
+                using (CorrelationContext.BeginScope(integrationEvent.CorrelationId))
+                {
+                    await publishEndpoint.Publish(integrationEvent, publishContext =>
+                    {
+                        SetCorrelationHeaders(publishContext, integrationEvent.CorrelationId, integrationEvent.CausationId);
+                    }, cancellationToken);
+                }
+            }
+
+            return;
+        }
+
+        var promotionRedeemRequestedTypeName = typeof(PromotionRedeemRequestedIntegrationEvent).FullName;
+        var promotionReleaseRequestedTypeName = typeof(PromotionReleaseRequestedIntegrationEvent).FullName;
+        if (message.Type is nameof(PromotionRedeemRequestedIntegrationEvent) or nameof(PromotionReleaseRequestedIntegrationEvent)
+            || message.Type == promotionRedeemRequestedTypeName
+            || message.Type == promotionReleaseRequestedTypeName)
+        {
+            if (message.Type is nameof(PromotionRedeemRequestedIntegrationEvent) || message.Type == promotionRedeemRequestedTypeName)
+            {
+                var integrationEvent = JsonSerializer.Deserialize<PromotionRedeemRequestedIntegrationEvent>(message.Content, JsonOptions)
+                    ?? throw new InvalidOperationException($"Cannot deserialize outbox message {message.Id} to {nameof(PromotionRedeemRequestedIntegrationEvent)}.");
+                using (CorrelationContext.BeginScope(integrationEvent.CorrelationId))
+                {
+                    await publishEndpoint.Publish(integrationEvent, publishContext =>
+                    {
+                        SetCorrelationHeaders(publishContext, integrationEvent.CorrelationId, integrationEvent.CausationId);
+                    }, cancellationToken);
+                }
+            }
+            else
+            {
+                var integrationEvent = JsonSerializer.Deserialize<PromotionReleaseRequestedIntegrationEvent>(message.Content, JsonOptions)
+                    ?? throw new InvalidOperationException($"Cannot deserialize outbox message {message.Id} to {nameof(PromotionReleaseRequestedIntegrationEvent)}.");
                 using (CorrelationContext.BeginScope(integrationEvent.CorrelationId))
                 {
                     await publishEndpoint.Publish(integrationEvent, publishContext =>
