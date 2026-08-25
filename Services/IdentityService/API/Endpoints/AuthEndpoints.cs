@@ -13,6 +13,26 @@ public static class AuthEndpoints
         var group = app.MapGroup("/auth")
             .WithTags("Auth");
 
+        group.MapPost("/register", async (RegisterRequest request, ISender sender, CancellationToken cancellationToken) =>
+        {
+            try
+            {
+                var result = await sender.Send(new RegisterCommand(request.UserName, request.Password), cancellationToken);
+                return Results.Created($"/auth/users/{result.UserId:D}", result);
+            }
+            catch (UserNameAlreadyExistsException)
+            {
+                return Results.Conflict(new { Message = "Username is already registered." });
+            }
+            catch (ArgumentException exception)
+            {
+                return Results.ValidationProblem(new Dictionary<string, string[]>
+                {
+                    [exception.ParamName ?? "request"] = [exception.Message]
+                });
+            }
+        });
+
         group.MapPost("/login", async (LoginRequest request, ISender sender, CancellationToken cancellationToken) =>
         {
             var command = new LoginCommand(request.UserName, request.Password);

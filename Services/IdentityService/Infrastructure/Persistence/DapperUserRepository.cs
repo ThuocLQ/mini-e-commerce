@@ -41,6 +41,25 @@ public sealed class DapperUserRepository : IUserRepository
                 row.IsActive);
     }
 
+    public async Task<bool> CreateAsync(AppUser user, CancellationToken cancellationToken = default)
+    {
+        using var connection = _connectionFactory.CreateConnection();
+
+        return await connection.ExecuteAsync(new CommandDefinition("""
+            INSERT INTO Users (Id, UserName, NormalizedUserName, PasswordHash, Role, IsActive)
+            VALUES (@Id, @UserName, @NormalizedUserName, @PasswordHash, @Role, @IsActive)
+            ON CONFLICT (NormalizedUserName) DO NOTHING;
+            """, new
+        {
+            user.Id,
+            user.UserName,
+            NormalizedUserName = user.UserName.ToUpperInvariant(),
+            user.PasswordHash,
+            user.Role,
+            user.IsActive
+        }, cancellationToken: cancellationToken)) == 1;
+    }
+
     private sealed record UserRow(
         Guid Id,
         string UserName,
