@@ -99,4 +99,33 @@ public sealed class CatalogProductProvisioningTests
         Assert.NotNull(stored);
         Assert.Equal(8, stored.StockQuantity);
     }
+
+    [Fact]
+    public async Task DeactivateProduct_HidesItWithoutDeletingItsRecord()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var postgres = new PostgreSqlBuilder("postgres:17-alpine")
+            .WithDatabase("catalog_deactivate_test")
+            .WithUsername("postgres")
+            .WithPassword("postgres")
+            .Build();
+
+        await postgres.StartAsync(cancellationToken);
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["ConnectionStrings:CatalogDb"] = postgres.GetConnectionString() })
+            .Build();
+        var connectionFactory = new NpgsqlConnectionFactory(configuration);
+        await new PostgresDatabaseInitializer(configuration).InitializeAsync(cancellationToken);
+        var repository = new DapperProductRepository(connectionFactory);
+        var product = new Product("deactivate-product-001", "Retired product", "Lifecycle test", 4.99m, 3);
+        await repository.CreateAsync(product, cancellationToken);
+
+        Assert.True(await repository.DeactivateAsync(product.Id, cancellationToken));
+        Assert.Null(await repository.GetByIdAsync(product.Id, cancellationToken));
+
+        using var connection = connectionFactory.CreateConnection();
+        var isActive = await connection.ExecuteScalarAsync<bool>(new CommandDefinition(
+            "SELECT IsActive FROM Products WHERE Id = @Id;", new { product.Id }, cancellationToken: cancellationToken));
+        Assert.False(isActive);
+    }
 }

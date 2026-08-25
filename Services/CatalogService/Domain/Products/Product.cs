@@ -7,8 +7,9 @@ public sealed class Product
     public string Description { get; private set; }
     public decimal Price { get; private set; }
     public int StockQuantity { get; }
+    public bool IsActive { get; }
 
-    public Product(string id, string name, string description, decimal price, int stockQuantity = 0)
+    public Product(string id, string name, string description, decimal price, int stockQuantity = 0, bool isActive = true)
     {
         if (string.IsNullOrWhiteSpace(id))
         {
@@ -35,6 +36,7 @@ public sealed class Product
         Description = description;
         Price = price;
         StockQuantity = stockQuantity;
+        IsActive = isActive;
     }
 
     public void Rename(string name)

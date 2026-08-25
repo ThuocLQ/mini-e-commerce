@@ -20,15 +20,16 @@ public sealed class DapperProductRepository : IProductRepository
         using var connection = CreateConnection();
 
         await connection.ExecuteAsync(new CommandDefinition("""
-            INSERT INTO Products (Id, Name, Description, Price, StockQuantity)
-            VALUES (@Id, @Name, @Description, @Price, @StockQuantity)
+            INSERT INTO Products (Id, Name, Description, Price, StockQuantity, IsActive)
+            VALUES (@Id, @Name, @Description, @Price, @StockQuantity, @IsActive)
             """, new
         {
             product.Id,
             product.Name,
             product.Description,
             product.Price,
-            product.StockQuantity
+            product.StockQuantity,
+            product.IsActive
         }, cancellationToken: cancellationToken));
 
         return product;
@@ -37,15 +38,16 @@ public sealed class DapperProductRepository : IProductRepository
     public async Task<Product> CreateAsync(Product product, IDbTransaction transaction, CancellationToken cancellationToken = default)
     {
         await transaction.Connection!.ExecuteAsync(new CommandDefinition("""
-            INSERT INTO Products (Id, Name, Description, Price, StockQuantity)
-            VALUES (@Id, @Name, @Description, @Price, @StockQuantity)
+            INSERT INTO Products (Id, Name, Description, Price, StockQuantity, IsActive)
+            VALUES (@Id, @Name, @Description, @Price, @StockQuantity, @IsActive)
             """, new
         {
             product.Id,
             product.Name,
             product.Description,
             product.Price,
-            product.StockQuantity
+            product.StockQuantity,
+            product.IsActive
         }, transaction, cancellationToken: cancellationToken));
 
         return product;
@@ -58,7 +60,7 @@ public sealed class DapperProductRepository : IProductRepository
         var affectedRows = await connection.ExecuteAsync(new CommandDefinition("""
             UPDATE Products
             SET Name = @Name, Description = @Description, Price = @Price
-            WHERE Id = @Id;
+            WHERE Id = @Id AND IsActive = true;
             """, new
         {
             product.Id,
@@ -108,13 +110,14 @@ public sealed class DapperProductRepository : IProductRepository
         }, cancellationToken: cancellationToken)) == 1;
     }
 
-    public async Task<bool> DeleteAsync(string id, CancellationToken cancellationToken = default)
+    public async Task<bool> DeactivateAsync(string id, CancellationToken cancellationToken = default)
     {
         using var connection = CreateConnection();
 
         var affectedRows = await connection.ExecuteAsync(new CommandDefinition("""
-            DELETE FROM Products
-            WHERE Id = @Id;
+            UPDATE Products
+            SET IsActive = false
+            WHERE Id = @Id AND IsActive = true;
             """, new { Id = id }, cancellationToken: cancellationToken));
 
         return affectedRows > 0;
@@ -125,8 +128,9 @@ public sealed class DapperProductRepository : IProductRepository
         using var connection = CreateConnection();
 
         var rows = await connection.QueryAsync<ProductRow>(new CommandDefinition("""
-            SELECT Id, Name, Description, Price, StockQuantity
+            SELECT Id, Name, Description, Price, StockQuantity, IsActive
             FROM Products
+            WHERE IsActive = true
             ORDER BY Name;
             """, cancellationToken: cancellationToken));
 
@@ -138,9 +142,9 @@ public sealed class DapperProductRepository : IProductRepository
         using var connection = CreateConnection();
 
         var row = await connection.QueryFirstOrDefaultAsync<ProductRow>(new CommandDefinition("""
-            SELECT Id, Name, Description, Price, StockQuantity
+            SELECT Id, Name, Description, Price, StockQuantity, IsActive
             FROM Products
-            WHERE Id = @Id;
+            WHERE Id = @Id AND IsActive = true;
             """, new { Id = id }, cancellationToken: cancellationToken));
 
         return row is null ? null : ToDomain(row);
@@ -158,6 +162,7 @@ public sealed class DapperProductRepository : IProductRepository
         using var connection = CreateConnection();
         var parameters = new DynamicParameters();
         var whereClauses = new List<string>();
+        whereClauses.Add("IsActive = true");
 
         if (!string.IsNullOrWhiteSpace(criteria.SearchTerm))
         {
@@ -186,7 +191,7 @@ public sealed class DapperProductRepository : IProductRepository
             : "ORDER BY Name";
 
         var sql = $"""
-            SELECT Id, Name, Description, Price, StockQuantity
+            SELECT Id, Name, Description, Price, StockQuantity, IsActive
             FROM Products
             {whereSql}
             {orderBySql};
@@ -203,7 +208,7 @@ public sealed class DapperProductRepository : IProductRepository
         using var connection = CreateConnection();
 
         return await connection.ExecuteScalarAsync<int>(new CommandDefinition("""
-            SELECT COUNT(*) FROM Products
+            SELECT COUNT(*) FROM Products WHERE IsActive = true
             """, cancellationToken: cancellationToken));
     }
 
@@ -221,8 +226,8 @@ public sealed class DapperProductRepository : IProductRepository
 
     private static Product ToDomain(ProductRow row)
     {
-        return new Product(row.Id, row.Name, row.Description, Convert.ToDecimal(row.Price), row.StockQuantity);
+        return new Product(row.Id, row.Name, row.Description, Convert.ToDecimal(row.Price), row.StockQuantity, row.IsActive);
     }
 
-    private sealed record ProductRow(string Id, string Name, string Description, decimal Price, int StockQuantity);
+    private sealed record ProductRow(string Id, string Name, string Description, decimal Price, int StockQuantity, bool IsActive);
 }
