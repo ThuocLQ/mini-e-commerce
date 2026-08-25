@@ -10,6 +10,7 @@ $ErrorActionPreference = "Stop"
 
 $databases = @(
     "catalogdb",
+    "inventorydb",
     "orderingdb",
     "discountdb",
     "identitydb",

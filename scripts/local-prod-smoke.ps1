@@ -3,12 +3,41 @@ param(
     [string]$GatewayBaseUrl = "http://localhost:5027",
     [int]$TimeoutSeconds = 180,
     [int]$PollSeconds = 3,
+    [string]$EnvFile = ".env.local-prod",
+    [string]$AdminUserName,
+    [string]$AdminPassword,
     [switch]$SkipAuth
 )
 
 $ErrorActionPreference = "Stop"
 
 $GatewayBaseUrl = $GatewayBaseUrl.TrimEnd("/")
+
+function Get-EnvFileValue {
+    param([Parameter(Mandatory = $true)][string]$Key)
+
+    if (-not (Test-Path -Path $EnvFile)) {
+        return $null
+    }
+
+    foreach ($line in Get-Content -Path $EnvFile) {
+        $trimmed = $line.Trim()
+        if ([string]::IsNullOrWhiteSpace($trimmed) -or $trimmed.StartsWith("#")) {
+            continue
+        }
+
+        $separatorIndex = $trimmed.IndexOf("=")
+        if ($separatorIndex -lt 1) {
+            continue
+        }
+
+        if ($trimmed.Substring(0, $separatorIndex).Trim() -eq $Key) {
+            return $trimmed.Substring($separatorIndex + 1).Trim()
+        }
+    }
+
+    return $null
+}
 
 function Wait-HttpOk {
     param(
@@ -97,9 +126,21 @@ if ($null -eq $coupon) {
 }
 
 if (-not $SkipAuth) {
+    if ([string]::IsNullOrWhiteSpace($AdminUserName)) {
+        $AdminUserName = Get-EnvFileValue "MICROSHOP_BOOTSTRAP_ADMIN_USERNAME"
+    }
+
+    if ([string]::IsNullOrWhiteSpace($AdminPassword)) {
+        $AdminPassword = Get-EnvFileValue "MICROSHOP_BOOTSTRAP_ADMIN_PASSWORD"
+    }
+
+    if ([string]::IsNullOrWhiteSpace($AdminUserName) -or [string]::IsNullOrWhiteSpace($AdminPassword)) {
+        throw "Authentication smoke requires -AdminUserName/-AdminPassword or Bootstrap admin values in $EnvFile. Use -SkipAuth only when Identity is intentionally excluded."
+    }
+
     $login = Invoke-JsonPost "/auth/login" @{
-        userName = "admin"
-        password = "Admin@123"
+        userName = $AdminUserName
+        password = $AdminPassword
     }
 
     if ([string]::IsNullOrWhiteSpace($login.accessToken)) {

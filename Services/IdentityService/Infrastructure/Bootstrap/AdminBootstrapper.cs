@@ -5,23 +5,20 @@ using Microsoft.Extensions.Options;
 
 namespace IdentityService.Infrastructure.Bootstrap;
 
-public sealed class DevelopmentAdminBootstrapper : IAdminBootstrapper
+public sealed class AdminBootstrapper : IAdminBootstrapper
 {
     private readonly BootstrapAdminOptions _options;
-    private readonly IHostEnvironment _environment;
     private readonly IDbConnectionFactory _connectionFactory;
     private readonly IPasswordHasher _passwordHasher;
-    private readonly ILogger<DevelopmentAdminBootstrapper> _logger;
+    private readonly ILogger<AdminBootstrapper> _logger;
 
-    public DevelopmentAdminBootstrapper(
+    public AdminBootstrapper(
         IOptions<BootstrapAdminOptions> options,
-        IHostEnvironment environment,
         IDbConnectionFactory connectionFactory,
         IPasswordHasher passwordHasher,
-        ILogger<DevelopmentAdminBootstrapper> logger)
+        ILogger<AdminBootstrapper> logger)
     {
         _options = options.Value;
-        _environment = environment;
         _connectionFactory = connectionFactory;
         _passwordHasher = passwordHasher;
         _logger = logger;
@@ -32,12 +29,6 @@ public sealed class DevelopmentAdminBootstrapper : IAdminBootstrapper
         if (!_options.Enabled)
         {
             return;
-        }
-
-        if (!_environment.IsDevelopment())
-        {
-            throw new InvalidOperationException(
-                "BootstrapAdmin may only be enabled in the Development environment.");
         }
 
         var normalizedUserName = _options.UserName.Trim().ToUpperInvariant();
@@ -57,8 +48,8 @@ public sealed class DevelopmentAdminBootstrapper : IAdminBootstrapper
 
         _logger.LogInformation(
             inserted == 1
-                ? "Created explicitly configured development bootstrap administrator {UserName}."
-                : "Development bootstrap administrator {UserName} already exists.",
+                ? "Created explicitly configured bootstrap administrator {UserName}."
+                : "Bootstrap administrator {UserName} already exists.",
             _options.UserName.Trim());
     }
 }

@@ -14,6 +14,7 @@ if ($MongoDatabase -notmatch '^[A-Za-z0-9_-]+$') {
 
 $databases = @(
     "catalogdb",
+    "inventorydb",
     "orderingdb",
     "discountdb",
     "identitydb",

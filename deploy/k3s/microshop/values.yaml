@@ -97,6 +97,28 @@ apps:
       RabbitMq__VirtualHost: /
       RabbitMq__UserName: microshop
       RabbitMq__Password: $(MICROSHOP_RABBITMQ_PASSWORD)
+  inventoryservice:
+    kind: web
+    image:
+      repository: microshop-inventoryservice
+    secretEnv:
+      MICROSHOP_POSTGRES_PASSWORD: postgres-password
+      MICROSHOP_INTERNAL_API_KEY: internal-api-key
+      MICROSHOP_RABBITMQ_PASSWORD: rabbitmq-password
+    env:
+      ASPNETCORE_ENVIRONMENT: Kubernetes
+      ASPNETCORE_HTTP_PORTS: "8080"
+      ServiceDefaults__ExposeHealthEndpoints: "true"
+      ServiceDefaults__ValidateProductionConfiguration: "true"
+      ServiceDefaults__RequiredConfigurationKeys__0: ConnectionStrings:InventoryDb
+      ServiceDefaults__RequiredConfigurationKeys__1: InternalApi:Key
+      ServiceDefaults__RequiredConfigurationKeys__2: RabbitMq:Password
+      ConnectionStrings__InventoryDb: Host=postgres;Port=5432;Database=inventorydb;Username=microshop;Password=$(MICROSHOP_POSTGRES_PASSWORD)
+      InternalApi__Key: $(MICROSHOP_INTERNAL_API_KEY)
+      RabbitMq__Host: rabbitmq
+      RabbitMq__VirtualHost: /
+      RabbitMq__UserName: microshop
+      RabbitMq__Password: $(MICROSHOP_RABBITMQ_PASSWORD)
   basketservice:
     kind: web
     image:
@@ -141,6 +163,7 @@ apps:
       ServiceUrls__BasketHttp: http://basketservice:8080
       ServiceUrls__CatalogHttp: http://catalogservice:8080
       ServiceUrls__DiscountHttp: http://discountservice:8080
+      ServiceUrls__InventoryHttp: http://inventoryservice:8080
       RabbitMq__Host: rabbitmq
       RabbitMq__VirtualHost: /
       RabbitMq__UserName: microshop
@@ -169,6 +192,8 @@ apps:
     secretEnv:
       MICROSHOP_POSTGRES_PASSWORD: postgres-password
       MICROSHOP_JWT_SECRET_KEY: jwt-secret-key
+      MICROSHOP_BOOTSTRAP_ADMIN_USERNAME: bootstrap-admin-username
+      MICROSHOP_BOOTSTRAP_ADMIN_PASSWORD: bootstrap-admin-password
     env:
       ASPNETCORE_ENVIRONMENT: Kubernetes
       ASPNETCORE_HTTP_PORTS: "8080"
@@ -181,6 +206,9 @@ apps:
       Jwt__Audience: MicroShop.Client
       Jwt__SecretKey: $(MICROSHOP_JWT_SECRET_KEY)
       Jwt__ExpirationMinutes: "120"
+      BootstrapAdmin__Enabled: "true"
+      BootstrapAdmin__UserName: $(MICROSHOP_BOOTSTRAP_ADMIN_USERNAME)
+      BootstrapAdmin__Password: $(MICROSHOP_BOOTSTRAP_ADMIN_PASSWORD)
   paymentservice:
     kind: web
     image:

@@ -367,6 +367,9 @@ services:
       Jwt__Audience: MicroShop.Client
       Jwt__SecretKey: ${MICROSHOP_JWT_SECRET_KEY:?Set MICROSHOP_JWT_SECRET_KEY in .env.local-prod}
       Jwt__ExpirationMinutes: 120
+      BootstrapAdmin__Enabled: "true"
+      BootstrapAdmin__UserName: ${MICROSHOP_BOOTSTRAP_ADMIN_USERNAME:?Set MICROSHOP_BOOTSTRAP_ADMIN_USERNAME in .env.local-prod}
+      BootstrapAdmin__Password: ${MICROSHOP_BOOTSTRAP_ADMIN_PASSWORD:?Set MICROSHOP_BOOTSTRAP_ADMIN_PASSWORD in .env.local-prod}
     depends_on:
       postgres:
         condition: service_healthy

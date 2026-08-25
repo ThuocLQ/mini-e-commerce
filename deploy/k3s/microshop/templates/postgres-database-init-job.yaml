@@ -1,0 +1,39 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: postgres-database-init
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+  labels:
+    {{- include "microshop.labels" . | nindent 4 }}
+spec:
+  backoffLimit: 20
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: postgres-database-init
+        {{- include "microshop.labels" . | nindent 8 }}
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: postgres-database-init
+          image: postgres:17-alpine
+          env:
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.name }}
+                  key: postgres-password
+          command: ["/bin/sh", "-ec"]
+          args:
+            - |
+              until pg_isready -h postgres -U microshop -d postgres; do
+                sleep 2
+              done
+
+              for database in catalogdb inventorydb orderingdb discountdb identitydb paymentdb; do
+                psql -h postgres -U microshop -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname = '$database'" | grep -q 1 || \
+                  psql -h postgres -U microshop -d postgres -c "CREATE DATABASE \"$database\" OWNER microshop"
+              done

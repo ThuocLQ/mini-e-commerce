@@ -17,7 +17,9 @@ $requiredKeys = @(
     "MICROSHOP_MONGO_PASSWORD",
     "MICROSHOP_JWT_SECRET_KEY",
     "MICROSHOP_PAYMENT_WEBHOOK_SECRET",
-    "MICROSHOP_INTERNAL_API_KEY"
+    "MICROSHOP_INTERNAL_API_KEY",
+    "MICROSHOP_BOOTSTRAP_ADMIN_USERNAME",
+    "MICROSHOP_BOOTSTRAP_ADMIN_PASSWORD"
 )
 
 $values = @{}
@@ -62,6 +64,8 @@ kubectl create secret generic $SecretName `
     --from-literal=jwt-secret-key=$($values["MICROSHOP_JWT_SECRET_KEY"]) `
     --from-literal=payment-webhook-secret=$($values["MICROSHOP_PAYMENT_WEBHOOK_SECRET"]) `
     --from-literal=internal-api-key=$($values["MICROSHOP_INTERNAL_API_KEY"]) `
+    --from-literal=bootstrap-admin-username=$($values["MICROSHOP_BOOTSTRAP_ADMIN_USERNAME"]) `
+    --from-literal=bootstrap-admin-password=$($values["MICROSHOP_BOOTSTRAP_ADMIN_PASSWORD"]) `
     --dry-run=client `
     -o yaml | kubectl apply -f -
 

@@ -8,6 +8,7 @@ metadata:
 data:
   001-create-databases.sql: |
     CREATE DATABASE catalogdb;
+    CREATE DATABASE inventorydb;
     CREATE DATABASE orderingdb;
     CREATE DATABASE discountdb;
     CREATE DATABASE identitydb;

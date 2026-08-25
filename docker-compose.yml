@@ -310,6 +310,9 @@ services:
       Jwt__Audience: MicroShop.Client
       Jwt__SecretKey: microshop-development-secret-key-must-be-long-enough
       Jwt__ExpirationMinutes: 120
+      BootstrapAdmin__Enabled: ${MICROSHOP_BOOTSTRAP_ADMIN_ENABLED:-false}
+      BootstrapAdmin__UserName: ${MICROSHOP_BOOTSTRAP_ADMIN_USERNAME:-}
+      BootstrapAdmin__Password: ${MICROSHOP_BOOTSTRAP_ADMIN_PASSWORD:-}
     depends_on:
       postgres:
         condition: service_healthy

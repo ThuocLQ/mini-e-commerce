@@ -12,6 +12,7 @@ $ErrorActionPreference = "Stop"
 
 $databases = @(
     "catalogdb",
+    "inventorydb",
     "orderingdb",
     "discountdb",
     "identitydb",
@@ -22,6 +23,7 @@ $applicationServices = @(
     "reverse-proxy",
     "api-gateway",
     "catalogservice",
+    "inventoryservice",
     "basketservice",
     "orderingservice",
     "discountservice",

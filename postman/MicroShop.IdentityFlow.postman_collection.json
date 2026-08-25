@@ -13,6 +13,14 @@
     {
       "key": "accessToken",
       "value": ""
+    },
+    {
+      "key": "adminUserName",
+      "value": "SET_FROM_BOOTSTRAP_ADMIN_USERNAME"
+    },
+    {
+      "key": "adminPassword",
+      "value": "SET_FROM_BOOTSTRAP_ADMIN_PASSWORD"
     }
   ],
   "item": [
@@ -52,7 +60,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"userName\": \"admin\",\n  \"password\": \"Admin@123\"\n}"
+          "raw": "{\n  \"userName\": \"{{adminUserName}}\",\n  \"password\": \"{{adminPassword}}\"\n}"
         },
         "url": {
           "raw": "{{gatewayBaseUrl}}/auth/login",
@@ -80,7 +88,7 @@
               "",
               "const user = pm.response.json();",
               "pm.test('Admin user returned', function () {",
-              "  pm.expect(user.userName).to.eql('admin');",
+              "  pm.expect(user.userName).to.eql(pm.collectionVariables.get('adminUserName'));",
               "  pm.expect(user.role).to.eql('Admin');",
               "});"
             ]
@@ -140,7 +148,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"userName\": \"admin\",\n  \"password\": \"wrong-password\"\n}"
+          "raw": "{\n  \"userName\": \"{{adminUserName}}\",\n  \"password\": \"wrong-password\"\n}"
         },
         "url": {
           "raw": "{{gatewayBaseUrl}}/auth/login",

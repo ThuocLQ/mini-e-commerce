@@ -22,6 +22,8 @@ var redis = builder.AddRedis("Redis")
 
 var rabbitUserName = builder.AddParameter("RabbitMqUserName", "microshop");
 var rabbitPassword = builder.AddParameter("RabbitMqPassword", "microshop", secret: true);
+var bootstrapAdminUserName = builder.AddParameter("BootstrapAdminUserName");
+var bootstrapAdminPassword = builder.AddParameter("BootstrapAdminPassword", secret: true);
 
 var rabbit = builder.AddRabbitMQ("RabbitMQ", rabbitUserName, rabbitPassword, port: 5672)
     .WithManagementPlugin(port: 15672)
@@ -66,7 +68,10 @@ if (runFull || runOrderFlow)
 
     identity = builder.AddProject<Projects.IdentityService>("IdentityService", launchProfileName: "https")
         .WithReference(identityDb)
-        .WaitFor(identityDb);
+        .WaitFor(identityDb)
+        .WithEnvironment("BootstrapAdmin__Enabled", "true")
+        .WithEnvironment("BootstrapAdmin__UserName", bootstrapAdminUserName)
+        .WithEnvironment("BootstrapAdmin__Password", bootstrapAdminPassword);
 
     ordering = builder.AddProject<Projects.OrderingService>("OrderingService", launchProfileName: "https")
         .WithReference(orderingDb)

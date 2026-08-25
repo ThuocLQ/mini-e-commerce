@@ -14,8 +14,7 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(
         this IServiceCollection services,
-        IConfiguration configuration,
-        IHostEnvironment environment)
+        IConfiguration configuration)
     {
         var jwtSection = configuration.GetRequiredSection(JwtOptions.SectionName);
         var jwtOptions = jwtSection.Get<JwtOptions>()
@@ -24,7 +23,7 @@ public static class DependencyInjection
         ValidateJwtOptions(jwtOptions);
         var bootstrapSection = configuration.GetSection(BootstrapAdminOptions.SectionName);
         var bootstrapOptions = bootstrapSection.Get<BootstrapAdminOptions>() ?? new BootstrapAdminOptions();
-        ValidateBootstrapAdminOptions(bootstrapOptions, environment);
+        ValidateBootstrapAdminOptions(bootstrapOptions);
 
         services
             .AddOptions<JwtOptions>()
@@ -47,7 +46,7 @@ public static class DependencyInjection
             .AddOptions<BootstrapAdminOptions>()
             .Bind(bootstrapSection)
             .Validate(
-                options => IsBootstrapAdminConfigurationValid(options, environment),
+                IsBootstrapAdminConfigurationValid,
                 "BootstrapAdmin configuration is invalid.")
             .ValidateOnStart();
 
@@ -55,7 +54,7 @@ public static class DependencyInjection
         services.AddSingleton<IDatabaseInitializer, PostgresDatabaseInitializer>();
         services.AddScoped<IUserRepository, DapperUserRepository>();
         services.AddSingleton<IPasswordHasher, Pbkdf2PasswordHasher>();
-        services.AddScoped<IAdminBootstrapper, DevelopmentAdminBootstrapper>();
+        services.AddScoped<IAdminBootstrapper, AdminBootstrapper>();
         services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
         services.AddPostgresReadinessCheck(configuration, "IdentityDb");
 
@@ -110,30 +109,26 @@ public static class DependencyInjection
         }
     }
 
-    private static void ValidateBootstrapAdminOptions(
-        BootstrapAdminOptions options,
-        IHostEnvironment environment)
+    private static void ValidateBootstrapAdminOptions(BootstrapAdminOptions options)
     {
-        if (!IsBootstrapAdminConfigurationValid(options, environment))
+        if (!IsBootstrapAdminConfigurationValid(options))
         {
             throw new InvalidOperationException(
-                "BootstrapAdmin is only allowed in Development and requires a username between 3 and 100 characters and a password of at least 12 characters.");
+                "BootstrapAdmin requires a username between 3 and 100 characters and a password of at least 14 characters.");
         }
     }
 
-    private static bool IsBootstrapAdminConfigurationValid(
-        BootstrapAdminOptions options,
-        IHostEnvironment environment)
+    private static bool IsBootstrapAdminConfigurationValid(BootstrapAdminOptions options)
     {
         if (!options.Enabled)
         {
             return true;
         }
 
-        return environment.IsDevelopment()
-               && !string.IsNullOrWhiteSpace(options.UserName)
+        return !string.IsNullOrWhiteSpace(options.UserName)
                && options.UserName.Trim().Length is >= 3 and <= 100
                && !string.IsNullOrWhiteSpace(options.Password)
-               && options.Password.Length >= 12;
+               && options.Password.Length >= 14
+               && !options.Password.Contains("CHANGEME", StringComparison.OrdinalIgnoreCase);
     }
 }

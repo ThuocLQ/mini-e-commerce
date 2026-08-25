@@ -3,12 +3,41 @@ param(
     [string]$GatewayBaseUrl = "https://api.example.com",
     [int]$TimeoutSeconds = 180,
     [int]$PollSeconds = 3,
+    [string]$EnvFile = ".env.k3s",
+    [string]$AdminUserName,
+    [string]$AdminPassword,
     [switch]$SkipAuth
 )
 
 $ErrorActionPreference = "Stop"
 
 $GatewayBaseUrl = $GatewayBaseUrl.TrimEnd("/")
+
+function Get-EnvFileValue {
+    param([Parameter(Mandatory = $true)][string]$Key)
+
+    if (-not (Test-Path -Path $EnvFile)) {
+        return $null
+    }
+
+    foreach ($line in Get-Content -Path $EnvFile) {
+        $trimmed = $line.Trim()
+        if ([string]::IsNullOrWhiteSpace($trimmed) -or $trimmed.StartsWith("#")) {
+            continue
+        }
+
+        $separatorIndex = $trimmed.IndexOf("=")
+        if ($separatorIndex -lt 1) {
+            continue
+        }
+
+        if ($trimmed.Substring(0, $separatorIndex).Trim() -eq $Key) {
+            return $trimmed.Substring($separatorIndex + 1).Trim()
+        }
+    }
+
+    return $null
+}
 
 function Wait-HttpOk {
     param([Parameter(Mandatory = $true)][string]$Url)
@@ -71,9 +100,21 @@ Invoke-JsonGet "/discounts/SAVE10" | Out-Null
 Invoke-JsonGet "/order-summaries" | Out-Null
 
 if (-not $SkipAuth) {
+    if ([string]::IsNullOrWhiteSpace($AdminUserName)) {
+        $AdminUserName = Get-EnvFileValue "MICROSHOP_BOOTSTRAP_ADMIN_USERNAME"
+    }
+
+    if ([string]::IsNullOrWhiteSpace($AdminPassword)) {
+        $AdminPassword = Get-EnvFileValue "MICROSHOP_BOOTSTRAP_ADMIN_PASSWORD"
+    }
+
+    if ([string]::IsNullOrWhiteSpace($AdminUserName) -or [string]::IsNullOrWhiteSpace($AdminPassword)) {
+        throw "Authentication smoke requires -AdminUserName/-AdminPassword or Bootstrap admin values in $EnvFile. Use -SkipAuth only when Identity is intentionally excluded."
+    }
+
     $body = @{
-        userName = "admin"
-        password = "Admin@123"
+        userName = $AdminUserName
+        password = $AdminPassword
     } | ConvertTo-Json
 
     $login = Invoke-RestMethod -Uri "$GatewayBaseUrl/auth/login" -Method Post -ContentType "application/json" -Body $body -TimeoutSec 10

@@ -120,6 +120,12 @@ jobs:
 
           docker build \
             -f Dockerfile.service \
+            --build-arg PROJECT_PATH=Services/InventoryService/InventoryService.csproj \
+            --build-arg PROJECT_DLL=InventoryService.dll \
+            -t microshop/inventoryservice:ci .
+
+          docker build \
+            -f Dockerfile.service \
             --build-arg PROJECT_PATH=Workers/ProjectionWorker/ProjectionWorker.csproj \
             --build-arg PROJECT_DLL=ProjectionWorker.dll \
             -t microshop/projectionworker:ci .
@@ -141,6 +147,9 @@ jobs:
           - image: microshop-catalogservice
             project: Services/CatalogService/CatalogService.csproj
             dll: CatalogService.dll
+          - image: microshop-inventoryservice
+            project: Services/InventoryService/InventoryService.csproj
+            dll: InventoryService.dll
           - image: microshop-basketservice
             project: Services/BasketService/BasketService.csproj
             dll: BasketService.dll
