@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Diagnostics;
 using PaymentService.API.Endpoints;
+using PaymentService.Application.Payments.CreatePayment;
 using PaymentService.Application.Payments.Webhooks;
 using PaymentService.Infrastructure.Clients;
 
@@ -41,6 +42,12 @@ public static class DependencyInjection
                     {
                         error = exception.Message
                     }).ExecuteAsync(context);
+                    return;
+                }
+
+                if (exception is PaymentOrderNotAccessibleException)
+                {
+                    await Results.NotFound(new { error = "Order was not found." }).ExecuteAsync(context);
                     return;
                 }
 
