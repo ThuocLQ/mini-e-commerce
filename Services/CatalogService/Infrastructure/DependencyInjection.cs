@@ -20,6 +20,7 @@ public static class DependencyInjection
         services.AddSingleton<IDbConnectionFactory, NpgsqlConnectionFactory>();
         services.AddSingleton<IDatabaseInitializer, PostgresDatabaseInitializer>();
         services.AddScoped<IProductRepository, DapperProductRepository>();
+        services.AddScoped<ICatalogUnitOfWork, DapperCatalogUnitOfWork>();
         services.AddScoped<IInventoryReservationRepository, DapperInventoryReservationRepository>();
         services.AddScoped<ICatalogOutboxRepository, DapperCatalogOutboxRepository>();
         services.AddHostedService<ExpiredInventoryReservationWorker>();
@@ -57,6 +58,8 @@ public static class DependencyInjection
                     message.SetEntityName("inventory.committed"));
                 bus.Message<InventoryReleasedIntegrationEvent>(message =>
                     message.SetEntityName("inventory.released"));
+                bus.Message<InventoryItemProvisionRequestedIntegrationEvent>(message =>
+                    message.SetEntityName("inventory.item-provision-requested"));
 
                 bus.Host(rabbitMqHost, rabbitMqVirtualHost, host =>
                 {

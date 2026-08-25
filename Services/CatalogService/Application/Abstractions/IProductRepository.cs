@@ -1,4 +1,5 @@
 
+using System.Data;
 using CatalogService.Application.Products;
 using CatalogService.Domain.Products;
 
@@ -7,6 +8,7 @@ namespace CatalogService.Application.Abstractions;
 public interface IProductRepository
 {
     Task<Product> CreateAsync(Product product, CancellationToken cancellationToken = default);
+    Task<Product> CreateAsync(Product product, IDbTransaction transaction, CancellationToken cancellationToken = default);
     Task<Product?> UpdateAsync(Product product, CancellationToken cancellationToken = default);
     Task<Product?> SetStockQuantityAsync(string id, int stockQuantity, CancellationToken cancellationToken = default);
     Task<bool> DeleteAsync(string id, CancellationToken cancellationToken = default);

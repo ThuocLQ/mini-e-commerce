@@ -34,6 +34,23 @@ public sealed class DapperProductRepository : IProductRepository
         return product;
     }
 
+    public async Task<Product> CreateAsync(Product product, IDbTransaction transaction, CancellationToken cancellationToken = default)
+    {
+        await transaction.Connection!.ExecuteAsync(new CommandDefinition("""
+            INSERT INTO Products (Id, Name, Description, Price, StockQuantity)
+            VALUES (@Id, @Name, @Description, @Price, @StockQuantity)
+            """, new
+        {
+            product.Id,
+            product.Name,
+            product.Description,
+            product.Price,
+            product.StockQuantity
+        }, transaction, cancellationToken: cancellationToken));
+
+        return product;
+    }
+
     public async Task<Product?> UpdateAsync(Product product, CancellationToken cancellationToken = default)
     {
         using var connection = CreateConnection();

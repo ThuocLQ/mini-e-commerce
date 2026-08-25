@@ -128,6 +128,14 @@ public sealed class CatalogOutboxPublisherBackgroundService : BackgroundService
             return;
         }
 
+        if (message.Type is nameof(InventoryItemProvisionRequestedIntegrationEvent) or "BuildingBlocks.Contracts.Events.Inventory.InventoryItemProvisionRequestedIntegrationEvent")
+        {
+            var integrationEvent = JsonSerializer.Deserialize<InventoryItemProvisionRequestedIntegrationEvent>(message.Content, JsonOptions)
+                ?? throw new InvalidOperationException($"Cannot deserialize catalog outbox message {message.Id} to {nameof(InventoryItemProvisionRequestedIntegrationEvent)}.");
+            await PublishWithCorrelationAsync(publishEndpoint, integrationEvent, cancellationToken);
+            return;
+        }
+
         throw new NotSupportedException($"Unsupported catalog outbox message type: {message.Type}");
     }
 

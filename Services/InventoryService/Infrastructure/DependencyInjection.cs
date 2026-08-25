@@ -38,12 +38,14 @@ public static class DependencyInjection
         {
             configurator.AddConsumer<InventoryCommitRequestedConsumer>();
             configurator.AddConsumer<InventoryReleaseRequestedConsumer>();
+            configurator.AddConsumer<InventoryItemProvisionRequestedConsumer>();
             configurator.UsingRabbitMq((context, bus) =>
             {
                 bus.Message<InventoryCommitRequestedIntegrationEvent>(message => message.SetEntityName("inventory.commit-requested"));
                 bus.Message<InventoryReleaseRequestedIntegrationEvent>(message => message.SetEntityName("inventory.release-requested"));
                 bus.Message<InventoryCommittedIntegrationEvent>(message => message.SetEntityName("inventory.committed"));
                 bus.Message<InventoryReleasedIntegrationEvent>(message => message.SetEntityName("inventory.released"));
+                bus.Message<InventoryItemProvisionRequestedIntegrationEvent>(message => message.SetEntityName("inventory.item-provision-requested"));
                 bus.Host(host, virtualHost, hostConfigurator =>
                 {
                     hostConfigurator.Username(userName);
@@ -53,6 +55,7 @@ public static class DependencyInjection
                 {
                     endpoint.ConfigureConsumer<InventoryCommitRequestedConsumer>(context);
                     endpoint.ConfigureConsumer<InventoryReleaseRequestedConsumer>(context);
+                    endpoint.ConfigureConsumer<InventoryItemProvisionRequestedConsumer>(context);
                 });
             });
         });
