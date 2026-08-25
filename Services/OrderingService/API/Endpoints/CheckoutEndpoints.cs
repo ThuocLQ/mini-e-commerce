@@ -28,13 +28,13 @@ public static class CheckoutEndpoints
         ISender sender,
         CancellationToken cancellationToken)
     {
-        if (!TryGetAuthenticatedCustomerId(user, out var customerId) || customerId != request.CustomerId)
+        if (!TryGetAuthenticatedCustomerId(user, out var customerId))
         {
             return Results.Forbid();
         }
 
         var result = await sender.Send(
-            new CheckoutCommand(request.CustomerId, idempotencyKey ?? request.IdempotencyKey, request.CouponCode, request.BasketId, request.BasketVersion),
+            new CheckoutCommand(customerId, idempotencyKey ?? request.IdempotencyKey, request.CouponCode, request.BasketId, request.BasketVersion),
             cancellationToken);
 
         return Results.Created($"/orders/{result.Id}", result);
@@ -45,5 +45,5 @@ public static class CheckoutEndpoints
         return Guid.TryParse(user.FindFirst(ClaimTypes.NameIdentifier)?.Value, out customerId);
     }
 
-    private sealed record CheckoutRequest(Guid CustomerId, string? IdempotencyKey, string? CouponCode, Guid BasketId, long BasketVersion);
+    private sealed record CheckoutRequest(string? IdempotencyKey, string? CouponCode, Guid BasketId, long BasketVersion);
 }
