@@ -215,6 +215,26 @@ In this mode, only the local Caddy reverse proxy is published to the host at `ht
 Web services expose `/alive` for process liveness and `/health` for dependency readiness. Local-prod container health checks use `/health`, while Caddy still checks the edge path through `/alive`.
 The `.env.local-prod` file is ignored by Git and is the local home for production-like secrets.
 
+## Portfolio Experience
+
+Start the portfolio Core profile after `.env.local-prod` is configured:
+
+```powershell
+.\scripts\portfolio-up.ps1 -Mode Core
+```
+
+| Workspace | URL | Intended user |
+| --- | --- | --- |
+| Storefront | `http://localhost:5027` | Customer: browse products, register, add to cart, checkout, review orders, and initiate payment. |
+| Operations | `http://operations.localhost:5027` | Administrator: manage catalog, inventory, orders, payments, suppliers, and purchase-order receipts. Sign in with the bootstrap admin configured in `.env.local-prod`. |
+| API Gateway | `http://api.localhost:5027` | API and service verification only. |
+
+Run an opt-in customer journey smoke after the Core profile is healthy. It creates a unique local test customer, order, and pending provider payment; it intentionally does not simulate a provider callback.
+
+```powershell
+.\scripts\portfolio-customer-smoke.ps1
+```
+
 Run the local-prod smoke test again after the stack is up:
 
 ```powershell

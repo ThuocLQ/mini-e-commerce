@@ -4,6 +4,8 @@ param(
     [string]$ReleaseName = "microshop",
     [string]$ChartPath = "deploy/k3s/microshop",
     [string]$Domain = "api.example.com",
+    [string]$StorefrontDomain = "shop.example.com",
+    [string]$OperationsDomain = "ops.example.com",
     [string]$GatewayBaseUrl,
     [string]$ImageTag = "main",
     [string]$ImageRegistry = "ghcr.io/thuoclq",
@@ -74,8 +76,13 @@ try {
         "global.imageRegistry=$ImageRegistry",
         "global.imageTag=$ImageTag",
         "ingress.host=$Domain",
+        "ingress.storefrontHost=$StorefrontDomain",
+        "ingress.operationsHost=$OperationsDomain",
         "ingress.tls.secretName=microshop-api-tls",
-        "apps.api-gateway.env.Gateway__AllowedCorsOrigins__0=https://$Domain"
+        "apps.api-gateway.env.Gateway__AllowedCorsOrigins__0=https://$StorefrontDomain",
+        "apps.api-gateway.env.Gateway__AllowedCorsOrigins__1=https://$OperationsDomain",
+        "apps.storefront.env.MICROSHOP_PUBLIC_ORIGIN=https://$StorefrontDomain",
+        "apps.operations.env.MICROSHOP_PUBLIC_ORIGIN=https://$OperationsDomain"
     )
 
     if (-not [string]::IsNullOrWhiteSpace($ImagePullSecretName)) {
@@ -96,7 +103,7 @@ try {
         @setArguments
 
     if (-not $SkipSmoke) {
-        & (Join-Path $PSScriptRoot "k3s-smoke.ps1") -GatewayBaseUrl $GatewayBaseUrl -TimeoutSeconds 240
+        & (Join-Path $PSScriptRoot "k3s-smoke.ps1") -GatewayBaseUrl $GatewayBaseUrl -StorefrontBaseUrl "https://$StorefrontDomain" -OperationsBaseUrl "https://$OperationsDomain" -TimeoutSeconds 240
         if ($LASTEXITCODE -ne 0) {
             throw "K3s gateway smoke failed with exit code $LASTEXITCODE."
         }

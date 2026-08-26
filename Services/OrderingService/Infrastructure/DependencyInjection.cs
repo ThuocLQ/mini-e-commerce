@@ -61,19 +61,21 @@ public static class DependencyInjection
             client.Timeout = TimeSpan.FromSeconds(5);
         });
 
+        services.AddTransient<InternalApiKeyDelegatingHandler>(_ => new InternalApiKeyDelegatingHandler(internalApiKey));
+
         services.AddHttpClient<IDiscountClient, HttpDiscountClient>(client =>
         {
             client.BaseAddress = new Uri(discountBaseUrl);
             client.Timeout = TimeSpan.FromSeconds(5);
-            client.DefaultRequestHeaders.Add("X-MicroShop-Internal-Key", internalApiKey);
-        });
+        })
+        .AddHttpMessageHandler<InternalApiKeyDelegatingHandler>();
 
         services.AddHttpClient<IInventoryReservationClient, HttpInventoryReservationClient>(client =>
         {
             client.BaseAddress = new Uri(inventoryBaseUrl);
             client.Timeout = TimeSpan.FromSeconds(5);
-            client.DefaultRequestHeaders.Add("X-MicroShop-Internal-Key", internalApiKey);
-        });
+        })
+        .AddHttpMessageHandler<InternalApiKeyDelegatingHandler>();
         
         services
             .AddOptions<OrderEventOptions>()

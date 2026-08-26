@@ -135,6 +135,21 @@ public sealed class DapperPaymentRepository : IPaymentRepository
         return row is null ? null : MapPayment(row);
     }
 
+    public async Task<IReadOnlyList<Payment>> GetRecentAsync(int limit, CancellationToken cancellationToken = default)
+    {
+        using var connection = _connectionFactory.CreateConnection();
+
+        var rows = await connection.QueryAsync<PaymentRow>(new CommandDefinition("""
+            SELECT Id, OrderId, CustomerId, Amount, Currency, Status, ProviderTransactionId, FailureReason, CreatedAtUtc, CompletedAtUtc,
+                   AuthorizedAtUtc, CaptureRequestedAtUtc, CapturedAtUtc, VoidRequestedAtUtc, VoidedAtUtc,
+                   RefundRequestedAtUtc, RefundedAtUtc
+            FROM Payments
+            ORDER BY CreatedAtUtc DESC
+            LIMIT @Limit;
+            """, new { Limit = limit }, cancellationToken: cancellationToken));
+
+        return rows.Select(MapPayment).ToList();
+    }
     public async Task<bool> UpdateAsync(Payment payment, CancellationToken cancellationToken = default)
     {
         using var connection = _connectionFactory.CreateConnection();

@@ -126,6 +126,11 @@ public sealed class CreatePaymentFromOrderTests
             CancellationToken cancellationToken = default) =>
             Task.FromResult(_payment?.OrderId == orderId ? _payment : null);
 
+        public Task<IReadOnlyList<PaymentService.Domain.Payments.Payment>> GetRecentAsync(
+            int limit,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<PaymentService.Domain.Payments.Payment>>(_payment is null ? [] : [_payment]);
+
         public Task<bool> UpdateAsync(
             PaymentService.Domain.Payments.Payment payment,
             CancellationToken cancellationToken = default)

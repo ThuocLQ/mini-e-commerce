@@ -2,7 +2,9 @@ using InventoryService.API.Contracts;
 using InventoryService.Application.Inventory.CommitInventory;
 using InventoryService.Application.Inventory.ReleaseInventory;
 using InventoryService.Application.Inventory.ReserveInventory;
+using InventoryService.Application.Inventory.ReceiveInventoryStock;
 using InventoryService.Application.Inventory.UpsertStock;
+using InventoryService.Application.Inventory.GetInventoryItems;
 using MediatR;
 using System.Security.Cryptography;
 using System.Text;
@@ -30,6 +32,14 @@ public static class InventoryEndpoints
             return await next(context);
         });
 
+        group.MapPost("/stock-receipts", async (InventoryStockReceiptRequest request, ISender sender, CancellationToken cancellationToken) =>
+        {
+            var result = await sender.Send(new ReceiveInventoryStockCommand(
+                request.ReceiptId,
+                request.SourcePurchaseOrderId,
+                request.Items.Select(item => new InventoryStockReceiptItem(item.ProductId, item.Quantity)).ToList()), cancellationToken);
+            return Results.Ok(result);
+        });
         group.MapPost("/reservations", async (InventoryReservationRequest request, ISender sender, CancellationToken cancellationToken) =>
         {
             var result = await sender.Send(new ReserveInventoryCommand(
@@ -56,6 +66,16 @@ public static class InventoryEndpoints
         {
             await sender.Send(new CommitInventoryCommand(orderId), cancellationToken);
             return Results.NoContent();
+        });
+
+        var adminGroup = app.MapGroup("/inventory/admin")
+            .WithTags("Inventory")
+            .RequireAuthorization("administrator");
+
+        adminGroup.MapGet("/items", async (ISender sender, CancellationToken cancellationToken) =>
+        {
+            var result = await sender.Send(new GetInventoryItemsQuery(), cancellationToken);
+            return Results.Ok(result);
         });
 
         return app;

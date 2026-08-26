@@ -37,6 +37,8 @@ ingress:
   enabled: true
   className: traefik
   host: api.example.com
+  storefrontHost: shop.example.com
+  operationsHost: ops.example.com
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-prod
   tls:
@@ -67,6 +69,7 @@ apps:
       ReverseProxy__Clusters__discount-cluster__Destinations__discount-destination__Address: http://discountservice:8080/
       ReverseProxy__Clusters__identity-cluster__Destinations__identity-destination__Address: http://identityservice:8080/
       ReverseProxy__Clusters__payment-cluster__Destinations__payment-destination__Address: http://paymentservice:8080/
+      ReverseProxy__Clusters__supplier-cluster__Destinations__supplier-destination__Address: http://supplierservice:8080/
       ReverseProxy__Routes__basket-route__AuthorizationPolicy: authenticated
       ReverseProxy__Routes__ordering-route__AuthorizationPolicy: authenticated
       ReverseProxy__Routes__payment-route__AuthorizationPolicy: authenticated
@@ -295,6 +298,49 @@ apps:
       ConnectionStrings__Redis: redis:6379
       RabbitMq__UserName: microshop
       RabbitMq__Password: $(MICROSHOP_RABBITMQ_PASSWORD)
+
+  supplierservice:
+    kind: web
+    port: 8080
+    readinessPath: /actuator/health
+    livenessPath: /actuator/health
+    image:
+      repository: microshop-supplierservice
+    secretEnv:
+      MICROSHOP_POSTGRES_PASSWORD: postgres-password
+      MICROSHOP_JWT_SECRET_KEY: jwt-secret-key
+      MICROSHOP_INTERNAL_API_KEY: internal-api-key
+    env:
+      SERVER_PORT: "8080"
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/supplierdb
+      SUPPLIER_DB_USERNAME: microshop
+      SUPPLIER_DB_PASSWORD: $(MICROSHOP_POSTGRES_PASSWORD)
+      MICROSHOP_JWT_ISSUER: MicroShop.IdentityService
+      MICROSHOP_JWT_AUDIENCE: MicroShop.Client
+      INVENTORY_BASE_URL: http://inventoryservice:8080
+      MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: health,info,prometheus
+  storefront:
+    kind: web
+    port: 3000
+    readinessPath: /
+    livenessPath: /
+    image:
+      repository: microshop-storefront
+    env:
+      MICROSHOP_GATEWAY_BASE_URL: http://api-gateway:8080
+      MICROSHOP_PUBLIC_ORIGIN: https://shop.example.com
+      MICROSHOP_COOKIE_SECURE: "true"
+  operations:
+    kind: web
+    port: 3000
+    readinessPath: /
+    livenessPath: /
+    image:
+      repository: microshop-operations
+    env:
+      MICROSHOP_GATEWAY_BASE_URL: http://api-gateway:8080
+      MICROSHOP_PUBLIC_ORIGIN: https://ops.example.com
+      MICROSHOP_COOKIE_SECURE: "true"
 
 infra:
   postgres:

@@ -8,5 +8,30 @@
 		Referrer-Policy "no-referrer"
 	}
 
-	reverse_proxy api-gateway:8080
+	@operations host operations.localhost
+	handle @operations {
+		reverse_proxy operations:3000 {
+			header_up Host {http.request.header.Host}
+			header_up X-Forwarded-Host {http.request.header.Host}
+		}
+	}
+
+	@apiHost host api.localhost
+	handle @apiHost {
+		reverse_proxy api-gateway:8080
+	}
+
+	@apiPaths {
+		path /alive /health /auth /auth/* /catalog /catalog/* /cart /cart/* /orders /orders/* /payments /payments/* /inventory /inventory/* /discounts /discounts/* /suppliers /suppliers/* /procurement /procurement/* /order-summaries /order-summaries/*
+	}
+	handle @apiPaths {
+		reverse_proxy api-gateway:8080
+	}
+
+	handle {
+		reverse_proxy storefront:3000 {
+			header_up Host {http.request.header.Host}
+			header_up X-Forwarded-Host {http.request.header.Host}
+		}
+	}
 }

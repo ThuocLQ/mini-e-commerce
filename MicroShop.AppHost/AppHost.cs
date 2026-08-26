@@ -149,6 +149,11 @@ if (catalog is not null)
     gateway.WithReference(catalog);
 }
 
+if (inventory is not null)
+{
+    gateway.WithReference(inventory);
+}
+
 if (basket is not null)
 {
     gateway.WithReference(basket);

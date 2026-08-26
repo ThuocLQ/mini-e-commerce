@@ -2,7 +2,7 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: microshop-gateway
+  name: microshop-public
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "microshop.labels" . | nindent 4 }}
@@ -16,6 +16,8 @@ spec:
   tls:
     - hosts:
         - {{ .Values.ingress.host }}
+        - {{ .Values.ingress.storefrontHost }}
+        - {{ .Values.ingress.operationsHost }}
       secretName: {{ .Values.ingress.tls.secretName }}
   {{- end }}
   rules:
@@ -29,4 +31,24 @@ spec:
                 name: api-gateway
                 port:
                   number: 8080
+    - host: {{ .Values.ingress.storefrontHost }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: storefront
+                port:
+                  number: 3000
+    - host: {{ .Values.ingress.operationsHost }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: operations
+                port:
+                  number: 3000
 {{- end }}

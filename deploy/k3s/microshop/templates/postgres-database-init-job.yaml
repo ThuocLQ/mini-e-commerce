@@ -33,7 +33,7 @@ spec:
                 sleep 2
               done
 
-              for database in catalogdb inventorydb orderingdb discountdb identitydb paymentdb; do
+              for database in catalogdb inventorydb orderingdb discountdb identitydb paymentdb supplierdb; do
                 psql -h postgres -U microshop -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname = '$database'" | grep -q 1 || \
                   psql -h postgres -U microshop -d postgres -c "CREATE DATABASE \"$database\" OWNER microshop"
               done

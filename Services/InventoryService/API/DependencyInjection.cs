@@ -13,6 +13,10 @@ public static class DependencyInjection
             throw new InvalidOperationException("InternalApi:Key must be configured.");
         }
 
+        services.AddProblemDetails();
+        services.AddEndpointsApiExplorer();
+        services.AddMicroShopJwtAuthentication(configuration, environment);
+
         return services;
     }
 

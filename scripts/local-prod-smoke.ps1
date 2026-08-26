@@ -6,12 +6,18 @@ param(
     [string]$EnvFile = ".env.local-prod",
     [string]$AdminUserName,
     [string]$AdminPassword,
-    [switch]$SkipAuth
+    [switch]$SkipAuth,
+    [switch]$SkipReadModel,
+    [switch]$VerifyPortfolioFrontends,
+    [string]$StorefrontBaseUrl = "http://localhost:5027",
+    [string]$OperationsBaseUrl = "http://operations.localhost:5027"
 )
 
 $ErrorActionPreference = "Stop"
 
 $GatewayBaseUrl = $GatewayBaseUrl.TrimEnd("/")
+$StorefrontBaseUrl = $StorefrontBaseUrl.TrimEnd("/")
+$OperationsBaseUrl = $OperationsBaseUrl.TrimEnd("/")
 
 function Get-EnvFileValue {
     param([Parameter(Mandatory = $true)][string]$Key)
@@ -69,6 +75,27 @@ function Wait-HttpOk {
     throw "Timed out waiting for $Url. Last error: $lastError"
 }
 
+function Assert-PageContains {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Url,
+
+        [Parameter(Mandatory = $true)]
+        [string]$ExpectedText
+    )
+
+    $response = Invoke-WebRequest -Uri $Url -Method Get -UseBasicParsing -TimeoutSec 10
+    if ($response.StatusCode -lt 200 -or $response.StatusCode -ge 300) {
+        throw "Expected $Url to return a success response, got HTTP $($response.StatusCode)."
+    }
+
+    if (-not $response.Content.Contains($ExpectedText)) {
+        throw "Expected $Url to contain '$ExpectedText'."
+    }
+
+    Write-Host "[ok] UI $Url"
+}
+
 function Invoke-JsonGet {
     param(
         [Parameter(Mandatory = $true)]
@@ -105,19 +132,18 @@ Wait-HttpOk "$GatewayBaseUrl/alive"
 Wait-HttpOk "$GatewayBaseUrl/health"
 
 $products = Invoke-JsonGet "/catalog/products"
-$orders = Invoke-JsonGet "/orders"
-$orderSummaries = Invoke-JsonGet "/order-summaries"
 $coupon = Invoke-JsonGet "/discounts/SAVE10"
+
+if (-not $SkipReadModel) {
+    $orderSummaries = Invoke-JsonGet "/order-summaries"
+}
 
 if ($null -eq $products) {
     throw "Catalog products response was empty."
 }
 
-if ($null -eq $orders) {
-    throw "Orders response was empty."
-}
 
-if ($null -eq $orderSummaries) {
+if (-not $SkipReadModel -and $null -eq $orderSummaries) {
     throw "Order summaries response was empty."
 }
 
@@ -154,6 +180,23 @@ if (-not $SkipAuth) {
         -TimeoutSec 10 | Out-Null
 
     Write-Host "[ok] GET /auth/me"
+
+    $orders = Invoke-RestMethod `
+        -Uri "$GatewayBaseUrl/orders" `
+        -Method Get `
+        -Headers @{ Authorization = "Bearer $($login.accessToken)" } `
+        -TimeoutSec 10
+
+    if ($null -eq $orders) {
+        throw "Orders response was empty."
+    }
+
+    Write-Host "[ok] GET /orders"
+}
+
+if ($VerifyPortfolioFrontends) {
+    Assert-PageContains -Url $StorefrontBaseUrl -ExpectedText "MicroShop"
+    Assert-PageContains -Url $OperationsBaseUrl -ExpectedText "MicroShop Operations"
 }
 
 Write-Host "MicroShop local-prod smoke passed."

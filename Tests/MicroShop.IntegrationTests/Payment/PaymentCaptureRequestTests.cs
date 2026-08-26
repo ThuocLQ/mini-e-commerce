@@ -133,6 +133,9 @@ public sealed class PaymentCaptureRequestTests
         public Task<PaymentService.Domain.Payments.Payment?> GetByOrderIdAsync(Guid orderId, CancellationToken cancellationToken = default) =>
             Task.FromResult<PaymentService.Domain.Payments.Payment?>(orderId == payment.OrderId ? payment : null);
 
+        public Task<IReadOnlyList<PaymentService.Domain.Payments.Payment>> GetRecentAsync(int limit, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<PaymentService.Domain.Payments.Payment>>([payment]);
+
         public Task<bool> UpdateAsync(PaymentService.Domain.Payments.Payment updatedPayment, CancellationToken cancellationToken = default) =>
             Task.FromResult(true);
 

@@ -1,6 +1,8 @@
 [CmdletBinding()]
 param(
     [string]$GatewayBaseUrl = "https://api.example.com",
+    [string]$StorefrontBaseUrl = "https://shop.example.com",
+    [string]$OperationsBaseUrl = "https://ops.example.com",
     [int]$TimeoutSeconds = 180,
     [int]$PollSeconds = 3,
     [string]$EnvFile = ".env.k3s",
@@ -94,6 +96,8 @@ Write-Host "Running MicroShop K3s smoke against $GatewayBaseUrl"
 
 Wait-HttpOk "$GatewayBaseUrl/alive"
 Wait-HttpOk "$GatewayBaseUrl/health"
+Wait-HttpOk "$StorefrontBaseUrl/"
+Wait-HttpOk "$OperationsBaseUrl/"
 
 Invoke-JsonGet "/catalog/products" | Out-Null
 Invoke-JsonGet "/discounts/SAVE10" | Out-Null

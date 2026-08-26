@@ -87,7 +87,7 @@ services:
     environment:
       PGPASSWORD: ${MICROSHOP_POSTGRES_PASSWORD:?Set MICROSHOP_POSTGRES_PASSWORD in .env.local-prod}
     command: >
-      sh -ec 'for database in catalogdb inventorydb orderingdb discountdb identitydb paymentdb;
+      sh -ec 'for database in catalogdb inventorydb orderingdb discountdb identitydb paymentdb supplierdb;
       do psql -h postgres -U microshop -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname = '\''$$database'\''" |
       grep -q 1 || psql -h postgres -U microshop -d postgres -c "CREATE DATABASE $$database OWNER microshop";
       done'
@@ -183,6 +183,9 @@ services:
       - microshop-network
 
   mongodb:
+    profiles:
+      - read-model
+      - projection-rebuild
     image: mongo:7
     restart: unless-stopped
     stop_grace_period: 60s
@@ -246,6 +249,9 @@ services:
       ASPNETCORE_HTTP_PORTS: 8080
       ConnectionStrings__InventoryDb: Host=postgres;Port=5432;Database=inventorydb;Username=microshop;Password=${MICROSHOP_POSTGRES_PASSWORD:?Set MICROSHOP_POSTGRES_PASSWORD in .env.local-prod}
       InternalApi__Key: ${MICROSHOP_INTERNAL_API_KEY:?Set MICROSHOP_INTERNAL_API_KEY in .env.local-prod}
+      Jwt__Issuer: MicroShop.IdentityService
+      Jwt__Audience: MicroShop.Client
+      Jwt__SecretKey: ${MICROSHOP_JWT_SECRET_KEY:?Set MICROSHOP_JWT_SECRET_KEY in .env.local-prod}
       RabbitMq__Host: rabbitmq
       RabbitMq__VirtualHost: /
       RabbitMq__UserName: microshop
@@ -301,6 +307,7 @@ services:
       ServiceUrls__BasketHttp: http://basketservice:8080
       ServiceUrls__CatalogHttp: http://catalogservice:8080
       ServiceUrls__DiscountHttp: http://discountservice:8080
+      ServiceUrls__InventoryHttp: http://inventoryservice:8080
       Jwt__Issuer: MicroShop.IdentityService
       Jwt__Audience: MicroShop.Client
       Jwt__SecretKey: ${MICROSHOP_JWT_SECRET_KEY:?Set MICROSHOP_JWT_SECRET_KEY in .env.local-prod}
@@ -387,6 +394,10 @@ services:
       ASPNETCORE_ENVIRONMENT: Docker
       ASPNETCORE_HTTP_PORTS: 8080
       ConnectionStrings__PaymentDb: Host=postgres;Port=5432;Database=paymentdb;Username=microshop;Password=${MICROSHOP_POSTGRES_PASSWORD:?Set MICROSHOP_POSTGRES_PASSWORD in .env.local-prod}
+      RabbitMq__Host: rabbitmq
+      RabbitMq__VirtualHost: /
+      RabbitMq__UserName: microshop
+      RabbitMq__Password: ${MICROSHOP_RABBITMQ_PASSWORD:?Set MICROSHOP_RABBITMQ_PASSWORD in .env.local-prod}
       ServiceUrls__OrderingHttp: http://orderingservice:8080
       Jwt__Issuer: MicroShop.IdentityService
       Jwt__Audience: MicroShop.Client
@@ -398,10 +409,15 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
       orderingservice:
         condition: service_healthy
 
   orderqueryservice:
+    profiles:
+      - read-model
+      - projection-rebuild
     <<: *web-service-runtime
     image: microshop/orderqueryservice:local-prod
     build:
@@ -426,6 +442,9 @@ services:
         condition: service_healthy
 
   projectionworker:
+    profiles:
+      - read-model
+      - projection-rebuild
     <<: *worker-runtime
     image: microshop/projectionworker:local-prod
     build:
@@ -477,6 +496,35 @@ services:
       redis:
         condition: service_healthy
 
+  supplierservice:
+    <<: *service-runtime
+    image: microshop/supplierservice:local-prod
+    build:
+      context: ./Services/SupplierService
+      dockerfile: Dockerfile
+    environment:
+      SERVER_PORT: 8080
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/supplierdb
+      SUPPLIER_DB_USERNAME: microshop
+      SUPPLIER_DB_PASSWORD: ${MICROSHOP_POSTGRES_PASSWORD:?Set MICROSHOP_POSTGRES_PASSWORD in .env.local-prod}
+      MICROSHOP_JWT_ISSUER: MicroShop.IdentityService
+      MICROSHOP_JWT_AUDIENCE: MicroShop.Client
+      MICROSHOP_JWT_SECRET_KEY: ${MICROSHOP_JWT_SECRET_KEY:?Set MICROSHOP_JWT_SECRET_KEY in .env.local-prod}
+      INVENTORY_BASE_URL: http://inventoryservice:8080
+      MICROSHOP_INTERNAL_API_KEY: ${MICROSHOP_INTERNAL_API_KEY:?Set MICROSHOP_INTERNAL_API_KEY in .env.local-prod}
+    expose:
+      - "8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O- http://127.0.0.1:8080/actuator/health | grep -q '\"status\":\"UP\"'"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      postgres-init:
+        condition: service_completed_successfully
   api-gateway:
     <<: *web-service-runtime
     image: microshop/api-gateway:local-prod
@@ -506,11 +554,54 @@ services:
         condition: service_healthy
       paymentservice:
         condition: service_healthy
-      orderqueryservice:
+      supplierservice:
         condition: service_healthy
       notificationworker:
         condition: service_started
 
+  storefront:
+    <<: *web-service-runtime
+    image: microshop/storefront:local-prod
+    build:
+      context: ./Frontend/apps/storefront
+      dockerfile: Dockerfile
+    environment:
+      MICROSHOP_GATEWAY_BASE_URL: http://api-gateway:8080
+      MICROSHOP_PUBLIC_ORIGIN: http://localhost:5027
+      MICROSHOP_COOKIE_SECURE: 'false'
+    expose:
+      - "3000"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O- http://127.0.0.1:3000/ >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+
+  operations:
+    <<: *web-service-runtime
+    image: microshop/operations:local-prod
+    build:
+      context: ./Frontend/apps/operations
+      dockerfile: Dockerfile
+    environment:
+      MICROSHOP_GATEWAY_BASE_URL: http://api-gateway:8080
+      MICROSHOP_PUBLIC_ORIGIN: http://operations.localhost:5027
+      MICROSHOP_COOKIE_SECURE: 'false'
+    expose:
+      - "3000"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O- http://127.0.0.1:3000/ >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    depends_on:
+      api-gateway:
+        condition: service_healthy
 volumes:
   caddy_data:
   caddy_config:

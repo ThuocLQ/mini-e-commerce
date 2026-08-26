@@ -40,6 +40,60 @@ jobs:
       - name: Test
         run: dotnet test Tests/MicroShop.IntegrationTests/MicroShop.IntegrationTests.csproj --no-build --nologo -v minimal
 
+  supplier-build-test:
+    name: Build and test SupplierService
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: Test and package
+        run: mvn -B -ntp -f Services/SupplierService/pom.xml verify
+
+  frontend-build-test:
+    name: Build and lint frontend
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        app:
+          - storefront
+          - operations
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Setup pnpm
+        run: corepack enable && corepack prepare pnpm@11.19.0 --activate
+
+      - name: Install dependencies
+        working-directory: Frontend/apps/${{ matrix.app }}
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        working-directory: Frontend/apps/${{ matrix.app }}
+        run: pnpm lint
+
+      - name: Build
+        working-directory: Frontend/apps/${{ matrix.app }}
+        run: pnpm build
+
   runtime-validation:
     name: Runtime validation
     runs-on: ubuntu-latest
@@ -75,6 +129,11 @@ jobs:
             "scripts/local-prod-rc-verify.ps1",
             "scripts/local-prod-smoke.ps1",
             "scripts/local-prod-up.ps1",
+            "scripts/portfolio-customer-smoke.ps1",
+            "scripts/portfolio-seed.ps1",
+            "scripts/portfolio-up.ps1",
+            "scripts/portfolio-public-up.ps1",
+            "scripts/portfolio-public-down.ps1",
             "scripts/test-kafka-lesson25.ps1",
             "scripts/test-order-outbox-kafka.ps1",
             "scripts/test-projection-reliability.ps1",
@@ -95,6 +154,9 @@ jobs:
 
       - name: Validate local-prod observability compose
         run: docker compose --env-file .env.example -f compose.local-prod.yml -f compose.observability.yml config --quiet
+
+      - name: Validate portfolio compose
+        run: docker compose --env-file .env.example -f compose.local-prod.yml -f compose.portfolio.yml config --quiet
 
       - name: Setup Helm
         uses: azure/setup-helm@v4
@@ -199,6 +261,52 @@ jobs:
           build-args: |
             PROJECT_PATH=${{ matrix.project }}
             PROJECT_DLL=${{ matrix.dll }}
+          tags: |
+            ghcr.io/thuoclq/${{ matrix.image }}:main
+            ghcr.io/thuoclq/${{ matrix.image }}:main-${{ github.sha }}
+  portfolio-images:
+    name: Build portfolio images
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    needs:
+      - supplier-build-test
+      - frontend-build-test
+      - runtime-validation
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: microshop-supplierservice
+            context: ./Services/SupplierService
+            dockerfile: ./Services/SupplierService/Dockerfile
+          - image: microshop-storefront
+            context: ./Frontend/apps/storefront
+            dockerfile: ./Frontend/apps/storefront/Dockerfile
+          - image: microshop-operations
+            context: ./Frontend/apps/operations
+            dockerfile: ./Frontend/apps/operations/Dockerfile
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        if: github.event_name == 'push'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and optionally push
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          push: ${{ github.event_name == 'push' }}
           tags: |
             ghcr.io/thuoclq/${{ matrix.image }}:main
             ghcr.io/thuoclq/${{ matrix.image }}:main-${{ github.sha }}

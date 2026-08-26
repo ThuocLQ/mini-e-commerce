@@ -42,7 +42,9 @@ public static class CheckoutEndpoints
 
     private static bool TryGetAuthenticatedCustomerId(ClaimsPrincipal user, out Guid customerId)
     {
-        return Guid.TryParse(user.FindFirst(ClaimTypes.NameIdentifier)?.Value, out customerId);
+        var customerIdValue = user.FindFirstValue(ClaimTypes.NameIdentifier)
+                              ?? user.FindFirstValue("sub");
+        return Guid.TryParse(customerIdValue, out customerId);
     }
 
     private sealed record CheckoutRequest(string? IdempotencyKey, string? CouponCode, Guid BasketId, long BasketVersion);

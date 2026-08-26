@@ -12,6 +12,14 @@ on:
         required: true
         default: main
         type: string
+      storefrontDomain:
+        description: Public Storefront domain, for example shop.example.com
+        required: true
+        type: string
+      operationsDomain:
+        description: Public Operations domain, for example ops.example.com
+        required: true
+        type: string
       namespace:
         description: Kubernetes namespace
         required: true
@@ -71,7 +79,9 @@ jobs:
           helm template microshop deploy/k3s/microshop \
             --namespace "${{ inputs.namespace }}" \
             --set global.imageTag="${{ inputs.imageTag }}" \
-            --set ingress.host="${{ inputs.domain }}" >/tmp/microshop-k3s.yaml
+            --set ingress.host="${{ inputs.domain }}" \
+            --set ingress.storefrontHost="${{ inputs.storefrontDomain }}" \
+            --set ingress.operationsHost="${{ inputs.operationsDomain }}" >/tmp/microshop-k3s.yaml
 
       - name: Deploy
         shell: pwsh
@@ -80,6 +90,8 @@ jobs:
             "-Namespace", "${{ inputs.namespace }}",
             "-ReleaseName", "${{ inputs.releaseName }}",
             "-Domain", "${{ inputs.domain }}",
+            "-StorefrontDomain", "${{ inputs.storefrontDomain }}",
+            "-OperationsDomain", "${{ inputs.operationsDomain }}",
             "-ImageTag", "${{ inputs.imageTag }}"
           )
 

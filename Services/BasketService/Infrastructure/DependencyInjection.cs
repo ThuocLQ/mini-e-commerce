@@ -4,7 +4,6 @@ using BasketService.Infrastructure.Persistence;
 using CatalogService.Grpc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Refit;
 using StackExchange.Redis;
 
 namespace BasketService.Infrastructure;
@@ -48,12 +47,11 @@ public static class DependencyInjection
         services.AddSingleton<IConnectionMultiplexer>(_ =>
             ConnectionMultiplexer.Connect(redisConnectionString));
 
-        services.AddRefitClient<ICatalogApi>()
-            .ConfigureHttpClient(client =>
-            {
-                client.BaseAddress = new Uri(serviceUrls.CatalogHttp);
-                client.Timeout = Timeout.InfiniteTimeSpan;
-            });
+        services.AddHttpClient<ICatalogProductClient, CatalogProductClient>(client =>
+        {
+            client.BaseAddress = new Uri(serviceUrls.CatalogHttp);
+            client.Timeout = TimeSpan.FromSeconds(5);
+        });
 
         services.AddGrpcClient<CatalogGrpc.CatalogGrpcClient>(options =>
         {
@@ -61,7 +59,6 @@ public static class DependencyInjection
         });
 
         services.AddScoped<IBasketRepository, RedisBasketRepository>();
-        services.AddScoped<ICatalogProductClient, CatalogProductClient>();
 
         return services;
     }

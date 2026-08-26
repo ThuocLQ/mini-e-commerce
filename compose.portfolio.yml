@@ -1,0 +1,99 @@
+# Compose override for a 16 GB development laptop or a small portfolio host.
+# Combine with compose.local-prod.yml; it does not change images, contracts, or secrets.
+# Full read-side behavior remains available through the read-model profile.
+services:
+  reverse-proxy:
+    mem_limit: 96m
+    cpus: 0.25
+
+  postgres:
+    mem_limit: 768m
+    cpus: 0.75
+
+  postgres-init:
+    mem_limit: 128m
+    cpus: 0.25
+
+  redis:
+    mem_limit: 128m
+    cpus: 0.25
+
+  rabbitmq:
+    mem_limit: 384m
+    cpus: 0.50
+
+  zookeeper:
+    mem_limit: 256m
+    cpus: 0.25
+    environment:
+      KAFKA_HEAP_OPTS: -Xms128m -Xmx192m
+
+  kafka:
+    mem_limit: 1152m
+    cpus: 1.00
+    environment:
+      KAFKA_HEAP_OPTS: -Xms512m -Xmx768m
+
+  kafka-init:
+    mem_limit: 256m
+    cpus: 0.25
+
+  mongodb:
+    mem_limit: 512m
+    cpus: 0.50
+
+  catalogservice:
+    mem_limit: 256m
+    cpus: 0.50
+
+  inventoryservice:
+    mem_limit: 320m
+    cpus: 0.50
+
+  basketservice:
+    mem_limit: 256m
+    cpus: 0.50
+
+  orderingservice:
+    mem_limit: 384m
+    cpus: 0.75
+
+  discountservice:
+    mem_limit: 192m
+    cpus: 0.35
+
+  identityservice:
+    mem_limit: 256m
+    cpus: 0.50
+
+  paymentservice:
+    mem_limit: 256m
+    cpus: 0.50
+
+  orderqueryservice:
+    mem_limit: 256m
+    cpus: 0.50
+
+  projectionworker:
+    mem_limit: 256m
+    cpus: 0.50
+
+  notificationworker:
+    mem_limit: 192m
+    cpus: 0.35
+
+  supplierservice:
+    mem_limit: 384m
+    cpus: 0.50
+
+  api-gateway:
+    mem_limit: 256m
+    cpus: 0.50
+
+  storefront:
+    mem_limit: 256m
+    cpus: 0.50
+
+  operations:
+    mem_limit: 256m
+    cpus: 0.50

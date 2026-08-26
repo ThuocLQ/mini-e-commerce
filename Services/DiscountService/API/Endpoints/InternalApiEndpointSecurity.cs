@@ -17,9 +17,21 @@ internal static class InternalApiEndpointSecurity
             var suppliedKey = context.HttpContext.Request.Headers[HeaderName].ToString();
             var supplied = Encoding.UTF8.GetBytes(suppliedKey);
             var expected = Encoding.UTF8.GetBytes(expectedKey);
-            return supplied.Length == expected.Length && CryptographicOperations.FixedTimeEquals(supplied, expected)
-                ? await next(context)
-                : Results.NotFound();
+            var isValid = supplied.Length == expected.Length && CryptographicOperations.FixedTimeEquals(supplied, expected);
+            if (!isValid)
+            {
+                var logger = context.HttpContext.RequestServices
+                    .GetRequiredService<ILoggerFactory>()
+                    .CreateLogger(typeof(InternalApiEndpointSecurity));
+                logger.LogWarning(
+                    "Rejected internal discount request. HeaderPresent={HeaderPresent}; SuppliedLength={SuppliedLength}; ExpectedLength={ExpectedLength}",
+                    !string.IsNullOrWhiteSpace(suppliedKey),
+                    supplied.Length,
+                    expected.Length);
+                return Results.NotFound();
+            }
+
+            return await next(context);
         });
 
         return group;

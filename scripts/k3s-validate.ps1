@@ -25,6 +25,11 @@ $scripts = @(
     "scripts/local-prod-rc-verify.ps1",
     "scripts/local-prod-smoke.ps1",
     "scripts/local-prod-up.ps1",
+    "scripts/portfolio-customer-smoke.ps1",
+    "scripts/portfolio-seed.ps1",
+    "scripts/portfolio-up.ps1",
+    "scripts/portfolio-public-up.ps1",
+    "scripts/portfolio-public-down.ps1",
     "scripts/test-kafka-lesson25.ps1",
     "scripts/test-projection-reliability.ps1"
 )
@@ -52,6 +57,13 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host "[ok] Docker Compose files are valid."
+
+docker compose --env-file .env.example -f compose.local-prod.yml -f compose.portfolio.yml config --quiet
+if ($LASTEXITCODE -ne 0) {
+    throw "portfolio compose validation failed."
+}
+
+Write-Host "[ok] Portfolio Compose file is valid."
 
 if ($SkipHelm) {
     Write-Host "[skip] Helm validation skipped."

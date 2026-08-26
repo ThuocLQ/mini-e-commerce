@@ -13,3 +13,4 @@ data:
     CREATE DATABASE discountdb;
     CREATE DATABASE identitydb;
     CREATE DATABASE paymentdb;
+    CREATE DATABASE supplierdb;

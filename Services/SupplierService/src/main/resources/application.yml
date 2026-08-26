@@ -1,0 +1,36 @@
+spring:
+  application:
+    name: supplier-service
+  datasource:
+    url: ${SUPPLIER_DB_URL:jdbc:postgresql://localhost:5432/supplierdb}
+    username: ${SUPPLIER_DB_USERNAME:microshop}
+    password: ${SUPPLIER_DB_PASSWORD:microshop}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+microshop:
+  jwt:
+    issuer: ${MICROSHOP_JWT_ISSUER:MicroShop.IdentityService}
+    audience: ${MICROSHOP_JWT_AUDIENCE:MicroShop.Client}
+    secret-key: ${MICROSHOP_JWT_SECRET_KEY:}
+  inventory:
+    base-url: ${INVENTORY_BASE_URL:http://localhost:7009}
+    internal-api-key: ${MICROSHOP_INTERNAL_API_KEY:}
+server:
+  port: ${SERVER_PORT:8080}
+  shutdown: graceful

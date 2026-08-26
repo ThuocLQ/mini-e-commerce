@@ -16,6 +16,8 @@ await app.InitializeDatabaseAsync();
 app.UseCorrelationId();
 app.UseApiExceptionHandling();
 app.UseHttpsRedirection();
+app.UseAuthentication();
+app.UseAuthorization();
 app.MapDefaultEndpoints();
 app.MapApiEndpoints();
 
