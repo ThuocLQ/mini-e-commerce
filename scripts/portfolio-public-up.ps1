@@ -44,17 +44,17 @@ if (Test-Path -LiteralPath $statePath) {
 }
 
 if (-not $SkipPortfolioStart) {
-    $startArguments = @(
-        "-Mode", $Mode,
-        "-EnvFile", $EnvFile,
-        "-GatewayBaseUrl", $GatewayBaseUrl
-    )
-
-    if ($Build) {
-        $startArguments += "-Build"
+    $startParameters = @{
+        Mode = $Mode
+        EnvFile = $EnvFile
+        GatewayBaseUrl = $GatewayBaseUrl
     }
 
-    & (Join-Path $PSScriptRoot "portfolio-up.ps1") @startArguments
+    if ($Build) {
+        $startParameters.Build = $true
+    }
+
+    & (Join-Path $PSScriptRoot "portfolio-up.ps1") @startParameters
     if ($LASTEXITCODE -ne 0) {
         throw "Portfolio stack startup failed with exit code $LASTEXITCODE."
     }
