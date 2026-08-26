@@ -71,15 +71,26 @@ function Assert-OriginReady {
         [string]$HostHeader
     )
 
-    try {
-        $response = Invoke-WebRequest -Uri $Url -Headers @{ Host = $HostHeader } -UseBasicParsing -TimeoutSec 10
-        if ($response.StatusCode -lt 200 -or $response.StatusCode -ge 400) {
-            throw "HTTP $($response.StatusCode)"
+    $deadline = (Get-Date).AddSeconds($TunnelReadyTimeoutSeconds)
+    $lastError = $null
+
+    while ((Get-Date) -lt $deadline) {
+        try {
+            $response = Invoke-WebRequest -Uri $Url -Headers @{ Host = $HostHeader } -UseBasicParsing -TimeoutSec 10
+            if ($response.StatusCode -ge 200 -and $response.StatusCode -lt 400) {
+                return
+            }
+
+            $lastError = "HTTP $($response.StatusCode)"
         }
+        catch {
+            $lastError = $_.Exception.Message
+        }
+
+        Start-Sleep -Seconds 2
     }
-    catch {
-        throw "Portfolio origin '$Url' is not ready: $($_.Exception.Message)"
-    }
+
+    throw "Portfolio origin '$Url' did not become ready within $TunnelReadyTimeoutSeconds seconds. Last error: $lastError"
 }
 
 function Start-QuickTunnel {
