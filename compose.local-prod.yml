@@ -44,7 +44,7 @@ services:
     cap_add:
       - NET_BIND_SERVICE
     ports:
-      - "5027:8080"
+      - "127.0.0.1:5027:8080"
     volumes:
       - ./docker/caddy/Caddyfile.local-prod:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
@@ -567,8 +567,10 @@ services:
       dockerfile: Dockerfile
     environment:
       MICROSHOP_GATEWAY_BASE_URL: http://api-gateway:8080
-      MICROSHOP_PUBLIC_ORIGIN: http://localhost:5027
-      MICROSHOP_COOKIE_SECURE: 'false'
+      # The public-tunnel script replaces these with its generated HTTPS origin
+      # and secure cookie setting before it presents the URL to users.
+      MICROSHOP_PUBLIC_ORIGIN: ${MICROSHOP_STOREFRONT_PUBLIC_ORIGIN:-http://localhost:5027}
+      MICROSHOP_COOKIE_SECURE: ${MICROSHOP_STOREFRONT_COOKIE_SECURE:-false}
     expose:
       - "3000"
     healthcheck:
@@ -589,8 +591,8 @@ services:
       dockerfile: Dockerfile
     environment:
       MICROSHOP_GATEWAY_BASE_URL: http://api-gateway:8080
-      MICROSHOP_PUBLIC_ORIGIN: http://operations.localhost:5027
-      MICROSHOP_COOKIE_SECURE: 'false'
+      MICROSHOP_PUBLIC_ORIGIN: ${MICROSHOP_OPERATIONS_PUBLIC_ORIGIN:-http://operations.localhost:5027}
+      MICROSHOP_COOKIE_SECURE: ${MICROSHOP_OPERATIONS_COOKIE_SECURE:-false}
     expose:
       - "3000"
     healthcheck:

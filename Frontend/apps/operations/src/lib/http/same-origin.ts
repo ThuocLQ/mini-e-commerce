@@ -1,18 +1,34 @@
 export function hasSameOrigin(request: Request): boolean {
   const origin = request.headers.get("origin");
-  if (origin === null) return true;
+  if (origin === null) return false;
 
-  const configuredOrigin = process.env.MICROSHOP_PUBLIC_ORIGIN?.replace(/\/$/, "");
-  if (configuredOrigin && origin === configuredOrigin) return true;
+  const configuredOrigins = getConfiguredOrigins();
+  if (configuredOrigins !== null) return configuredOrigins.includes(origin);
 
-  if (process.env.MICROSHOP_ALLOW_TRYCLOUDFLARE_ORIGIN === "true") {
-    try {
-      const publicOrigin = new URL(origin);
-      return publicOrigin.protocol === "https:" && publicOrigin.hostname.endsWith(".trycloudflare.com");
-    } catch {
-      return false;
-    }
+  try {
+    return origin === new URL(request.url).origin;
+  } catch {
+    return false;
   }
+}
 
-  return !configuredOrigin && origin === new URL(request.url).origin;
+function getConfiguredOrigins(): string[] | null {
+  const configured = process.env.MICROSHOP_ALLOWED_ORIGINS
+    ?? process.env.MICROSHOP_PUBLIC_ORIGIN;
+
+  if (configured === undefined) return null;
+
+  return configured
+    .split(",")
+    .map(value => value.trim())
+    .filter(Boolean)
+    .flatMap(normalizeOrigin);
+}
+
+function normalizeOrigin(value: string): string[] {
+  try {
+    return [new URL(value).origin];
+  } catch {
+    return [];
+  }
 }

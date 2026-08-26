@@ -13,6 +13,7 @@ $ErrorActionPreference = "Stop"
 
 $statePath = Join-Path $env:TEMP "microshop-portfolio-tunnels.json"
 $logDirectory = Join-Path $env:TEMP "microshop-portfolio-tunnels"
+$portfolioNetworkName = "microshop-local-prod_microshop-network"
 $cloudflared = Get-Command cloudflared -ErrorAction SilentlyContinue
 $docker = Get-Command docker -ErrorAction SilentlyContinue
 
@@ -102,7 +103,7 @@ function Start-QuickTunnel {
         [string]$OriginHostHeader
     )
 
-    $originUrl = if ($runtime -eq "Docker") { "http://host.docker.internal:5027" } else { "http://localhost:5027" }
+    $originUrl = if ($runtime -eq "Docker") { "http://reverse-proxy:8080" } else { "http://localhost:5027" }
     Assert-OriginReady -Url "http://localhost:5027" -HostHeader $OriginHostHeader
 
     $stdoutPath = Join-Path $logDirectory "$Name.stdout.log"
@@ -118,7 +119,7 @@ function Start-QuickTunnel {
         }
 
         $process = Start-Process -FilePath $docker.Source `
-            -ArgumentList @("run", "--rm", "--name", $containerName, "cloudflare/cloudflared:latest", "tunnel", "--no-autoupdate", "--url", $originUrl, "--http-host-header", $OriginHostHeader) `
+            -ArgumentList @("run", "--rm", "--name", $containerName, "--network", $portfolioNetworkName, "cloudflare/cloudflared:latest", "tunnel", "--no-autoupdate", "--url", $originUrl, "--http-host-header", $OriginHostHeader) `
             -RedirectStandardOutput $stdoutPath `
             -RedirectStandardError $stderrPath `
             -WindowStyle Hidden `
@@ -177,10 +178,87 @@ function Start-QuickTunnel {
     }
 }
 
-$tunnels = @(
-    Start-QuickTunnel -Name "storefront" -OriginHostHeader "localhost"
-    Start-QuickTunnel -Name "operations" -OriginHostHeader "operations.localhost"
-)
+function Stop-QuickTunnel {
+    param([Parameter(Mandatory = $true)]$Tunnel)
+
+    if ($Tunnel.Runtime -eq "Docker") {
+        & docker stop $Tunnel.ContainerName 2>$null | Out-Null
+        return
+    }
+
+    Stop-Process -Id $Tunnel.ProcessId -Force -ErrorAction SilentlyContinue
+}
+
+function Get-HttpStatus {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Url,
+
+        [Parameter(Mandatory = $true)]
+        [hashtable]$Headers
+    )
+
+    try {
+        return (Invoke-WebRequest -Uri $Url -Method Post -Headers $Headers -ContentType "application/json" -Body '{"userName":"origin-check","password":"not-a-valid-password"}' -UseBasicParsing -TimeoutSec 15).StatusCode
+    }
+    catch {
+        if ($null -ne $_.Exception.Response) {
+            return [int]$_.Exception.Response.StatusCode
+        }
+
+        throw
+    }
+}
+
+function Assert-BffOriginPolicy {
+    param([Parameter(Mandatory = $true)]$Tunnel)
+
+    Assert-OriginReady -Url "http://localhost:5027" -HostHeader $Tunnel.OriginHostHeader
+
+    $requestUrl = "http://localhost:5027/api/session"
+    $allowedStatus = Get-HttpStatus -Url $requestUrl -Headers @{ Host = $Tunnel.OriginHostHeader; Origin = $Tunnel.Url }
+    if ($allowedStatus -ne 401) {
+        throw "Expected the configured public origin for '$($Tunnel.Name)' to reach authentication (HTTP 401 for invalid credentials), but received HTTP $allowedStatus."
+    }
+
+    $blockedStatus = Get-HttpStatus -Url $requestUrl -Headers @{ Host = $Tunnel.OriginHostHeader; Origin = "https://untrusted.example" }
+    if ($blockedStatus -ne 403) {
+        throw "Expected an untrusted origin for '$($Tunnel.Name)' to be rejected with HTTP 403, but received HTTP $blockedStatus."
+    }
+}
+
+$tunnels = @()
+try {
+    $tunnels += Start-QuickTunnel -Name "storefront" -OriginHostHeader "localhost"
+    $tunnels += Start-QuickTunnel -Name "operations" -OriginHostHeader "operations.localhost"
+
+    $frontendParameters = @{
+        Mode = $Mode
+        EnvFile = $EnvFile
+        GatewayBaseUrl = $GatewayBaseUrl
+        StorefrontPublicOrigin = $tunnels[0].Url
+        OperationsPublicOrigin = $tunnels[1].Url
+        RecreateFrontends = $true
+        SkipSmoke = $true
+        SkipSeed = $true
+    }
+
+    & (Join-Path $PSScriptRoot "portfolio-up.ps1") @frontendParameters
+    if ($LASTEXITCODE -ne 0) {
+        throw "Portfolio frontend origin configuration failed with exit code $LASTEXITCODE."
+    }
+
+    foreach ($tunnel in $tunnels) {
+        Assert-BffOriginPolicy -Tunnel $tunnel
+    }
+}
+catch {
+    foreach ($tunnel in $tunnels) {
+        Stop-QuickTunnel -Tunnel $tunnel
+    }
+
+    throw
+}
 
 @{
     Mode = $Mode
