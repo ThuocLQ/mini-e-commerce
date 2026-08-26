@@ -1,18 +1,22 @@
 "use client";
 
-import { Minus, Plus, ShoppingBag, Trash2, X } from "lucide-react";
+import { LoaderCircle, Minus, Plus, RefreshCw, ShoppingBag, Trash2, X } from "lucide-react";
 import { useState } from "react";
-import type { Basket } from "@/lib/storefront/types";
+import type { Basket, OrderSummary } from "@/lib/storefront/types";
+
+type BasketLoadState = "idle" | "loading" | "ready" | "unavailable";
 
 type BasketPanelProps = {
   basket: Basket | null;
+  loadState: BasketLoadState;
   busyProductId: string | null;
   message: string | null;
-  confirmation: string | null;
+  confirmation: OrderSummary | null;
   isCheckingOut: boolean;
   onCheckout: (couponCode: string) => void;
   onClose: () => void;
   onViewOrders: () => void;
+  onRetry: () => void;
   onChangeQuantity: (productId: string, quantity: number) => void;
   onRemove: (productId: string) => void;
 };
@@ -21,6 +25,7 @@ const money = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD
 
 export function BasketPanel({
   basket,
+  loadState,
   busyProductId,
   message,
   confirmation,
@@ -28,6 +33,7 @@ export function BasketPanel({
   onCheckout,
   onClose,
   onViewOrders,
+  onRetry,
   onChangeQuantity,
   onRemove,
 }: BasketPanelProps) {
@@ -47,9 +53,17 @@ export function BasketPanel({
           </button>
         </header>
         {message ? <p className="mx-5 mt-4 border-l-2 border-[var(--danger)] bg-[#fff7f6] px-3 py-2 text-sm text-[var(--danger)]" role="alert">{message}</p> : null}
-        {confirmation ? <div className="mx-5 mt-4 border-l-2 border-[var(--accent)] bg-[#f4fbf6] px-3 py-3 text-sm text-[var(--accent-strong)]" role="status"><p>{confirmation}</p><button className="mt-3 inline-flex h-9 items-center border border-[var(--accent)] px-3 text-sm font-semibold text-[var(--accent)] hover:bg-white" onClick={onViewOrders} type="button">View order</button></div> : null}
+        {confirmation ? <div className="mx-5 mt-4 border-l-2 border-[var(--accent)] bg-[#f4fbf6] px-3 py-3 text-sm text-[var(--accent-strong)]" role="status"><p>Order #{confirmation.id.slice(0, 8).toUpperCase()} was created and is awaiting payment.</p><button className="mt-3 inline-flex h-9 items-center border border-[var(--accent)] px-3 text-sm font-semibold text-[var(--accent)] hover:bg-white" onClick={onViewOrders} type="button">View order status</button></div> : null}
 
-        {items.length === 0 ? (
+        {loadState === "loading" ? (
+          <div aria-live="polite" className="grid flex-1 place-items-center px-8 text-center text-[var(--muted)]">
+            <div><LoaderCircle aria-hidden="true" className="mx-auto animate-spin" size={26} /><p className="mt-3 text-sm">Loading your cart…</p></div>
+          </div>
+        ) : loadState === "unavailable" ? (
+          <div className="grid flex-1 place-items-center px-8 text-center">
+            <div><ShoppingBag aria-hidden="true" className="mx-auto text-[var(--muted)]" size={30} /><h3 className="mt-4 font-semibold">Your cart could not be loaded</h3><p className="mt-2 text-sm text-[var(--muted)]">Your saved items have not been changed. Try again when you are ready.</p><button className="mt-5 inline-flex h-10 items-center gap-2 border border-[var(--accent)] px-4 text-sm font-semibold text-[var(--accent)] hover:bg-[#e9f2ed]" onClick={onRetry} type="button"><RefreshCw aria-hidden="true" size={16} />Retry</button></div>
+          </div>
+        ) : items.length === 0 ? (
           <div className="grid flex-1 place-items-center px-8 text-center">
             <div>
               <ShoppingBag aria-hidden="true" className="mx-auto text-[var(--muted)]" size={30} />
@@ -86,13 +100,13 @@ export function BasketPanel({
           </div>
         )}
 
-        <footer className="border-t border-[var(--line)] p-5">
+        {loadState === "ready" ? <footer className="border-t border-[var(--line)] p-5">
           <div className="flex items-center justify-between text-lg font-semibold">
             <span>Subtotal</span><span>{money.format(basket?.totalPrice ?? 0)}</span>
           </div>
           <label className="mt-5 block text-sm font-medium">Promotion code<input className="mt-2 h-10 w-full border border-[var(--line)] bg-white px-3 font-normal outline-none focus:border-[var(--accent)]" disabled={isCheckingOut} onChange={(event) => setCouponCode(event.target.value)} placeholder="Optional" value={couponCode} /></label>
           <button className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 bg-[var(--accent)] px-4 text-sm font-semibold text-white hover:bg-[var(--accent-strong)] disabled:cursor-not-allowed disabled:bg-[#8ba89b]" disabled={items.length === 0 || isCheckingOut} onClick={() => onCheckout(couponCode)} type="button">{isCheckingOut ? <span className="animate-pulse">Creating order</span> : "Place order"}</button>
-        </footer>
+        </footer> : null}
       </aside>
     </div>
   );

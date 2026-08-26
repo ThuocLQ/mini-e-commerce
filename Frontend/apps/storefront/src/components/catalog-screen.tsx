@@ -21,34 +21,68 @@ type SessionState =
   | { status: "anonymous" }
   | { status: "authenticated"; user: CurrentUser };
 
+type BasketLoadState = "idle" | "loading" | "ready" | "unavailable";
+
 const money = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
 
 export function CatalogScreen() {
   const [catalog, setCatalog] = useState<CatalogState>({ status: "loading", products: [] });
   const [session, setSession] = useState<SessionState>({ status: "loading" });
   const [basket, setBasket] = useState<Basket | null>(null);
+  const [basketLoadState, setBasketLoadState] = useState<BasketLoadState>("idle");
   const [query, setQuery] = useState("");
   const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [authNotice, setAuthNotice] = useState<string | null>(null);
   const [isBasketOpen, setIsBasketOpen] = useState(false);
   const [basketMessage, setBasketMessage] = useState<string | null>(null);
   const [busyProductId, setBusyProductId] = useState<string | null>(null);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
-  const [orderConfirmation, setOrderConfirmation] = useState<string | null>(null);
+  const [orderConfirmation, setOrderConfirmation] = useState<OrderSummary | null>(null);
+  const [recentOrder, setRecentOrder] = useState<OrderSummary | null>(null);
   const [orders, setOrders] = useState<OrderSummary[]>([]);
   const [ordersMessage, setOrdersMessage] = useState<string | null>(null);
   const [isOrdersOpen, setIsOrdersOpen] = useState(false);
   const [isOrdersLoading, setIsOrdersLoading] = useState(false);
-  const [isStartingPayment, setIsStartingPayment] = useState(false);
+  const [startingPaymentOrderId, setStartingPaymentOrderId] = useState<string | null>(null);
   const [paymentMessage, setPaymentMessage] = useState<string | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<CatalogProduct | null>(null);
   const checkoutKeys = useRef(new Map<string, string>());
 
-  const loadBasket = useCallback(async (userId: string) => {
-    const response = await fetch(`/api/cart/${encodeURIComponent(userId)}`);
-    const payload: unknown = await response.json().catch(() => null);
-    if (!response.ok || !isBasket(payload)) throw new Error(messageOf(payload) ?? "Your cart could not be loaded.");
-    setBasket(payload);
+  const recoverExpiredSession = useCallback(() => {
+    setSession({ status: "anonymous" });
+    setBasket(null);
+    setBasketLoadState("idle");
+    setOrders([]);
+    setOrderConfirmation(null);
+    setRecentOrder(null);
+    setIsBasketOpen(false);
+    setIsOrdersOpen(false);
+    setAuthNotice("Your session has expired. Sign in again to continue.");
+    setIsAuthOpen(true);
   }, []);
+
+  function openAuth() {
+    setAuthNotice(null);
+    setIsAuthOpen(true);
+  }
+
+  const loadBasket = useCallback(async (userId: string) => {
+    setBasketLoadState("loading");
+    try {
+      const response = await fetch(`/api/cart/${encodeURIComponent(userId)}`);
+      const payload: unknown = await response.json().catch(() => null);
+      if (response.status === 401) {
+        recoverExpiredSession();
+        return;
+      }
+      if (!response.ok || !isBasket(payload)) throw new Error(messageOf(payload) ?? "Your cart could not be loaded.");
+      setBasket(payload);
+      setBasketLoadState("ready");
+    } catch (error) {
+      setBasketLoadState("unavailable");
+      throw error;
+    }
+  }, [recoverExpiredSession]);
 
   const loadOrders = useCallback(async () => {
     setIsOrdersLoading(true);
@@ -56,6 +90,10 @@ export function CatalogScreen() {
     try {
       const response = await fetch("/api/orders");
       const payload: unknown = await response.json().catch(() => null);
+      if (response.status === 401) {
+        recoverExpiredSession();
+        return;
+      }
       if (!response.ok || !isOrders(payload)) {
         throw new Error(messageOf(payload) ?? "Your orders could not be loaded.");
       }
@@ -65,9 +103,15 @@ export function CatalogScreen() {
     } finally {
       setIsOrdersLoading(false);
     }
-  }, []);
+  }, [recoverExpiredSession]);
 
   const requestCatalog = useCallback((signal?: AbortSignal) => getCatalogProducts(signal), []);
+
+  const retryBasket = useCallback(() => {
+    if (session.status !== "authenticated") return;
+    setBasketMessage(null);
+    void loadBasket(session.user.userId).catch((error: unknown) => setBasketMessage(error instanceof Error ? error.message : "Your cart could not be loaded."));
+  }, [loadBasket, session]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -113,7 +157,7 @@ export function CatalogScreen() {
 
   async function addToBasket(product: CatalogProduct) {
     if (session.status !== "authenticated") {
-      setIsAuthOpen(true);
+      openAuth();
       return;
     }
 
@@ -126,8 +170,13 @@ export function CatalogScreen() {
         body: JSON.stringify({ productId: product.id, quantity: 1 }),
       });
       const payload: unknown = await response.json().catch(() => null);
+      if (response.status === 401) {
+        recoverExpiredSession();
+        return;
+      }
       if (!response.ok || !isBasket(payload)) throw new Error(messageOf(payload) ?? "This product could not be added to your cart.");
       setBasket(payload);
+      setBasketLoadState("ready");
       setSelectedProduct(null);
       setIsBasketOpen(true);
     } catch (error) {
@@ -146,10 +195,15 @@ export function CatalogScreen() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ quantity }),
       });
+      if (response.status === 401) {
+        recoverExpiredSession();
+        return;
+      }
       if (response.status === 204) return loadBasket(session.user.userId);
       const payload: unknown = await response.json().catch(() => null);
       if (!response.ok || !isBasket(payload)) throw new Error(messageOf(payload) ?? "Your cart could not be updated.");
       setBasket(payload);
+      setBasketLoadState("ready");
     } catch (error) {
       setBasketMessage(error instanceof Error ? error.message : "Your cart could not be updated.");
     } finally {
@@ -162,6 +216,10 @@ export function CatalogScreen() {
     setBusyProductId(productId);
     try {
       const response = await fetch(`/api/cart/${encodeURIComponent(session.user.userId)}/items/${encodeURIComponent(productId)}`, { method: "DELETE" });
+      if (response.status === 401) {
+        recoverExpiredSession();
+        return;
+      }
       if (response.status === 204) return loadBasket(session.user.userId);
       const payload: unknown = await response.json().catch(() => null);
       throw new Error(messageOf(payload) ?? "This item could not be removed.");
@@ -173,7 +231,7 @@ export function CatalogScreen() {
   }
 
   async function checkout(couponCode: string) {
-    if (!basket) return;
+    if (!basket || basketLoadState !== "ready") return;
 
     setIsCheckingOut(true);
     setBasketMessage(null);
@@ -195,12 +253,21 @@ export function CatalogScreen() {
         }),
       });
       const payload: unknown = await response.json().catch(() => null);
-      if (!response.ok || !isOrder(payload)) {
+      if (response.status === 401) {
+        recoverExpiredSession();
+        return;
+      }
+      if (!response.ok || !isOrderSummary(payload)) {
         throw new Error(messageOf(payload) ?? "Your order could not be created.");
       }
 
-      setOrderConfirmation("Order #" + payload.id.slice(0, 8).toUpperCase() + " was created and is awaiting payment.");
-      setBasket(null);
+      setOrderConfirmation(payload);
+      setRecentOrder(payload);
+      try {
+        await loadBasket(basket.userId);
+      } catch (refreshError) {
+        setBasketMessage(refreshError instanceof Error ? `Your order was created, but ${refreshError.message.toLowerCase()}` : "Your order was created, but your cart could not be refreshed.");
+      }
     } catch (error) {
       setBasketMessage(error instanceof Error ? error.message : "Your order could not be created.");
     } finally {
@@ -209,18 +276,22 @@ export function CatalogScreen() {
   }
 
   async function startPayment(orderId: string) {
-    setIsStartingPayment(true);
+    setStartingPaymentOrderId(orderId);
     setPaymentMessage(null);
     try {
       const response = await fetch("/api/payments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ orderId }) });
       const payload: unknown = await response.json().catch(() => null);
+      if (response.status === 401) {
+        recoverExpiredSession();
+        return;
+      }
       if (!response.ok || !isPayment(payload)) throw new Error(messageOf(payload) ?? "Payment could not be initiated.");
-      setPaymentMessage("Payment " + payload.id + " was initiated and is awaiting provider authorization.");
+      setPaymentMessage("Payment request #" + payload.id.slice(0, 8).toUpperCase() + " is pending provider confirmation. Your order status will update after confirmation.");
       await loadOrders();
     } catch (error) {
       setPaymentMessage(error instanceof Error ? error.message : "Payment could not be initiated.");
     } finally {
-      setIsStartingPayment(false);
+      setStartingPaymentOrderId(null);
     }
   }
 
@@ -232,6 +303,9 @@ export function CatalogScreen() {
   function signedIn(user: CurrentUser) {
     setSession({ status: "authenticated", user });
     setIsAuthOpen(false);
+    setAuthNotice(null);
+    setBasket(null);
+    setBasketLoadState("idle");
     loadBasket(user.userId).catch((error: unknown) => setBasketMessage(error instanceof Error ? error.message : "Your cart could not be loaded."));
   }
 
@@ -239,7 +313,12 @@ export function CatalogScreen() {
     await fetch("/api/session", { method: "DELETE" });
     setSession({ status: "anonymous" });
     setBasket(null);
+    setBasketLoadState("idle");
+    setOrderConfirmation(null);
+    setRecentOrder(null);
     setIsBasketOpen(false);
+    setIsOrdersOpen(false);
+    setAuthNotice(null);
   }
 
   return (
@@ -248,8 +327,8 @@ export function CatalogScreen() {
         <div className="mx-auto flex min-h-16 max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3"><span className="grid size-9 place-items-center bg-[var(--accent)] text-white"><Box aria-hidden="true" size={19} /></span><span className="font-semibold">MicroShop</span></div>
           <nav aria-label="Store navigation" className="flex items-center gap-2">
-            {session.status === "authenticated" ? <><span className="hidden items-center gap-2 text-sm text-[var(--muted)] sm:inline-flex"><UserRound aria-hidden="true" size={16} />{session.user.userName}</span><button aria-label="Open your orders" className="grid size-9 place-items-center text-[var(--muted)] hover:bg-[#f3f5f2]" onClick={openOrders} type="button"><ClipboardList aria-hidden="true" size={18} /></button><button className="h-9 px-3 text-sm text-[var(--muted)] hover:text-[var(--foreground)]" onClick={signOut} type="button">Sign out</button></> : <button className="inline-flex h-9 items-center gap-2 px-3 text-sm font-medium text-[var(--accent)] hover:bg-[#e9f2ed]" onClick={() => setIsAuthOpen(true)} type="button"><LogIn aria-hidden="true" size={16} />Sign in</button>}
-            <button aria-label={`Open cart, ${cartCount} items`} className="relative grid size-10 place-items-center border border-[var(--line)] hover:bg-[#f3f5f2]" onClick={() => session.status === "authenticated" ? setIsBasketOpen(true) : setIsAuthOpen(true)} type="button"><ShoppingBag aria-hidden="true" size={18} />{cartCount ? <span className="absolute -right-1 -top-1 grid min-w-5 place-items-center bg-[var(--accent)] px-1 text-xs font-semibold text-white">{cartCount}</span> : null}</button>
+            {session.status === "authenticated" ? <><span className="hidden items-center gap-2 text-sm text-[var(--muted)] sm:inline-flex"><UserRound aria-hidden="true" size={16} />{session.user.userName}</span><button aria-label="Open your orders" className="grid size-9 place-items-center text-[var(--muted)] hover:bg-[#f3f5f2]" onClick={openOrders} type="button"><ClipboardList aria-hidden="true" size={18} /></button><button className="h-9 px-3 text-sm text-[var(--muted)] hover:text-[var(--foreground)]" onClick={signOut} type="button">Sign out</button></> : <button className="inline-flex h-9 items-center gap-2 px-3 text-sm font-medium text-[var(--accent)] hover:bg-[#e9f2ed]" onClick={openAuth} type="button"><LogIn aria-hidden="true" size={16} />Sign in</button>}
+            <button aria-label={`Open cart, ${cartCount} items`} className="relative grid size-10 place-items-center border border-[var(--line)] hover:bg-[#f3f5f2]" onClick={() => { if (session.status === "authenticated") { setIsBasketOpen(true); if (basketLoadState === "idle" || basketLoadState === "unavailable") retryBasket(); } else { openAuth(); } }} type="button"><ShoppingBag aria-hidden="true" size={18} />{cartCount ? <span className="absolute -right-1 -top-1 grid min-w-5 place-items-center bg-[var(--accent)] px-1 text-xs font-semibold text-white">{cartCount}</span> : null}</button>
           </nav>
         </div>
       </header>
@@ -279,9 +358,9 @@ export function CatalogScreen() {
       </section>
 
       <ProductDetailDialog busyProductId={busyProductId} onAdd={addToBasket} onClose={() => setSelectedProduct(null)} product={selectedProduct} />
-      <AuthDialog onClose={() => setIsAuthOpen(false)} onSignedIn={signedIn} open={isAuthOpen} />
-      {isBasketOpen ? <BasketPanel basket={basket} busyProductId={busyProductId} confirmation={orderConfirmation} isCheckingOut={isCheckingOut} message={basketMessage} onChangeQuantity={changeQuantity} onCheckout={checkout} onClose={() => setIsBasketOpen(false)} onRemove={removeItem} onViewOrders={() => { setIsBasketOpen(false); openOrders(); }} /> : null}
-      {isOrdersOpen ? <OrderPanel isLoading={isOrdersLoading} isStartingPayment={isStartingPayment} message={ordersMessage} onClose={() => setIsOrdersOpen(false)} onStartPayment={startPayment} orders={orders} paymentMessage={paymentMessage} /> : null}
+      <AuthDialog notice={authNotice} onClose={() => { setIsAuthOpen(false); setAuthNotice(null); }} onSignedIn={signedIn} open={isAuthOpen} />
+      {isBasketOpen ? <BasketPanel basket={basket} busyProductId={busyProductId} confirmation={orderConfirmation} isCheckingOut={isCheckingOut} loadState={basketLoadState} message={basketMessage} onChangeQuantity={changeQuantity} onCheckout={checkout} onClose={() => setIsBasketOpen(false)} onRemove={removeItem} onRetry={retryBasket} onViewOrders={() => { setIsBasketOpen(false); openOrders(); }} /> : null}
+      {isOrdersOpen ? <OrderPanel isLoading={isOrdersLoading} message={ordersMessage} onClose={() => setIsOrdersOpen(false)} onRetry={() => void loadOrders()} onStartPayment={startPayment} orders={orders} paymentMessage={paymentMessage} recentOrder={recentOrder} startingPaymentOrderId={startingPaymentOrderId} /> : null}
     </main>
   );
 }
@@ -331,19 +410,29 @@ function hash(value: string) {
   return Array.from(value).reduce((total, character) => ((total << 5) - total + character.charCodeAt(0)) | 0, 0);
 }
 
-function isOrder(value: unknown): value is { id: string; status: string } {
-  return typeof value === "object" && value !== null
-    && typeof (value as Record<string, unknown>).id === "string"
-    && typeof (value as Record<string, unknown>).status === "string";
+function isOrderSummary(value: unknown): value is OrderSummary {
+  if (typeof value !== "object" || value === null) return false;
+  const order = value as Record<string, unknown>;
+  return typeof order.id === "string"
+    && typeof order.createdAtUtc === "string"
+    && typeof order.status === "string"
+    && typeof order.totalAmount === "number"
+    && typeof order.currency === "string"
+    && Array.isArray(order.items)
+    && order.items.every(isOrderItem);
 }
-function isPayment(value: unknown): value is { id: string } { return typeof value === "object" && value !== null && typeof (value as Record<string, unknown>).id === "string"; }
 
-function isOrders(value: unknown): value is OrderSummary[] {
-  return Array.isArray(value) && value.every((order) => typeof order === "object" && order !== null
-    && typeof (order as Record<string, unknown>).id === "string"
-    && typeof (order as Record<string, unknown>).createdAtUtc === "string"
-    && typeof (order as Record<string, unknown>).status === "string"
-    && typeof (order as Record<string, unknown>).totalAmount === "number"
-    && typeof (order as Record<string, unknown>).currency === "string"
-    && Array.isArray((order as Record<string, unknown>).items));
+function isOrderItem(value: unknown) {
+  if (typeof value !== "object" || value === null) return false;
+  const item = value as Record<string, unknown>;
+  return typeof item.id === "string"
+    && typeof item.productId === "string"
+    && typeof item.productName === "string"
+    && typeof item.unitPrice === "number"
+    && typeof item.quantity === "number"
+    && typeof item.totalPrice === "number";
 }
+
+function isPayment(value: unknown): value is { id: string; status: string } { return typeof value === "object" && value !== null && typeof (value as Record<string, unknown>).id === "string" && typeof (value as Record<string, unknown>).status === "string"; }
+
+function isOrders(value: unknown): value is OrderSummary[] { return Array.isArray(value) && value.every(isOrderSummary); }

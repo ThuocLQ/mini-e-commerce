@@ -8,11 +8,12 @@ type Feedback = { tone: "error" | "success"; text: string };
 
 type AuthDialogProps = {
   open: boolean;
+  notice: string | null;
   onClose: () => void;
   onSignedIn: (user: CurrentUser) => void;
 };
 
-export function AuthDialog({ open, onClose, onSignedIn }: AuthDialogProps) {
+export function AuthDialog({ open, notice, onClose, onSignedIn }: AuthDialogProps) {
   const [userName, setUserName] = useState("");
   const [password, setPassword] = useState("");
   const [feedback, setFeedback] = useState<Feedback | null>(null);
@@ -83,6 +84,7 @@ export function AuthDialog({ open, onClose, onSignedIn }: AuthDialogProps) {
         </div>
 
         <form className="mt-6 space-y-4" onSubmit={submit}>
+          {notice ? <p className="border-l-2 border-[#d8d6c5] bg-[#fbfaf2] px-3 py-2 text-sm text-[#6f6317]" role="status">{notice}</p> : null}
           <label className="block text-sm font-medium">Username<input autoFocus autoComplete="username" className="mt-2 h-11 w-full border border-[var(--line)] bg-white px-3 text-base outline-none focus:border-[var(--accent)]" onChange={(event) => setUserName(event.target.value)} required value={userName} /></label>
           <label className="block text-sm font-medium">Password<input autoComplete={isRegistering ? "new-password" : "current-password"} className="mt-2 h-11 w-full border border-[var(--line)] bg-white px-3 text-base outline-none focus:border-[var(--accent)]" minLength={8} onChange={(event) => setPassword(event.target.value)} required type="password" value={password} /></label>
           {feedback ? <p aria-live="polite" className={feedback.tone === "success" ? "border-l-2 border-[var(--accent)] bg-[#f4fbf6] px-3 py-2 text-sm text-[var(--accent-strong)]" : "border-l-2 border-[var(--danger)] bg-[#fff7f6] px-3 py-2 text-sm text-[var(--danger)]"} role={feedback.tone === "success" ? "status" : "alert"}>{feedback.text}</p> : null}
