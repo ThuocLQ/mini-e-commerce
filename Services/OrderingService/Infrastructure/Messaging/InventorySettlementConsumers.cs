@@ -22,7 +22,7 @@ public sealed class InventoryCommittedConsumer(ISender sender)
                 InventorySettlementCausation.Parse(context.Message.CausationId)),
             context.CancellationToken);
 
-        if (result is null)
+        if (!result.OrderFound)
         {
             throw new InvalidOperationException($"Cannot apply inventory settlement because order '{context.Message.OrderId}' was not found.");
         }
@@ -45,7 +45,7 @@ public sealed class InventoryReleasedConsumer(ISender sender)
                 InventorySettlementCausation.Parse(context.Message.CausationId)),
             context.CancellationToken);
 
-        if (result is null)
+        if (!result.OrderFound)
         {
             throw new InvalidOperationException($"Cannot apply inventory settlement because order '{context.Message.OrderId}' was not found.");
         }

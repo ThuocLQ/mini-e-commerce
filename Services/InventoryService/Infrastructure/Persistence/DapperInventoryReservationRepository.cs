@@ -120,9 +120,9 @@ public sealed class DapperInventoryReservationRepository : IInventoryReservation
         connection.Open();
         using var transaction = connection.BeginTransaction();
 
-        var status = await connection.QuerySingleOrDefaultAsync<string>(new CommandDefinition(
-            "SELECT Status FROM InventoryReservations WHERE OrderId = @OrderId FOR UPDATE", new { OrderId = orderId }, transaction, cancellationToken: cancellationToken));
-        if (status is null)
+        var reservation = await connection.QuerySingleOrDefaultAsync<ReservationState>(new CommandDefinition(
+            "SELECT Status, ExpiresAtUtc FROM InventoryReservations WHERE OrderId = @OrderId FOR UPDATE", new { OrderId = orderId }, transaction, cancellationToken: cancellationToken));
+        if (reservation is null)
         {
             transaction.Rollback();
             throw new InvalidOperationException($"Inventory reservation for order {orderId:D} does not exist yet.");
@@ -140,10 +140,37 @@ public sealed class DapperInventoryReservationRepository : IInventoryReservation
             }
         }
 
-        if (status != "Reserved")
+        if (reservation.Status != "Reserved")
         {
+            if ((targetStatus == "Released" && reservation.Status == "Released") ||
+                (targetStatus == "Committed" && reservation.Status == "Released"))
+            {
+                if (messageId is not null)
+                {
+                    // A release outcome has already been durably published. A late commit command
+                    // must be acknowledged to stop redelivery, but it must not mutate stock or emit
+                    // a competing committed outcome.
+                    await connection.ExecuteAsync(new CommandDefinition("""
+                        INSERT INTO InventoryCommandReceipts (EventId, CommandType, ReceivedAtUtc)
+                        VALUES (@EventId, @CommandType, @ReceivedAtUtc)
+                        ON CONFLICT (EventId) DO NOTHING;
+                        """, new { EventId = messageId, CommandType = targetStatus, ReceivedAtUtc = DateTime.UtcNow }, transaction, cancellationToken: cancellationToken));
+                }
+
+                transaction.Commit();
+                return;
+            }
+
             transaction.Rollback();
-            throw new InvalidOperationException($"Inventory reservation for order {orderId:D} is already {status}.");
+            throw new InvalidOperationException($"Inventory reservation for order {orderId:D} is already {reservation.Status}.");
+        }
+
+        var reservationExpired = deductStock && reservation.ExpiresAtUtc <= DateTime.UtcNow;
+        if (reservationExpired)
+        {
+            // An expired hold must never be committed just because the expiry worker has not run yet.
+            targetStatus = "Released";
+            deductStock = false;
         }
 
         if (messageId is not null)
@@ -190,7 +217,13 @@ public sealed class DapperInventoryReservationRepository : IInventoryReservation
 
         IntegrationEvent outcome = targetStatus == "Committed"
             ? new InventoryCommittedIntegrationEvent { OrderId = orderId, CorrelationId = CorrelationContext.CorrelationId, CausationId = messageId?.ToString("D") }
-            : new InventoryReleasedIntegrationEvent { OrderId = orderId, Reason = messageId is null ? "ReservationExpired" : "PaymentFlow", CorrelationId = CorrelationContext.CorrelationId, CausationId = messageId?.ToString("D") };
+            : new InventoryReleasedIntegrationEvent
+            {
+                OrderId = orderId,
+                Reason = reservationExpired || messageId is null ? "ReservationExpired" : "PaymentFlow",
+                CorrelationId = CorrelationContext.CorrelationId,
+                CausationId = messageId?.ToString("D")
+            };
 
         await _outboxRepository.AddAsync(new InventoryOutboxMessage
         {
@@ -246,5 +279,6 @@ public sealed class DapperInventoryReservationRepository : IInventoryReservation
     }
 
     private sealed record StockRow(string ProductId, int StockQuantity, int ReservedQuantity, DateTime UpdatedAtUtc);
+    private sealed record ReservationState(string Status, DateTime ExpiresAtUtc);
 }
 

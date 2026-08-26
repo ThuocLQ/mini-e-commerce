@@ -38,11 +38,12 @@ public sealed class InventorySettlementSagaTests
                 expectedCommandEventId),
             TestContext.Current.CancellationToken);
 
-        Assert.NotNull(first);
-        Assert.NotNull(replay);
-        Assert.Equal(nameof(OrderPaymentSagaState.InventoryCommitted), first.State);
-        Assert.Equal(nameof(OrderPaymentSagaState.InventoryCommitted), replay.State);
-        Assert.Equal(eventId, first.LastProcessedEventId);
+        Assert.True(first.OrderFound);
+        Assert.NotNull(first.Saga);
+        Assert.NotNull(replay.Saga);
+        Assert.Equal(nameof(OrderPaymentSagaState.InventoryCommitted), first.Saga.State);
+        Assert.Equal(nameof(OrderPaymentSagaState.InventoryCommitted), replay.Saga.State);
+        Assert.Equal(eventId, first.Saga.LastProcessedEventId);
         var stateChanged = Assert.Single(outbox.Messages);
         Assert.Contains("OrderPaymentSagaStateChangedIntegrationEvent", stateChanged.Type);
         Assert.Equal(eventId.ToString("D"), stateChanged.CausationId);
@@ -65,11 +66,13 @@ public sealed class InventorySettlementSagaTests
                 "ReservationExpired"),
             TestContext.Current.CancellationToken);
 
-        Assert.NotNull(result);
-        Assert.Equal(nameof(OrderPaymentSagaState.CompensationRequired), result.State);
-        Assert.Equal(eventId, result.LastProcessedEventId);
-        Assert.Equal("ReservationExpired", result.LastError);
-        Assert.Single(outbox.Messages);
+        Assert.True(result.OrderFound);
+        Assert.NotNull(result.Saga);
+        Assert.Equal(nameof(OrderPaymentSagaState.RefundRequested), result.Saga.State);
+        Assert.Equal(eventId, result.Saga.LastProcessedEventId);
+        Assert.Equal("ReservationExpired", result.Saga.LastError);
+        Assert.Equal(2, outbox.Messages.Count);
+        Assert.Contains(outbox.Messages, message => message.Type.Contains("PaymentRefundRequestedIntegrationEvent"));
     }
 
     [Fact]
@@ -93,10 +96,10 @@ public sealed class InventorySettlementSagaTests
             new ApplyInventorySettlementEventCommand(eventId, OrderInventorySettlementEventType.InventoryCommitted, order.Id, null, expectedCommandEventId),
             TestContext.Current.CancellationToken);
 
-        Assert.NotNull(first);
-        Assert.NotNull(replay);
-        Assert.Equal(nameof(OrderPaymentSagaState.CaptureRequested), first.State);
-        Assert.Equal(nameof(OrderPaymentSagaState.CaptureRequested), replay.State);
+        Assert.NotNull(first.Saga);
+        Assert.NotNull(replay.Saga);
+        Assert.Equal(nameof(OrderPaymentSagaState.CaptureRequested), first.Saga.State);
+        Assert.Equal(nameof(OrderPaymentSagaState.CaptureRequested), replay.Saga.State);
         Assert.Equal(2, outbox.Messages.Count);
         Assert.Contains(outbox.Messages, message => message.Type.Contains("PaymentCaptureRequestedIntegrationEvent"));
         Assert.Contains(outbox.Messages, message => message.Type.Contains("OrderPaymentSagaStateChangedIntegrationEvent"));
@@ -122,15 +125,48 @@ public sealed class InventorySettlementSagaTests
                 Guid.NewGuid()),
             TestContext.Current.CancellationToken);
 
-        Assert.NotNull(result);
-        Assert.Equal(nameof(OrderPaymentSagaState.PaymentAuthorized), result.State);
-        Assert.Contains("causation", result.LastError, StringComparison.OrdinalIgnoreCase);
+        Assert.NotNull(result.Saga);
+        Assert.Equal(nameof(OrderPaymentSagaState.PaymentAuthorized), result.Saga.State);
+        Assert.Contains("causation", result.Saga.LastError, StringComparison.OrdinalIgnoreCase);
         Assert.Empty(outbox.Messages);
+    }
+
+    [Fact]
+    public async Task InventoryReleased_WithoutPaymentSaga_CancelsPendingOrderAndWritesAuditsOnce()
+    {
+        var order = new Order(Guid.NewGuid(), Guid.NewGuid(), DateTime.UtcNow.AddMinutes(-31), OrderStatus.PendingPayment);
+        order.AddItem(new OrderItem(Guid.NewGuid(), Guid.NewGuid(), "Product", 10m, 1));
+        var outbox = new RecordingOutboxRepository();
+        var repository = new StubOrderRepository(order);
+        var handler = new ApplyInventorySettlementEventHandler(
+            new InlineUnitOfWork(),
+            repository,
+            new StubSagaRepository(null),
+            new RecordingInboxRepository(),
+            outbox);
+        var eventId = Guid.NewGuid();
+        var command = new ApplyInventorySettlementEventCommand(
+            eventId,
+            OrderInventorySettlementEventType.InventoryReleased,
+            order.Id,
+            "ReservationExpired");
+
+        var first = await handler.Handle(command, TestContext.Current.CancellationToken);
+        var replay = await handler.Handle(command, TestContext.Current.CancellationToken);
+
+        Assert.True(first.OrderFound);
+        Assert.Null(first.Saga);
+        Assert.True(replay.OrderFound);
+        Assert.Equal(OrderStatus.Cancelled, order.Status);
+        Assert.Equal(1, repository.StatusUpdateCalls);
+        Assert.Equal(2, outbox.Messages.Count);
+        Assert.Contains(outbox.Messages, message => message.Type.Contains("OrderStatusChangedIntegrationEvent") && message.CausationId == eventId.ToString("D"));
+        Assert.Contains(outbox.Messages, message => message.Transport == OutboxTransport.Kafka && message.Type == "OrderCancelled");
     }
 
     private static ApplyInventorySettlementEventHandler CreateHandler(
         Order order,
-        OrderPaymentSaga saga,
+        OrderPaymentSaga? saga,
         RecordingInboxRepository inbox,
         RecordingOutboxRepository outbox)
     {
@@ -162,6 +198,7 @@ public sealed class InventorySettlementSagaTests
 
     private sealed class StubOrderRepository(Order order) : IOrderRepository
     {
+        public int StatusUpdateCalls { get; private set; }
         public Task<IReadOnlyList<Order>> GetAllAsync(CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<Order>>([order]);
 
@@ -183,17 +220,20 @@ public sealed class InventorySettlementSagaTests
         public Task<Order> CreateAsync(Order createdOrder, IDbTransaction? transaction = null, CancellationToken cancellationToken = default) =>
             Task.FromResult(createdOrder);
 
-        public Task<bool> TryUpdateStatusAsync(Guid orderId, OrderStatus newStatus, IReadOnlyCollection<OrderStatus> expectedCurrentStatuses, IDbTransaction? transaction = null, CancellationToken cancellationToken = default) =>
-            Task.FromResult(true);
+        public Task<bool> TryUpdateStatusAsync(Guid orderId, OrderStatus newStatus, IReadOnlyCollection<OrderStatus> expectedCurrentStatuses, IDbTransaction? transaction = null, CancellationToken cancellationToken = default)
+        {
+            StatusUpdateCalls++;
+            return Task.FromResult(true);
+        }
     }
 
-    private sealed class StubSagaRepository(OrderPaymentSaga saga) : IOrderPaymentSagaRepository
+    private sealed class StubSagaRepository(OrderPaymentSaga? saga) : IOrderPaymentSagaRepository
     {
         public Task<IReadOnlyList<OrderPaymentSaga>> GetTimedOutAsync(DateTime nowUtc, int batchSize, CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<OrderPaymentSaga>>([]);
 
         public Task<OrderPaymentSaga?> GetByOrderIdAsync(Guid orderId, IDbTransaction transaction, CancellationToken cancellationToken = default) =>
-            Task.FromResult<OrderPaymentSaga?>(orderId == saga.OrderId ? saga : null);
+            Task.FromResult<OrderPaymentSaga?>(saga is not null && orderId == saga.OrderId ? saga : null);
 
         public Task UpsertAsync(OrderPaymentSaga savedSaga, IDbTransaction transaction, CancellationToken cancellationToken = default) =>
             Task.CompletedTask;

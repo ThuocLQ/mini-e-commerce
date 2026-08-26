@@ -149,4 +149,87 @@ public sealed class InventoryCommandReceiptTests
         Assert.Equal(1, committedOutcomeCount);
         Assert.Equal(2, availabilityEventCount);
     }
+
+    [Fact]
+    public async Task ExpiredReservation_CannotBeCommitted_AndPublishesReleaseOutcome()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var postgres = new PostgreSqlBuilder("postgres:17-alpine")
+            .WithDatabase("inventory_expiry_commit_test")
+            .WithUsername("postgres")
+            .WithPassword("postgres")
+            .Build();
+
+        await postgres.StartAsync(cancellationToken);
+
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["ConnectionStrings:InventoryDb"] = postgres.GetConnectionString()
+            })
+            .Build();
+        var connectionFactory = new NpgsqlConnectionFactory(configuration);
+        await new PostgresDatabaseInitializer(configuration).InitializeAsync(cancellationToken);
+
+        const string productId = "product-expiry-001";
+        var orderId = Guid.NewGuid();
+        var messageId = Guid.NewGuid();
+        var lateCommitMessageId = Guid.NewGuid();
+        var releaseMessageId = Guid.NewGuid();
+        using (var connection = connectionFactory.CreateConnection())
+        {
+            await connection.ExecuteAsync(new CommandDefinition("""
+                INSERT INTO InventoryItems (ProductId, StockQuantity, ReservedQuantity, UpdatedAtUtc)
+                VALUES (@ProductId, 10, 0, CURRENT_TIMESTAMP);
+                """, new { ProductId = productId }, cancellationToken: cancellationToken));
+        }
+
+        var repository = new DapperInventoryReservationRepository(connectionFactory, new DapperInventoryOutboxRepository(connectionFactory));
+        var reserved = await repository.ReserveAsync(
+            orderId,
+            [new InventoryReservationItem(productId, 2)],
+            DateTime.UtcNow.AddMinutes(5),
+            cancellationToken);
+        Assert.True(reserved.Succeeded);
+
+        using (var connection = connectionFactory.CreateConnection())
+        {
+            await connection.ExecuteAsync(new CommandDefinition("""
+                UPDATE InventoryReservations
+                SET ExpiresAtUtc = CURRENT_TIMESTAMP - INTERVAL '1 minute'
+                WHERE OrderId = @OrderId;
+                """, new { OrderId = orderId }, cancellationToken: cancellationToken));
+        }
+
+        await repository.CommitAsync(orderId, messageId, cancellationToken);
+        await repository.CommitAsync(orderId, lateCommitMessageId, cancellationToken);
+        await repository.ReleaseAsync(orderId, releaseMessageId, cancellationToken);
+
+        using var verificationConnection = connectionFactory.CreateConnection();
+        var stock = await verificationConnection.QuerySingleAsync<(int StockQuantity, int ReservedQuantity)>(new CommandDefinition("""
+            SELECT StockQuantity, ReservedQuantity
+            FROM InventoryItems
+            WHERE ProductId = @ProductId;
+            """, new { ProductId = productId }, cancellationToken: cancellationToken));
+        var status = await verificationConnection.ExecuteScalarAsync<string>(new CommandDefinition(
+            "SELECT Status FROM InventoryReservations WHERE OrderId = @OrderId;",
+            new { OrderId = orderId }, cancellationToken: cancellationToken));
+        var releaseOutcomeCount = await verificationConnection.ExecuteScalarAsync<int>(new CommandDefinition("""
+            SELECT COUNT(*)
+            FROM InventoryOutboxMessages
+            WHERE Type = 'BuildingBlocks.Contracts.Events.Inventory.InventoryReleasedIntegrationEvent'
+              AND CausationId = @CausationId;
+            """, new { CausationId = messageId.ToString("D") }, cancellationToken: cancellationToken));
+        var releaseReceiptCount = await verificationConnection.ExecuteScalarAsync<int>(new CommandDefinition("""
+            SELECT COUNT(*)
+            FROM InventoryCommandReceipts
+            WHERE EventId = ANY(@EventIds);
+            """, new { EventIds = new[] { messageId, lateCommitMessageId, releaseMessageId } }, cancellationToken: cancellationToken));
+
+        Assert.Equal(10, stock.StockQuantity);
+        Assert.Equal(0, stock.ReservedQuantity);
+        Assert.Equal("Released", status);
+        Assert.Equal(1, releaseOutcomeCount);
+        Assert.Equal(3, releaseReceiptCount);
+    }
 }

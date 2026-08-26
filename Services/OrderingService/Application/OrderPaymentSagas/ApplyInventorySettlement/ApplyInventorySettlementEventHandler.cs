@@ -4,11 +4,12 @@ using OrderingService.Application.Abstractions;
 using OrderingService.Application.IntegrationEvents;
 using OrderingService.Application.Outbox;
 using OrderingService.Domain.OrderPaymentSagas;
+using OrderingService.Domain.Orders;
 
 namespace OrderingService.Application.OrderPaymentSagas.ApplyInventorySettlement;
 
 public sealed class ApplyInventorySettlementEventHandler
-    : IRequestHandler<ApplyInventorySettlementEventCommand, OrderPaymentSagaDto?>
+    : IRequestHandler<ApplyInventorySettlementEventCommand, InventorySettlementApplyResult>
 {
     internal const string ConsumerName = "OrderingService.InventorySettlement";
 
@@ -32,7 +33,7 @@ public sealed class ApplyInventorySettlementEventHandler
         _outboxRepository = outboxRepository;
     }
 
-    public async Task<OrderPaymentSagaDto?> Handle(
+    public async Task<InventorySettlementApplyResult> Handle(
         ApplyInventorySettlementEventCommand request,
         CancellationToken cancellationToken)
     {
@@ -46,24 +47,40 @@ public sealed class ApplyInventorySettlementEventHandler
             throw new ArgumentException("Order id cannot be empty.", nameof(request.OrderId));
         }
 
-        var saga = await _unitOfWork.ExecuteAsync(async transaction =>
+        var result = await _unitOfWork.ExecuteAsync(async transaction =>
         {
             var order = await _orderRepository.GetByIdAsync(request.OrderId, transaction, cancellationToken);
             if (order is null)
             {
-                return null;
+                return new InventorySettlementApplyResult(false, null);
             }
-
-            var currentSaga = await _sagaRepository.GetByOrderIdAsync(order.Id, transaction, cancellationToken)
-                ?? throw new InvalidOperationException($"Payment saga for order '{order.Id}' was not found.");
 
             if (!await _inboxRepository.TryRecordAsync(request.EventId, ConsumerName, transaction, cancellationToken))
             {
-                return currentSaga;
+                var replaySaga = await _sagaRepository.GetByOrderIdAsync(order.Id, transaction, cancellationToken);
+                return new InventorySettlementApplyResult(true, replaySaga is null ? null : OrderPaymentSagaMapper.ToDto(replaySaga));
+            }
+
+            var currentSaga = await _sagaRepository.GetByOrderIdAsync(order.Id, transaction, cancellationToken);
+            if (currentSaga is null)
+            {
+                if (request.EventType != OrderInventorySettlementEventType.InventoryReleased)
+                {
+                    throw new InvalidOperationException($"Payment saga for order '{order.Id}' was not found.");
+                }
+
+                await CancelOrderForExpiredReservationAsync(order, request.EventId, transaction, cancellationToken);
+                return new InventorySettlementApplyResult(true, null);
             }
 
             var previousState = currentSaga.State;
             var updatedAtUtc = DateTime.UtcNow;
+
+            if (request.EventType == OrderInventorySettlementEventType.InventoryReleased &&
+                currentSaga.State == OrderPaymentSagaState.PaymentRequested)
+            {
+                await CancelOrderForExpiredReservationAsync(order, request.EventId, transaction, cancellationToken);
+            }
 
             if (request.EventType == OrderInventorySettlementEventType.InventoryCommitted &&
                 (currentSaga.ExpectedInventoryCommandEventId is null ||
@@ -90,10 +107,50 @@ public sealed class ApplyInventorySettlementEventHandler
             }
 
             await _sagaRepository.UpsertAsync(currentSaga, transaction, cancellationToken);
-            return currentSaga;
+            return new InventorySettlementApplyResult(true, OrderPaymentSagaMapper.ToDto(currentSaga));
         }, cancellationToken);
 
-        return saga is null ? null : OrderPaymentSagaMapper.ToDto(saga);
+        return result;
+    }
+
+    private async Task CancelOrderForExpiredReservationAsync(
+        Order order,
+        Guid causationEventId,
+        System.Data.IDbTransaction transaction,
+        CancellationToken cancellationToken)
+    {
+        if (order.Status is not (OrderStatus.Pending or OrderStatus.PendingPayment))
+        {
+            return;
+        }
+
+        var previousStatus = order.Status;
+        if (!order.Cancel())
+        {
+            return;
+        }
+
+        var updated = await _orderRepository.TryUpdateStatusAsync(
+            order.Id,
+            order.Status,
+            [previousStatus],
+            transaction,
+            cancellationToken);
+        if (!updated)
+        {
+            throw new InvalidOperationException("Order status changed before inventory expiration was applied.");
+        }
+
+        var statusChanged = OrderIntegrationEventFactory.CreateOrderStatusChanged(order, previousStatus) with
+        {
+            CausationId = causationEventId.ToString("D")
+        };
+        var projection = OrderIntegrationEventFactory.CreateOrderProjectionStatusChanged(order, previousStatus) with
+        {
+            CausationId = causationEventId.ToString("D")
+        };
+        await _outboxRepository.AddAsync(OutboxMessageFactory.Create(statusChanged), transaction, cancellationToken);
+        await _outboxRepository.AddAsync(OutboxMessageFactory.CreateKafka(projection), transaction, cancellationToken);
     }
 
     private Task AddPaymentCommandAsync(
@@ -138,6 +195,24 @@ public sealed class ApplyInventorySettlementEventHandler
                 cancellationToken);
         }
 
+        if (saga.State == OrderPaymentSagaState.RefundRequested)
+        {
+            return _outboxRepository.AddAsync(
+                OutboxMessageFactory.Create(new PaymentRefundRequestedIntegrationEvent
+                {
+                    PaymentId = saga.PaymentId,
+                    OrderId = order.Id,
+                    CustomerId = order.CustomerId,
+                    Amount = order.TotalAmount,
+                    Currency = order.Currency,
+                    Reason = saga.LastError ?? "Inventory settlement requires payment refund.",
+                    CorrelationId = order.Id.ToString("N"),
+                    CausationId = causationEventId.ToString("D")
+                }),
+                transaction,
+                cancellationToken);
+        }
+
         return Task.CompletedTask;
     }
 
@@ -168,6 +243,17 @@ public sealed class ApplyInventorySettlementEventHandler
                 return;
 
             case OrderInventorySettlementEventType.InventoryReleased:
+                if (saga.State == OrderPaymentSagaState.PaymentRequested)
+                {
+                    saga.MarkTimedOut(
+                        request.EventId,
+                        updatedAtUtc,
+                        string.IsNullOrWhiteSpace(request.Reason)
+                            ? "Inventory reservation expired before payment completed."
+                            : request.Reason);
+                    return;
+                }
+
                 if (saga.State is OrderPaymentSagaState.PaymentAuthorized or OrderPaymentSagaState.CaptureRequested)
                 {
                     saga.MarkVoidRequested(
@@ -181,11 +267,11 @@ public sealed class ApplyInventorySettlementEventHandler
 
                 if (saga.State is OrderPaymentSagaState.OrderPaid or OrderPaymentSagaState.InventoryCommitted)
                 {
-                    saga.MarkCompensationRequired(
+                    saga.MarkRefundRequested(
                         request.EventId,
                         updatedAtUtc,
                         string.IsNullOrWhiteSpace(request.Reason)
-                            ? "Inventory reservation was released after payment succeeded."
+                            ? "Inventory reservation was released after payment succeeded; payment must be refunded."
                             : request.Reason);
                     return;
                 }

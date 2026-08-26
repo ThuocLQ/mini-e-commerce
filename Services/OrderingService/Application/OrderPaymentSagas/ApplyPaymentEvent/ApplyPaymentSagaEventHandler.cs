@@ -78,7 +78,7 @@ public sealed class ApplyPaymentSagaEventHandler : IRequestHandler<ApplyPaymentS
             {
                 var sagaStateChangedEvent = OrderIntegrationEventFactory.CreatePaymentSagaStateChanged(currentSaga, previousSagaState);
                 await _outboxRepository.AddAsync(OutboxMessageFactory.Create(sagaStateChangedEvent), transaction, cancellationToken);
-                await AddInventoryCommandAsync(currentSaga, request.EventType, transaction, cancellationToken);
+                await AddInventoryCommandAsync(currentSaga, request.EventType, previousOrderStatus, transaction, cancellationToken);
                 await AddPaymentOperationCommandAsync(order, currentSaga, request.EventId, transaction, cancellationToken);
             }
 
@@ -98,6 +98,7 @@ public sealed class ApplyPaymentSagaEventHandler : IRequestHandler<ApplyPaymentS
     private Task AddInventoryCommandAsync(
         OrderPaymentSaga saga,
         OrderPaymentSagaEventType eventType,
+        OrderStatus previousOrderStatus,
         System.Data.IDbTransaction transaction,
         CancellationToken cancellationToken)
     {
@@ -109,7 +110,8 @@ public sealed class ApplyPaymentSagaEventHandler : IRequestHandler<ApplyPaymentS
             return _outboxRepository.AddAsync(OutboxMessageFactory.Create(command), transaction, cancellationToken);
         }
 
-        if (saga.State is OrderPaymentSagaState.OrderCancelled or OrderPaymentSagaState.TimedOut)
+        if ((saga.State is OrderPaymentSagaState.OrderCancelled or OrderPaymentSagaState.TimedOut) &&
+            previousOrderStatus != OrderStatus.Cancelled)
         {
             var command = new InventoryReleaseRequestedIntegrationEvent
             {
@@ -255,15 +257,22 @@ public sealed class ApplyPaymentSagaEventHandler : IRequestHandler<ApplyPaymentS
             return;
         }
 
-        if (saga.State is OrderPaymentSagaState.OrderCancelled
-            or OrderPaymentSagaState.TimedOut
-            or OrderPaymentSagaState.CompensationRequired
-            || order.Status == OrderStatus.Cancelled)
+        if (saga.State is OrderPaymentSagaState.OrderCancelled or OrderPaymentSagaState.TimedOut ||
+            order.Status == OrderStatus.Cancelled)
         {
-            saga.MarkCompensationRequired(
+            saga.MarkVoidRequested(
                 request.EventId,
                 updatedAtUtc,
-                "Payment was authorized after the order had reached a terminal state.");
+                "Payment was authorized after the inventory reservation expired or the order was cancelled.");
+            return;
+        }
+
+        if (saga.State == OrderPaymentSagaState.CompensationRequired)
+        {
+            saga.RecordIgnoredEvent(
+                request.EventId,
+                updatedAtUtc,
+                "Payment authorization was received while manual reconciliation is required.");
             return;
         }
 
@@ -391,6 +400,23 @@ public sealed class ApplyPaymentSagaEventHandler : IRequestHandler<ApplyPaymentS
                     }
                 }
             }
+            else if (order.Status == OrderStatus.Paid)
+            {
+                if (order.MarkRefunded())
+                {
+                    var updated = await _orderRepository.TryUpdateStatusAsync(
+                        order.Id,
+                        order.Status,
+                        [compensationPreviousStatus],
+                        transaction,
+                        cancellationToken);
+
+                    if (!updated)
+                    {
+                        throw new InvalidOperationException("Order status changed before compensation refund was applied.");
+                    }
+                }
+            }
 
             saga.MarkCompensationCompleted(request.EventId, updatedAtUtc, request.FailureReason);
             return;
@@ -442,10 +468,10 @@ public sealed class ApplyPaymentSagaEventHandler : IRequestHandler<ApplyPaymentS
         if (saga.State is OrderPaymentSagaState.OrderCancelled or OrderPaymentSagaState.TimedOut ||
             order.Status == OrderStatus.Cancelled)
         {
-            saga.MarkCompensationRequired(
+            saga.MarkRefundRequested(
                 request.EventId,
                 updatedAtUtc,
-                "Payment succeeded after the order was cancelled or timed out.");
+                "Payment succeeded after the inventory reservation expired or the order was cancelled.");
             return;
         }
 

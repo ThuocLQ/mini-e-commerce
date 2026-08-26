@@ -10,7 +10,7 @@ namespace MicroShop.IntegrationTests.Ordering;
 public sealed class PaymentSagaCompensationTests
 {
     [Fact]
-    public async Task PaymentSucceeded_AfterOrderCancelled_RequiresCompensation()
+    public async Task PaymentSucceeded_AfterOrderCancelled_RequestsRefund()
     {
         var now = DateTime.UtcNow;
         var order = new Order(
@@ -47,12 +47,13 @@ public sealed class PaymentSagaCompensationTests
             TestContext.Current.CancellationToken);
 
         Assert.NotNull(result);
-        Assert.Equal(nameof(OrderPaymentSagaState.CompensationRequired), result.State);
+        Assert.Equal(nameof(OrderPaymentSagaState.RefundRequested), result.State);
         Assert.Equal(eventId, result.LastProcessedEventId);
-        Assert.Contains("cancelled or timed out", result.LastError);
+        Assert.Contains("inventory reservation expired or the order was cancelled", result.LastError);
         Assert.Equal(0, orderRepository.StatusUpdateCalls);
-        var sagaEvent = Assert.Single(outboxRepository.Messages);
-        Assert.Contains("OrderPaymentSagaStateChangedIntegrationEvent", sagaEvent.Type);
+        Assert.Equal(2, outboxRepository.Messages.Count);
+        Assert.Contains(outboxRepository.Messages, message => message.Type.Contains("OrderPaymentSagaStateChangedIntegrationEvent"));
+        Assert.Contains(outboxRepository.Messages, message => message.Type.Contains("PaymentRefundRequestedIntegrationEvent"));
         Assert.Same(saga, sagaRepository.SavedSaga);
     }
 
@@ -224,6 +225,32 @@ public sealed class PaymentSagaCompensationTests
         Assert.Equal(nameof(OrderPaymentSagaState.OrderRefunded), result.State);
         Assert.Equal(3, outboxRepository.Messages.Count);
         Assert.Contains(outboxRepository.Messages, message => message.Transport == OutboxTransport.Kafka && message.Type == "OrderRefunded");
+    }
+
+    [Fact]
+    public async Task PaymentRefunded_AfterInventoryExpiryCompensation_MarksPaidOrderRefunded()
+    {
+        var order = new Order(Guid.NewGuid(), Guid.NewGuid(), DateTime.UtcNow, OrderStatus.PendingPayment);
+        order.AddItem(new OrderItem(Guid.NewGuid(), Guid.NewGuid(), "Product", 10m, 1));
+        order.MarkPaid();
+        var paymentId = Guid.NewGuid();
+        var saga = OrderPaymentSaga.Start(order.Id, paymentId, DateTime.UtcNow, TimeSpan.FromMinutes(30));
+        saga.MarkRefundRequested(Guid.NewGuid(), DateTime.UtcNow, "Inventory reservation expired after payment completed.");
+        var outbox = new RecordingOutboxRepository();
+        var handler = new ApplyPaymentSagaEventHandler(
+            new InlineUnitOfWork(),
+            new StubOrderRepository(order),
+            new StubSagaRepository(saga),
+            outbox);
+
+        var result = await handler.Handle(
+            new ApplyPaymentSagaEventCommand(Guid.NewGuid(), OrderPaymentSagaEventType.PaymentRefunded, order.Id, paymentId, "Provider refund completed."),
+            TestContext.Current.CancellationToken);
+
+        Assert.NotNull(result);
+        Assert.Equal(OrderStatus.Refunded, order.Status);
+        Assert.Equal(nameof(OrderPaymentSagaState.CompensationCompleted), result.State);
+        Assert.Contains(outbox.Messages, message => message.Transport == OutboxTransport.Kafka && message.Type == "OrderRefunded");
     }
 
     [Fact]

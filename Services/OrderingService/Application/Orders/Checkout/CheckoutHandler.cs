@@ -97,8 +97,12 @@ public class CheckoutHandler : IRequestHandler<CheckoutCommand, OrderDto>
 
         var checkoutRequestHash = CreateCheckoutRequestHash(basket, request.CouponCode);
 
+        // A checkout retry can reach InventoryService before the order transaction commits.
+        // Keep the reservation key stable for an identical checkout so that retrying does not
+        // reserve the same stock under another order id while the first reservation expires.
+        var checkoutOrderId = CreateCheckoutOrderId(request.CustomerId, idempotencyKey, checkoutRequestHash);
         var order = new Order(
-            Guid.NewGuid(),
+            checkoutOrderId,
             request.CustomerId,
             DateTime.UtcNow,
             OrderStatus.PendingPayment,
@@ -275,6 +279,13 @@ public class CheckoutHandler : IRequestHandler<CheckoutCommand, OrderDto>
         var canonicalRequest = $"basketId={basket.BasketId:D}\nbasketVersion={basket.Version}\ncoupon={normalizedCouponCode}\nitems={string.Join(',', canonicalItems)}";
         var hash = SHA256.HashData(Encoding.UTF8.GetBytes(canonicalRequest));
         return Convert.ToHexString(hash).ToLowerInvariant();
+    }
+
+    private static Guid CreateCheckoutOrderId(Guid customerId, string idempotencyKey, string checkoutRequestHash)
+    {
+        var identity = $"checkout-order:v1:{customerId:D}:{idempotencyKey}:{checkoutRequestHash}";
+        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(identity));
+        return new Guid(bytes.AsSpan(0, 16));
     }
 
     private static void EnsureMatchingBasketIdentity(Order order, Guid basketId, long basketVersion)

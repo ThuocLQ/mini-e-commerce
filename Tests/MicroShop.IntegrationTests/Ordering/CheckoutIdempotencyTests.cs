@@ -131,6 +131,27 @@ public sealed class CheckoutIdempotencyTests
     }
 
     [Fact]
+    public async Task IdenticalCheckoutRetry_UsesTheSameInventoryReservationKey()
+    {
+        var customerId = Guid.NewGuid();
+        var productId = Guid.NewGuid();
+        var basket = CreateBasket(customerId, productId, quantity: 2);
+        var repository = new StubOrderRepository(
+            CreateOrder(customerId, productId, "unrelated-checkout", new string('a', 64), Guid.NewGuid()),
+            getExistingOnInitialRead: false,
+            getExistingByBasketOnInitialRead: false);
+        var inventory = new RecordingInventoryReservationClient();
+        var handler = CreateHandler(basket, repository, inventory);
+        var command = new CheckoutCommand(customerId, "retry-after-interruption", null, basket.BasketId, basket.Version);
+
+        await handler.Handle(command, TestContext.Current.CancellationToken);
+        await handler.Handle(command, TestContext.Current.CancellationToken);
+
+        Assert.Equal(2, inventory.ReservedOrderIds.Count);
+        Assert.Equal(inventory.ReservedOrderIds[0], inventory.ReservedOrderIds[1]);
+    }
+
+    [Fact]
     public async Task CouponReservation_IsAttachedToTheCreatedOrder()
     {
         var customerId = Guid.NewGuid();
