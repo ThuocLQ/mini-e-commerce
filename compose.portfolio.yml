@@ -93,7 +93,11 @@ services:
   storefront:
     mem_limit: 256m
     cpus: 0.50
+    environment:
+      MICROSHOP_ALLOW_TRYCLOUDFLARE_ORIGIN: "true"
 
   operations:
     mem_limit: 256m
     cpus: 0.50
+    environment:
+      MICROSHOP_ALLOW_TRYCLOUDFLARE_ORIGIN: "true"
