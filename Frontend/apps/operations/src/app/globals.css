@@ -48,6 +48,10 @@ nav { display:grid; gap:4px; margin-top:36px; } nav a, .nav-disabled { min-heigh
 .empty svg { margin:0 auto 8px; color:var(--muted); }
 .empty p { margin:0 0 14px; }
 .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+.procurement-blocker { align-items:flex-start; margin-top:26px; }
+.procurement-blocker span { line-height:1.5; }
+.blocker-grid td { line-height:1.45; }
+.blocker-grid td code { display:inline; white-space:normal; overflow:visible; }
 
 @media (max-width:760px) { .orders-page { padding:24px 16px; }.orders-title { align-items:flex-start; }.page-summary { padding-right:10px; }.queue-toolbar { align-items:stretch; flex-direction:column; }.queue-toolbar .search { max-width:none; flex:none; }.filter-row { display:grid; grid-template-columns:1fr 1fr; }.filter-row button { width:100%; }.orders-page .metrics { margin-top:20px; } }
 

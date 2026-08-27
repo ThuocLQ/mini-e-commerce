@@ -12,7 +12,7 @@ const navigation: Array<{ area: Area; href: string; label: string; Icon: typeof 
   { area: "inventory", href: "/inventory", label: "Stock health", Icon: PackageSearch },
   { area: "orders", href: "/orders", label: "Order & payment queue", Icon: ClipboardList },
   { area: "payments", href: "/payments", label: "Payment ledger", Icon: CreditCard },
-  { area: "procurement", href: "/procurement", label: "Supply & receipt", Icon: Truck },
+  { area: "procurement", href: "/procurement", label: "Supply & receipt — contract pending", Icon: Truck },
 ];
 
 export function OperationsWorkspace({ area, children }: { area: Area; children: ReactNode }) {
@@ -44,7 +44,7 @@ export function OperationsWorkspace({ area, children }: { area: Area; children: 
   return <main className="shell workspace-shell">
     <aside className="sidebar">
       <div className="brand"><span className="brand-mark"><Boxes size={19} /></span><span>MicroShop</span></div>
-      <nav className="workspace-nav" aria-label="Operations workspace">
+      <nav className="workspace-nav" aria-label="Operations workflow">
         {navigation.map(({ area: itemArea, href, label, Icon }) => <Link className={itemArea === area ? "nav-active" : ""} href={href} key={itemArea}><Icon size={17} />{label}</Link>)}
       </nav>
       <div className="operator"><ShieldCheck size={17} /><span>{user.userName}</span><button aria-label="Sign out" title="Sign out" onClick={async () => { await fetch("/api/session", { method: "DELETE" }); window.location.replace("/"); }}><LogOut size={17} /></button></div>
