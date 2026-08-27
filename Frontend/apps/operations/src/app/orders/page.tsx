@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ArrowLeft, CircleAlert, ClipboardList, CreditCard, LoaderCircle, RefreshCw, Search, ShieldAlert } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { OperationsWorkspace } from "@/components/operations-workspace";
 import { loadOrderPaymentQueue, OperationsApiError, type OrderPaymentRow } from "@/lib/operations/order-payment-queue";
 
 type User = { userId: string; userName: string; role: string };
@@ -86,7 +87,7 @@ export default function OrdersPage() {
     return <main className="signin"><div><LoaderCircle className="spin" size={22} /><p>Checking administrator access…</p></div></main>;
   }
 
-  return <main className="orders-page">
+  return <OperationsWorkspace area="orders"><main className="orders-page">
     <header className="orders-header">
       <Link className="back" href="/"><ArrowLeft size={17} />Catalog control</Link>
       <div className="orders-title">
@@ -124,7 +125,7 @@ export default function OrdersPage() {
       </table>
       {!loading && !error && visibleOrders.length === 0 ? <div className="empty"><ShieldAlert size={22} /><p>{orders.length === 0 ? "No checkout orders have been created yet." : "No orders match the current queue filter."}</p>{orders.length > 0 ? <button className="command" onClick={() => { setFilter("all"); setQuery(""); }}>Clear filters</button> : null}</div> : null}
     </div>
-  </main>;
+  </main></OperationsWorkspace>;
 }
 
 function PaymentCell({ payment }: { payment: OrderPaymentRow["payment"] }) {

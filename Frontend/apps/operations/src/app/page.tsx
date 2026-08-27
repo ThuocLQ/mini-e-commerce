@@ -55,7 +55,7 @@ export default function OperationsHome() {
   return <main className="shell">
     <aside className="sidebar">
       <div className="brand"><span className="brand-mark"><Boxes size={19} /></span><span>MicroShop</span></div>
-      <nav><a className="nav-active" href="#catalog"><Boxes size={17} />Catalog</a><Link href="/inventory">Inventory</Link><Link href="/orders">Orders</Link><Link href="/payments">Payments</Link><Link href="/procurement">Procurement</Link><span className="nav-disabled">Operations</span></nav>
+      <nav className="workspace-nav"><a className="nav-active" href="#catalog"><Boxes size={17} />Catalog & prices</a><Link href="/inventory">Stock health</Link><Link href="/orders">Order & payment queue</Link><Link href="/payments">Payment ledger</Link><Link href="/procurement">Supply & receipt</Link></nav>
       <div className="operator"><ShieldCheck size={17} /><span>{session.userName}</span><button aria-label="Sign out" title="Sign out" onClick={async () => { await fetch("/api/session", { method: "DELETE" }); setProducts([]); setSession(null); }}><LogIn size={17} /></button></div>
     </aside>
     <section className="workspace" id="catalog">

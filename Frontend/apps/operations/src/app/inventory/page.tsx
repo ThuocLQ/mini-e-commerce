@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ArrowLeft, Boxes, CircleAlert, LoaderCircle, RefreshCw, ShieldAlert } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { OperationsWorkspace } from "@/components/operations-workspace";
 import { loadInventoryReconciliation, OperationsApiError, type InventoryReconciliation, type ReconciliationState } from "@/lib/operations/inventory-reconciliation";
 
 type User = { userId: string; role: string };
@@ -61,7 +62,7 @@ export default function InventoryPage() {
 
   if (authorized !== true) return <main className="signin"><div><LoaderCircle className="spin" size={22} /><p>Checking administrator access…</p></div></main>;
 
-  return <main className="orders-page">
+  return <OperationsWorkspace area="inventory"><main className="orders-page">
     <header className="orders-header"><Link className="back" href="/"><ArrowLeft size={17} />Catalog control</Link><div className="orders-title"><div><p className="eyebrow">Operations / P0</p><h1>Inventory reconciliation</h1><p className="page-summary">Compare on-hand, reserved, and available units against the catalog records returned by the gateway.</p></div><button className="icon-button" aria-label="Refresh inventory reconciliation" title="Refresh inventory reconciliation" disabled={loading} onClick={() => void load()}>{loading ? <LoaderCircle className="spin" size={18} /> : <RefreshCw size={18} />}</button></div></header>
     <div className="metrics"><Metric label="Available units" value={String(summary.available)} /><Metric label="Quantity exceptions" value={String(summary.attention)} tone="danger" /><Metric label="Catalog missing inventory" value={String(summary.missingInventory)} tone="warn" /></div>
     {error ? <div className="notice"><CircleAlert size={19} /><span>{error}</span><button onClick={() => void load()}>Retry</button></div> : null}
@@ -69,7 +70,7 @@ export default function InventoryPage() {
     <p className="queue-meta">{loading ? "Refreshing reconciliation…" : updatedAt ? `Last refreshed ${dateTime.format(updatedAt)} · ${visibleRows.length} records shown` : "Loading reconciliation…"}</p>
     <div className="table-wrap"><table><thead><tr><th>Product</th><th>On hand</th><th>Reserved</th><th>Available</th><th>Reconciliation</th><th>Last update</th></tr></thead><tbody>{visibleRows.map((item) => <tr key={item.productId}><td><strong><Boxes size={16} />{item.name}</strong><span>{item.description}</span></td><td>{item.stockQuantity}</td><td>{item.reservedQuantity}</td><td><Availability quantity={item.availableQuantity} /></td><td><ReconciliationStatus value={item.reconciliation} /></td><td>{formatDate(item.updatedAtUtc)}</td></tr>)}</tbody></table>{!loading && !error && visibleRows.length === 0 ? <div className="empty"><ShieldAlert size={22} /><p>{emptyMessage(data.rows.length, filter)}</p>{data.rows.length > 0 ? <button className="command" onClick={() => setFilter("all")}>Show all records</button> : null}</div> : null}</div>
     <section className="operations-section"><div className="section-heading"><div><p className="eyebrow">Coverage</p><h2>Catalog items without an inventory record</h2></div><p>This is a gateway snapshot, not a stock adjustment control.</p></div><div className="table-wrap"><table><thead><tr><th>Product</th><th>Product ID</th></tr></thead><tbody>{data.productsMissingInventory.map((product) => <tr key={product.id}><td><strong>{product.name}</strong><span>{product.description || "No description"}</span></td><td><code>{product.id}</code></td></tr>)}</tbody></table>{!loading && !error && data.productsMissingInventory.length === 0 ? <div className="empty">Every catalog product in this snapshot has an inventory record.</div> : null}</div></section>
-  </main>;
+  </main></OperationsWorkspace>;
 }
 
 function Metric({ label, value, tone }: { label: string; value: string; tone?: string }) { return <div className={`metric ${tone ?? ""}`}><span>{label}</span><strong>{value}</strong></div>; }

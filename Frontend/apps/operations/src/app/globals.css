@@ -50,3 +50,6 @@ nav { display:grid; gap:4px; margin-top:36px; } nav a, .nav-disabled { min-heigh
 .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
 
 @media (max-width:760px) { .orders-page { padding:24px 16px; }.orders-title { align-items:flex-start; }.page-summary { padding-right:10px; }.queue-toolbar { align-items:stretch; flex-direction:column; }.queue-toolbar .search { max-width:none; flex:none; }.filter-row { display:grid; grid-template-columns:1fr 1fr; }.filter-row button { width:100%; }.orders-page .metrics { margin-top:20px; } }
+
+.workspace-shell .workspace { padding:30px clamp(20px,4vw,56px); }.workspace-shell .orders-page { min-height:auto; max-width:1400px; margin:0; padding:0; }.workspace-nav a { white-space:nowrap; }
+@media (max-width:760px) { .sidebar { position:sticky; top:0; z-index:5; display:grid; grid-template-columns:minmax(0,1fr) auto; gap:10px; box-shadow:0 1px 0 rgb(0 0 0 / .15); }.sidebar .workspace-nav { display:flex; grid-column:1 / -1; order:3; gap:6px; margin:0; overflow-x:auto; padding-bottom:2px; }.sidebar .workspace-nav a { flex:0 0 auto; min-height:36px; padding:0 8px; }.sidebar .operator { margin:0; padding:0; align-self:center; }.sidebar .operator span { max-width:96px; }.workspace-shell .workspace { padding:22px 16px; } }
