@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Diagnostics;
 using PaymentService.API.Endpoints;
 using PaymentService.Application.Payments.CreatePayment;
 using PaymentService.Application.Payments.Webhooks;
+using PaymentService.Application.Payments.Providers;
 using PaymentService.Infrastructure.Clients;
 
 namespace PaymentService.API;
@@ -42,6 +43,12 @@ public static class DependencyInjection
                     {
                         error = exception.Message
                     }).ExecuteAsync(context);
+                    return;
+                }
+
+                if (exception is PaymentActionIdempotencyConflictException)
+                {
+                    await Results.Conflict(new { error = exception.Message }).ExecuteAsync(context);
                     return;
                 }
 

@@ -16,6 +16,9 @@ public static class PaymentMapper
             payment.ProviderTransactionId,
             payment.FailureReason,
             payment.CreatedAtUtc,
-            payment.CompletedAtUtc);
+            payment.CompletedAtUtc,
+            payment.Provider,
+            payment.ProviderSessionId,
+            payment.PaymentActionExpiresAtUtc);
     }
 }

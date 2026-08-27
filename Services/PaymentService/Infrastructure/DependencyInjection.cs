@@ -7,6 +7,8 @@ using PaymentService.Infrastructure.Clients;
 using BuildingBlocks.Contracts.Events.Payments;
 using MassTransit;
 using PaymentService.Infrastructure.Messaging;
+using PaymentService.Infrastructure.Providers;
+using PaymentService.Application.Payments.Providers;
 
 namespace PaymentService.Infrastructure;
 
@@ -27,6 +29,27 @@ public static class DependencyInjection
         services.AddSingleton<IPaymentMetrics, PaymentMetrics>();
         services.AddPostgresReadinessCheck(configuration, "PaymentDb");
         services.AddRabbitMqReadinessCheck(configuration);
+
+        var providerKind = configuration[$"{PaymentProviderOptions.SectionName}:Provider"]?.Trim();
+        if (IsSandboxEnvironment(environment))
+        {
+            if (!string.Equals(providerKind, "Sandbox", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException(
+                    "Development/Portfolio payment runs must explicitly configure PaymentProvider:Provider=Sandbox. " +
+                    "No commercial provider adapter is bundled with this service.");
+            }
+
+            services.AddSingleton<SandboxPaymentProvider>();
+            services.AddSingleton<IPaymentProvider>(serviceProvider => serviceProvider.GetRequiredService<SandboxPaymentProvider>());
+            services.AddSingleton<ISandboxPaymentProvider>(serviceProvider => serviceProvider.GetRequiredService<SandboxPaymentProvider>());
+        }
+        else
+        {
+            throw new InvalidOperationException(
+                "A commercial payment provider adapter must be configured outside Development/Portfolio. " +
+                "The sandbox provider is intentionally unavailable in this environment.");
+        }
 
         var orderingBaseUrl = configuration["ServiceUrls:OrderingHttp"]
                               ?? throw new InvalidOperationException("ServiceUrls:OrderingHttp is missing.");
@@ -157,4 +180,8 @@ public static class DependencyInjection
                && !secret.Contains("dev-webhook-secret", StringComparison.OrdinalIgnoreCase)
                && !secret.Contains("CHANGEME", StringComparison.OrdinalIgnoreCase);
     }
+
+    private static bool IsSandboxEnvironment(IHostEnvironment environment) =>
+        environment.IsDevelopment() ||
+        string.Equals(environment.EnvironmentName, "Portfolio", StringComparison.OrdinalIgnoreCase);
 }

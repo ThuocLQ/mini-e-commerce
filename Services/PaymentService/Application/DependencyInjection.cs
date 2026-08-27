@@ -8,6 +8,15 @@ public static class DependencyInjection
     {
         services.AddMediatR(configuration =>
             configuration.RegisterServicesFromAssembly(typeof(DependencyInjection).Assembly));
+        services.AddScoped<Payments.Webhooks.IPaymentWebhookProcessor, Payments.Webhooks.PaymentWebhookProcessor>();
+
+        services
+            .AddOptions<Payments.Providers.PaymentProviderOptions>()
+            .Bind(configuration.GetSection(Payments.Providers.PaymentProviderOptions.SectionName))
+            .Validate(options => !string.IsNullOrWhiteSpace(options.Provider), "PaymentProvider:Provider is required.")
+            .Validate(options => options.SandboxActionExpiryMinutes is > 0 and <= 24 * 60,
+                "PaymentProvider:SandboxActionExpiryMinutes must be between 1 and 1440.")
+            .ValidateOnStart();
 
         services
             .AddOptions<Payments.Webhooks.PaymentWebhookOptions>()

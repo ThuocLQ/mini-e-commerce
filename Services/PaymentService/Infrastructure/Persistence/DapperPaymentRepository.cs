@@ -38,7 +38,12 @@ public sealed class DapperPaymentRepository : IPaymentRepository
                 VoidRequestedAtUtc,
                 VoidedAtUtc,
                 RefundRequestedAtUtc,
-                RefundedAtUtc)
+                RefundedAtUtc,
+                Provider,
+                ProviderSessionId,
+                PaymentActionIdempotencyKey,
+                PaymentActionRequestHash,
+                PaymentActionExpiresAtUtc)
             VALUES (
                 @Id,
                 @OrderId,
@@ -56,7 +61,12 @@ public sealed class DapperPaymentRepository : IPaymentRepository
                 @VoidRequestedAtUtc,
                 @VoidedAtUtc,
                 @RefundRequestedAtUtc,
-                @RefundedAtUtc);
+                @RefundedAtUtc,
+                @Provider,
+                @ProviderSessionId,
+                @PaymentActionIdempotencyKey,
+                @PaymentActionRequestHash,
+                @PaymentActionExpiresAtUtc);
             """, ToParameters(payment), cancellationToken: cancellationToken));
         }
         catch (PostgresException ex) when (ex.SqlState == PostgresErrorCodes.UniqueViolation)
@@ -98,14 +108,16 @@ public sealed class DapperPaymentRepository : IPaymentRepository
             ? """
             SELECT Id, OrderId, CustomerId, Amount, Currency, Status, ProviderTransactionId, FailureReason, CreatedAtUtc, CompletedAtUtc,
                    AuthorizedAtUtc, CaptureRequestedAtUtc, CapturedAtUtc, VoidRequestedAtUtc, VoidedAtUtc,
-                   RefundRequestedAtUtc, RefundedAtUtc
+                   RefundRequestedAtUtc, RefundedAtUtc, Provider, ProviderSessionId, PaymentActionIdempotencyKey,
+                   PaymentActionRequestHash, PaymentActionExpiresAtUtc
             FROM Payments
             WHERE Id = @Id;
             """
             : """
             SELECT Id, OrderId, CustomerId, Amount, Currency, Status, ProviderTransactionId, FailureReason, CreatedAtUtc, CompletedAtUtc,
                    AuthorizedAtUtc, CaptureRequestedAtUtc, CapturedAtUtc, VoidRequestedAtUtc, VoidedAtUtc,
-                   RefundRequestedAtUtc, RefundedAtUtc
+                   RefundRequestedAtUtc, RefundedAtUtc, Provider, ProviderSessionId, PaymentActionIdempotencyKey,
+                   PaymentActionRequestHash, PaymentActionExpiresAtUtc
             FROM Payments
             WHERE Id = @Id
             FOR UPDATE;
@@ -127,7 +139,8 @@ public sealed class DapperPaymentRepository : IPaymentRepository
         var row = await connection.QuerySingleOrDefaultAsync<PaymentRow>(new CommandDefinition("""
             SELECT Id, OrderId, CustomerId, Amount, Currency, Status, ProviderTransactionId, FailureReason, CreatedAtUtc, CompletedAtUtc,
                    AuthorizedAtUtc, CaptureRequestedAtUtc, CapturedAtUtc, VoidRequestedAtUtc, VoidedAtUtc,
-                   RefundRequestedAtUtc, RefundedAtUtc
+                   RefundRequestedAtUtc, RefundedAtUtc, Provider, ProviderSessionId, PaymentActionIdempotencyKey,
+                   PaymentActionRequestHash, PaymentActionExpiresAtUtc
             FROM Payments
             WHERE OrderId = @OrderId;
             """, new { OrderId = orderId }, cancellationToken: cancellationToken));
@@ -142,13 +155,34 @@ public sealed class DapperPaymentRepository : IPaymentRepository
         var rows = await connection.QueryAsync<PaymentRow>(new CommandDefinition("""
             SELECT Id, OrderId, CustomerId, Amount, Currency, Status, ProviderTransactionId, FailureReason, CreatedAtUtc, CompletedAtUtc,
                    AuthorizedAtUtc, CaptureRequestedAtUtc, CapturedAtUtc, VoidRequestedAtUtc, VoidedAtUtc,
-                   RefundRequestedAtUtc, RefundedAtUtc
+                   RefundRequestedAtUtc, RefundedAtUtc, Provider, ProviderSessionId, PaymentActionIdempotencyKey,
+                   PaymentActionRequestHash, PaymentActionExpiresAtUtc
             FROM Payments
             ORDER BY CreatedAtUtc DESC
             LIMIT @Limit;
             """, new { Limit = limit }, cancellationToken: cancellationToken));
 
         return rows.Select(MapPayment).ToList();
+    }
+
+    public async Task<Payment?> GetByCustomerAndActionIdempotencyKeyAsync(
+        Guid customerId,
+        string idempotencyKey,
+        CancellationToken cancellationToken = default)
+    {
+        using var connection = _connectionFactory.CreateConnection();
+
+        var row = await connection.QuerySingleOrDefaultAsync<PaymentRow>(new CommandDefinition("""
+            SELECT Id, OrderId, CustomerId, Amount, Currency, Status, ProviderTransactionId, FailureReason, CreatedAtUtc, CompletedAtUtc,
+                   AuthorizedAtUtc, CaptureRequestedAtUtc, CapturedAtUtc, VoidRequestedAtUtc, VoidedAtUtc,
+                   RefundRequestedAtUtc, RefundedAtUtc, Provider, ProviderSessionId, PaymentActionIdempotencyKey,
+                   PaymentActionRequestHash, PaymentActionExpiresAtUtc
+            FROM Payments
+            WHERE CustomerId = @CustomerId
+              AND PaymentActionIdempotencyKey = @IdempotencyKey;
+            """, new { CustomerId = customerId, IdempotencyKey = idempotencyKey }, cancellationToken: cancellationToken));
+
+        return row is null ? null : MapPayment(row);
     }
     public async Task<bool> UpdateAsync(Payment payment, CancellationToken cancellationToken = default)
     {
@@ -210,7 +244,12 @@ public sealed class DapperPaymentRepository : IPaymentRepository
             payment.VoidRequestedAtUtc,
             payment.VoidedAtUtc,
             payment.RefundRequestedAtUtc,
-            payment.RefundedAtUtc
+            payment.RefundedAtUtc,
+            payment.Provider,
+            payment.ProviderSessionId,
+            payment.PaymentActionIdempotencyKey,
+            payment.PaymentActionRequestHash,
+            payment.PaymentActionExpiresAtUtc
         };
     }
 
@@ -233,7 +272,12 @@ public sealed class DapperPaymentRepository : IPaymentRepository
             row.VoidRequestedAtUtc,
             row.VoidedAtUtc,
             row.RefundRequestedAtUtc,
-            row.RefundedAtUtc);
+            row.RefundedAtUtc,
+            row.Provider,
+            row.ProviderSessionId,
+            row.PaymentActionIdempotencyKey,
+            row.PaymentActionRequestHash,
+            row.PaymentActionExpiresAtUtc);
     }
 
     private sealed record PaymentRow(
@@ -253,5 +297,10 @@ public sealed class DapperPaymentRepository : IPaymentRepository
         DateTime? VoidRequestedAtUtc,
         DateTime? VoidedAtUtc,
         DateTime? RefundRequestedAtUtc,
-        DateTime? RefundedAtUtc);
+        DateTime? RefundedAtUtc,
+        string? Provider,
+        string? ProviderSessionId,
+        string? PaymentActionIdempotencyKey,
+        string? PaymentActionRequestHash,
+        DateTime? PaymentActionExpiresAtUtc);
 }

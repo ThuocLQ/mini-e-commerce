@@ -11,6 +11,7 @@ public enum PaymentStatus
     RefundPending = 7,
     Refunded = 8,
     Failed = 9,
+    ReconciliationRequired = 10,
 
     // Kept for persisted legacy values and callers during the lifecycle migration.
     Pending = PendingAuthorization,

@@ -133,6 +133,12 @@ public sealed class PaymentCaptureRequestTests
         public Task<PaymentService.Domain.Payments.Payment?> GetByOrderIdAsync(Guid orderId, CancellationToken cancellationToken = default) =>
             Task.FromResult<PaymentService.Domain.Payments.Payment?>(orderId == payment.OrderId ? payment : null);
 
+        public Task<PaymentService.Domain.Payments.Payment?> GetByCustomerAndActionIdempotencyKeyAsync(
+            Guid customerId,
+            string idempotencyKey,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<PaymentService.Domain.Payments.Payment?>(null);
+
         public Task<IReadOnlyList<PaymentService.Domain.Payments.Payment>> GetRecentAsync(int limit, CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<PaymentService.Domain.Payments.Payment>>([payment]);
 

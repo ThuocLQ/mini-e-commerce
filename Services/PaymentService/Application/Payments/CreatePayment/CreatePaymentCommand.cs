@@ -4,4 +4,5 @@ namespace PaymentService.Application.Payments.CreatePayment;
 
 public sealed record CreatePaymentCommand(
     Guid OrderId,
-    Guid CustomerId) : IRequest<PaymentDto>;
+    Guid CustomerId,
+    string IdempotencyKey) : IRequest<CreatePaymentResult>;

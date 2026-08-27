@@ -195,7 +195,8 @@ public sealed class DapperPaymentWebhookRepository : IPaymentWebhookRepository
         var row = await connection.QuerySingleOrDefaultAsync<PaymentRow>(new CommandDefinition("""
             SELECT Id, OrderId, CustomerId, Amount, Currency, Status, ProviderTransactionId, FailureReason, CreatedAtUtc, CompletedAtUtc,
                    AuthorizedAtUtc, CaptureRequestedAtUtc, CapturedAtUtc, VoidRequestedAtUtc, VoidedAtUtc,
-                   RefundRequestedAtUtc, RefundedAtUtc
+                   RefundRequestedAtUtc, RefundedAtUtc, Provider, ProviderSessionId, PaymentActionIdempotencyKey,
+                   PaymentActionRequestHash, PaymentActionExpiresAtUtc
             FROM Payments
             WHERE Id = @PaymentId;
             """, new { PaymentId = paymentId }, cancellationToken: cancellationToken));
@@ -280,7 +281,8 @@ public sealed class DapperPaymentWebhookRepository : IPaymentWebhookRepository
         var row = await transaction.Connection!.QuerySingleOrDefaultAsync<PaymentRow>(new CommandDefinition("""
             SELECT Id, OrderId, CustomerId, Amount, Currency, Status, ProviderTransactionId, FailureReason, CreatedAtUtc, CompletedAtUtc,
                    AuthorizedAtUtc, CaptureRequestedAtUtc, CapturedAtUtc, VoidRequestedAtUtc, VoidedAtUtc,
-                   RefundRequestedAtUtc, RefundedAtUtc
+                   RefundRequestedAtUtc, RefundedAtUtc, Provider, ProviderSessionId, PaymentActionIdempotencyKey,
+                   PaymentActionRequestHash, PaymentActionExpiresAtUtc
             FROM Payments
             WHERE Id = @PaymentId
             FOR UPDATE;
@@ -489,7 +491,12 @@ public sealed class DapperPaymentWebhookRepository : IPaymentWebhookRepository
             row.VoidRequestedAtUtc,
             row.VoidedAtUtc,
             row.RefundRequestedAtUtc,
-            row.RefundedAtUtc);
+            row.RefundedAtUtc,
+            row.Provider,
+            row.ProviderSessionId,
+            row.PaymentActionIdempotencyKey,
+            row.PaymentActionRequestHash,
+            row.PaymentActionExpiresAtUtc);
     }
 
     private static string Truncate(string value, int maxLength)
@@ -514,7 +521,12 @@ public sealed class DapperPaymentWebhookRepository : IPaymentWebhookRepository
         DateTime? VoidRequestedAtUtc,
         DateTime? VoidedAtUtc,
         DateTime? RefundRequestedAtUtc,
-        DateTime? RefundedAtUtc);
+        DateTime? RefundedAtUtc,
+        string? Provider,
+        string? ProviderSessionId,
+        string? PaymentActionIdempotencyKey,
+        string? PaymentActionRequestHash,
+        DateTime? PaymentActionExpiresAtUtc);
 
     private static void ApplyWebhookStatus(
         Payment payment,

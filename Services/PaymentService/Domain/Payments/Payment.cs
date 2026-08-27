@@ -9,6 +9,11 @@ public sealed class Payment
     public string Currency { get; }
     public PaymentStatus Status { get; private set; }
     public string? ProviderTransactionId { get; private set; }
+    public string? Provider { get; }
+    public string? ProviderSessionId { get; }
+    public string? PaymentActionIdempotencyKey { get; }
+    public string? PaymentActionRequestHash { get; }
+    public DateTime? PaymentActionExpiresAtUtc { get; }
     public string? FailureReason { get; private set; }
     public DateTime CreatedAtUtc { get; }
     public DateTime? CompletedAtUtc { get; private set; }
@@ -37,7 +42,12 @@ public sealed class Payment
         DateTime? voidRequestedAtUtc = null,
         DateTime? voidedAtUtc = null,
         DateTime? refundRequestedAtUtc = null,
-        DateTime? refundedAtUtc = null)
+        DateTime? refundedAtUtc = null,
+        string? provider = null,
+        string? providerSessionId = null,
+        string? paymentActionIdempotencyKey = null,
+        string? paymentActionRequestHash = null,
+        DateTime? paymentActionExpiresAtUtc = null)
     {
         if (id == Guid.Empty) throw new ArgumentException("Payment id cannot be empty.", nameof(id));
         if (orderId == Guid.Empty) throw new ArgumentException("Order id cannot be empty.", nameof(orderId));
@@ -52,6 +62,27 @@ public sealed class Payment
         Currency = currency.Trim().ToUpperInvariant();
         Status = status;
         ProviderTransactionId = string.IsNullOrWhiteSpace(providerTransactionId) ? null : providerTransactionId.Trim();
+        Provider = string.IsNullOrWhiteSpace(provider) ? null : provider.Trim();
+        ProviderSessionId = string.IsNullOrWhiteSpace(providerSessionId) ? null : providerSessionId.Trim();
+        PaymentActionIdempotencyKey = string.IsNullOrWhiteSpace(paymentActionIdempotencyKey) ? null : paymentActionIdempotencyKey.Trim();
+        PaymentActionRequestHash = string.IsNullOrWhiteSpace(paymentActionRequestHash) ? null : paymentActionRequestHash.Trim().ToLowerInvariant();
+        PaymentActionExpiresAtUtc = paymentActionExpiresAtUtc;
+
+        if (PaymentActionIdempotencyKey?.Length > 128)
+        {
+            throw new ArgumentException("Payment action idempotency key cannot exceed 128 characters.", nameof(paymentActionIdempotencyKey));
+        }
+
+        if (PaymentActionRequestHash is not null &&
+            (PaymentActionRequestHash.Length != 64 || PaymentActionRequestHash.Any(character => !Uri.IsHexDigit(character))))
+        {
+            throw new ArgumentException("Payment action request hash must be a SHA-256 hexadecimal value.", nameof(paymentActionRequestHash));
+        }
+
+        if (ProviderSessionId is not null && PaymentActionExpiresAtUtc is null)
+        {
+            throw new ArgumentException("A payment provider session requires an expiry.", nameof(paymentActionExpiresAtUtc));
+        }
         FailureReason = string.IsNullOrWhiteSpace(failureReason) ? null : failureReason.Trim();
         CreatedAtUtc = createdAtUtc;
         CompletedAtUtc = completedAtUtc;
@@ -66,7 +97,14 @@ public sealed class Payment
 
     public void MarkAuthorized(string providerTransactionId, DateTime authorizedAtUtc)
     {
-        if (Status == PaymentStatus.Authorized)
+        if (Status is PaymentStatus.Authorized
+            or PaymentStatus.CapturePending
+            or PaymentStatus.Captured
+            or PaymentStatus.VoidPending
+            or PaymentStatus.Voided
+            or PaymentStatus.RefundPending
+            or PaymentStatus.Refunded
+            or PaymentStatus.ReconciliationRequired)
         {
             return;
         }
@@ -100,12 +138,22 @@ public sealed class Payment
 
     public void MarkCaptured(string providerTransactionId, DateTime capturedAtUtc)
     {
-        if (Status == PaymentStatus.Captured)
+        if (Status is PaymentStatus.Captured or PaymentStatus.RefundPending or PaymentStatus.Refunded)
         {
             return;
         }
 
-        if (Status != PaymentStatus.CapturePending)
+        if (Status == PaymentStatus.Voided)
+        {
+            SetProviderTransactionId(providerTransactionId);
+            Status = PaymentStatus.ReconciliationRequired;
+            FailureReason = "Provider reported capture after void confirmation; refund reconciliation is required.";
+            CapturedAtUtc = capturedAtUtc;
+            CompletedAtUtc = capturedAtUtc;
+            return;
+        }
+
+        if (Status is not (PaymentStatus.CapturePending or PaymentStatus.VoidPending))
         {
             throw new InvalidOperationException($"Payment in status '{Status}' cannot be captured.");
         }
@@ -158,7 +206,7 @@ public sealed class Payment
             return;
         }
 
-        if (Status != PaymentStatus.Captured)
+        if (Status is not (PaymentStatus.Captured or PaymentStatus.ReconciliationRequired))
         {
             throw new InvalidOperationException($"Payment in status '{Status}' cannot be refunded.");
         }
@@ -193,7 +241,12 @@ public sealed class Payment
 
     public void MarkFailed(string reason, DateTime completedAtUtc)
     {
-        if (Status == PaymentStatus.Failed)
+        if (Status is PaymentStatus.Failed
+            or PaymentStatus.VoidPending
+            or PaymentStatus.Voided
+            or PaymentStatus.RefundPending
+            or PaymentStatus.Refunded
+            or PaymentStatus.ReconciliationRequired)
         {
             return;
         }

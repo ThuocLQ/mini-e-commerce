@@ -1,5 +1,7 @@
 using MediatR;
 using PaymentService.Application.Abstractions;
+using PaymentService.Application.Payments.Providers;
+using PaymentService.Application.Payments.Webhooks;
 
 namespace PaymentService.Application.Payments.RequestCapture;
 
@@ -11,24 +13,30 @@ public sealed class RequestPaymentCaptureHandler
     private readonly IPaymentUnitOfWork _unitOfWork;
     private readonly IPaymentRepository _paymentRepository;
     private readonly IPaymentInboxRepository _inboxRepository;
+    private readonly IPaymentProvider? _paymentProvider;
+    private readonly IPaymentWebhookProcessor? _webhookProcessor;
 
     public RequestPaymentCaptureHandler(
         IPaymentUnitOfWork unitOfWork,
         IPaymentRepository paymentRepository,
-        IPaymentInboxRepository inboxRepository)
+        IPaymentInboxRepository inboxRepository,
+        IPaymentProvider? paymentProvider = null,
+        IPaymentWebhookProcessor? webhookProcessor = null)
     {
         _unitOfWork = unitOfWork;
         _paymentRepository = paymentRepository;
         _inboxRepository = inboxRepository;
+        _paymentProvider = paymentProvider;
+        _webhookProcessor = webhookProcessor;
     }
 
-    public Task<PaymentCaptureRequestApplyResult> Handle(
+    public async Task<PaymentCaptureRequestApplyResult> Handle(
         RequestPaymentCaptureCommand request,
         CancellationToken cancellationToken)
     {
         Validate(request);
 
-        return _unitOfWork.ExecuteAsync(async transaction =>
+        var result = await _unitOfWork.ExecuteAsync(async transaction =>
         {
             var payment = await _paymentRepository.GetByIdAsync(
                 request.PaymentId,
@@ -58,6 +66,21 @@ public sealed class RequestPaymentCaptureHandler
 
             return new PaymentCaptureRequestApplyResult(payment.Id, false, captureWasRequested);
         }, cancellationToken);
+
+        if (result.CaptureWasRequested && _paymentProvider is not null && _webhookProcessor is not null)
+        {
+            var payment = await _paymentRepository.GetByIdAsync(result.PaymentId, cancellationToken);
+            if (payment is not null)
+            {
+                var webhook = await _paymentProvider.RequestCaptureAsync(payment, cancellationToken);
+                if (webhook is not null)
+                {
+                    await _webhookProcessor.ProcessAsync(webhook.RawBody, webhook.Signature, cancellationToken);
+                }
+            }
+        }
+
+        return result;
     }
 
     private static void Validate(RequestPaymentCaptureCommand request)

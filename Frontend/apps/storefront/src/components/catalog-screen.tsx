@@ -54,6 +54,7 @@ export function CatalogScreen() {
   const [selectedProduct, setSelectedProduct] = useState<CatalogProduct | null>(null);
   const catalogSectionRef = useRef<HTMLElement>(null);
   const checkoutKeys = useRef(new Map<string, string>());
+  const paymentActionKeys = useRef(new Map<string, string>());
   const addressCreateKeys = useRef(new Map<string, string>());
 
   const recoverExpiredSession = useCallback(() => {
@@ -427,14 +428,20 @@ export function CatalogScreen() {
     setStartingPaymentOrderId(orderId);
     setPaymentMessage(null);
     try {
-      const response = await fetch("/api/payments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ orderId }) });
+      const idempotencyKey = paymentActionKeys.current.get(orderId) ?? crypto.randomUUID();
+      paymentActionKeys.current.set(orderId, idempotencyKey);
+      const response = await fetch("/api/payments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Idempotency-Key": idempotencyKey },
+        body: JSON.stringify({ orderId }),
+      });
       const payload: unknown = await response.json().catch(() => null);
       if (response.status === 401) {
         recoverExpiredSession();
         return;
       }
-      if (!response.ok || !isPayment(payload)) throw new Error(messageOf(payload) ?? "Payment could not be initiated.");
-      setPaymentMessage("Payment request #" + payload.id.slice(0, 8).toUpperCase() + " was created with status " + labelPaymentStatus(payload.status) + ". This is not payment confirmation; refresh your orders after the payment provider updates it.");
+      if (!response.ok || !isPaymentAction(payload)) throw new Error(messageOf(payload) ?? "Payment could not be initiated.");
+      setPaymentMessage("Payment action #" + payload.payment.id.slice(0, 8).toUpperCase() + " is " + labelPaymentStatus(payload.payment.status) + " and expires " + new Date(payload.action.expiresAtUtc).toLocaleTimeString() + ". Your order remains awaiting confirmed payment; refresh after the provider callback is processed.");
       await loadOrders();
     } catch (error) {
       setPaymentMessage(error instanceof Error ? error.message : "Payment could not be initiated.");
@@ -656,7 +663,14 @@ function isOrderItem(value: unknown) {
     && typeof item.totalPrice === "number";
 }
 
-function isPayment(value: unknown): value is { id: string; status: string } { return typeof value === "object" && value !== null && typeof (value as Record<string, unknown>).id === "string" && typeof (value as Record<string, unknown>).status === "string"; }
+function isPaymentAction(value: unknown): value is { payment: { id: string; status: string }; action: { expiresAtUtc: string } } {
+  if (typeof value !== "object" || value === null) return false;
+  const payload = value as Record<string, unknown>;
+  if (typeof payload.payment !== "object" || payload.payment === null || typeof payload.action !== "object" || payload.action === null) return false;
+  const payment = payload.payment as Record<string, unknown>;
+  const action = payload.action as Record<string, unknown>;
+  return typeof payment.id === "string" && typeof payment.status === "string" && typeof action.expiresAtUtc === "string";
+}
 
 function isOrders(value: unknown): value is OrderSummary[] { return Array.isArray(value) && value.every(isOrderSummary); }
 

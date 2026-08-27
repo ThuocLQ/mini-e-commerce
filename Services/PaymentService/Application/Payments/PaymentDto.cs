@@ -10,4 +10,7 @@ public sealed record PaymentDto(
     string? ProviderTransactionId,
     string? FailureReason,
     DateTime CreatedAtUtc,
-    DateTime? CompletedAtUtc);
+    DateTime? CompletedAtUtc,
+    string? Provider,
+    string? ProviderSessionId,
+    DateTime? PaymentActionExpiresAtUtc);
