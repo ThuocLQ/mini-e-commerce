@@ -6,8 +6,17 @@ export type CatalogProduct = {
   stockQuantity: number;
 };
 
-export async function getCatalogProducts(signal?: AbortSignal): Promise<CatalogProduct[]> {
-  const response = await fetch("/api/catalog/products", {
+type CatalogRequest = {
+  query?: string;
+  signal?: AbortSignal;
+};
+
+export async function getCatalogProducts({ query, signal }: CatalogRequest = {}): Promise<CatalogProduct[]> {
+  const keyword = query?.trim();
+  const endpoint = keyword
+    ? `/api/catalog/products/search?keyword=${encodeURIComponent(keyword)}`
+    : "/api/catalog/products";
+  const response = await fetch(endpoint, {
     signal,
     headers: { Accept: "application/json" },
   });

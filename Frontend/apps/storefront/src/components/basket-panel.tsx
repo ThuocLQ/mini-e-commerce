@@ -42,11 +42,11 @@ export function BasketPanel({
 
   return (
     <div className="fixed inset-0 z-40 flex justify-end bg-black/35" role="presentation">
-      <aside aria-label="Shopping cart" className="flex h-full w-full max-w-md flex-col bg-[var(--surface)] shadow-xl">
+      <aside aria-label="Cart and checkout" className="flex h-full w-full max-w-md flex-col bg-[var(--surface)] shadow-xl">
         <header className="flex min-h-16 items-center justify-between border-b border-[var(--line)] px-5">
           <div className="flex items-center gap-3">
             <ShoppingBag aria-hidden="true" size={19} />
-            <h2 className="font-semibold">Your cart</h2>
+            <h2 className="font-semibold">Cart &amp; checkout</h2>
           </div>
           <button aria-label="Close cart" className="grid size-9 place-items-center border border-[var(--line)] text-[var(--muted)] hover:bg-[#f3f5f2]" onClick={onClose} type="button">
             <X aria-hidden="true" size={18} />
@@ -105,7 +105,7 @@ export function BasketPanel({
             <span>Subtotal</span><span>{money.format(basket?.totalPrice ?? 0)}</span>
           </div>
           <label className="mt-5 block text-sm font-medium">Promotion code<input className="mt-2 h-10 w-full border border-[var(--line)] bg-white px-3 font-normal outline-none focus:border-[var(--accent)]" disabled={isCheckingOut} onChange={(event) => setCouponCode(event.target.value)} placeholder="Optional" value={couponCode} /></label>
-          <button className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 bg-[var(--accent)] px-4 text-sm font-semibold text-white hover:bg-[var(--accent-strong)] disabled:cursor-not-allowed disabled:bg-[#8ba89b]" disabled={items.length === 0 || isCheckingOut} onClick={() => onCheckout(couponCode)} type="button">{isCheckingOut ? <span className="animate-pulse">Creating order</span> : "Place order"}</button>
+          <p className="mt-3 text-xs leading-5 text-[var(--muted)]">Placing an order reserves the current items and creates a payment-pending order.</p><button className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 bg-[var(--accent)] px-4 text-sm font-semibold text-white hover:bg-[var(--accent-strong)] disabled:cursor-not-allowed disabled:bg-[#8ba89b]" disabled={items.length === 0 || isCheckingOut} onClick={() => onCheckout(couponCode)} type="button">{isCheckingOut ? <span className="animate-pulse">Creating order</span> : "Place order"}</button>
         </footer> : null}
       </aside>
     </div>

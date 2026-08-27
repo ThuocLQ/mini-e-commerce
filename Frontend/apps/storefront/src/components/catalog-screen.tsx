@@ -46,6 +46,7 @@ export function CatalogScreen() {
   const [startingPaymentOrderId, setStartingPaymentOrderId] = useState<string | null>(null);
   const [paymentMessage, setPaymentMessage] = useState<string | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<CatalogProduct | null>(null);
+  const catalogSectionRef = useRef<HTMLElement>(null);
   const checkoutKeys = useRef(new Map<string, string>());
 
   const recoverExpiredSession = useCallback(() => {
@@ -105,7 +106,7 @@ export function CatalogScreen() {
     }
   }, [recoverExpiredSession]);
 
-  const requestCatalog = useCallback((signal?: AbortSignal) => getCatalogProducts(signal), []);
+  const requestCatalog = useCallback((keyword?: string, signal?: AbortSignal) => getCatalogProducts({ query: keyword, signal }), []);
 
   const retryBasket = useCallback(() => {
     if (session.status !== "authenticated") return;
@@ -115,15 +116,23 @@ export function CatalogScreen() {
 
   useEffect(() => {
     const controller = new AbortController();
-    requestCatalog(controller.signal)
-      .then((products) => setCatalog({ status: "ready", products }))
-      .catch((error: unknown) => {
-        if (!(error instanceof DOMException && error.name === "AbortError")) {
-          setCatalog((current) => ({ status: "unavailable", products: current.products }));
-        }
-      });
-    return () => controller.abort();
-  }, [requestCatalog]);
+    const keyword = query.trim();
+    const timer = window.setTimeout(() => {
+      setCatalog((current) => ({ status: "loading", products: current.products }));
+      requestCatalog(keyword || undefined, controller.signal)
+        .then((products) => setCatalog({ status: "ready", products }))
+        .catch((error: unknown) => {
+          if (!(error instanceof DOMException && error.name === "AbortError")) {
+            setCatalog((current) => ({ status: "unavailable", products: current.products }));
+          }
+        });
+    }, keyword ? 250 : 0);
+
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [query, requestCatalog]);
 
   useEffect(() => {
     fetch("/api/session")
@@ -139,17 +148,20 @@ export function CatalogScreen() {
       .catch(() => setSession({ status: "anonymous" }));
   }, [loadBasket]);
 
-  const products = useMemo(() => {
-    const terms = query.trim().toLowerCase();
-    return terms ? catalog.products.filter((product) => `${product.name} ${product.description}`.toLowerCase().includes(terms)) : catalog.products;
-  }, [catalog.products, query]);
+  const products = useMemo(() => catalog.products, [catalog.products]);
+  const searchTerm = query.trim();
+  const catalogSummary = catalog.status === "loading" && searchTerm
+    ? `Searching catalog for “${searchTerm}”…`
+    : searchTerm
+      ? `${products.length} search result${products.length === 1 ? "" : "s"} for “${searchTerm}”`
+      : `${products.length} product${products.length === 1 ? "" : "s"} available`;
 
   const cartCount = basket?.items.reduce((total, item) => total + item.quantity, 0) ?? 0;
 
   async function reloadCatalog() {
     setCatalog((current) => ({ ...current, status: "loading" }));
     try {
-      setCatalog({ status: "ready", products: await requestCatalog() });
+      setCatalog({ status: "ready", products: await requestCatalog(query.trim() || undefined) });
     } catch {
       setCatalog((current) => ({ status: "unavailable", products: current.products }));
     }
@@ -300,6 +312,29 @@ export function CatalogScreen() {
     void loadOrders();
   }
 
+  function openCatalog() {
+    setIsBasketOpen(false);
+    setIsOrdersOpen(false);
+    catalogSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function openCart() {
+    if (session.status !== "authenticated") {
+      openAuth();
+      return;
+    }
+    setIsBasketOpen(true);
+    if (basketLoadState === "idle" || basketLoadState === "unavailable") retryBasket();
+  }
+
+  function openAccount() {
+    if (session.status !== "authenticated") {
+      openAuth();
+      return;
+    }
+    openOrders();
+  }
+
   function signedIn(user: CurrentUser) {
     setSession({ status: "authenticated", user });
     setIsAuthOpen(false);
@@ -323,31 +358,26 @@ export function CatalogScreen() {
 
   return (
     <main className="min-h-screen bg-[var(--background)]">
-      <header className="border-b border-[var(--line)] bg-[var(--surface)]">
-        <div className="mx-auto flex min-h-16 max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-3"><span className="grid size-9 place-items-center bg-[var(--accent)] text-white"><Box aria-hidden="true" size={19} /></span><span className="font-semibold">MicroShop</span></div>
-          <nav aria-label="Store navigation" className="flex items-center gap-2">
-            {session.status === "authenticated" ? <><span className="hidden items-center gap-2 text-sm text-[var(--muted)] sm:inline-flex"><UserRound aria-hidden="true" size={16} />{session.user.userName}</span><button aria-label="Open your orders" className="grid size-9 place-items-center text-[var(--muted)] hover:bg-[#f3f5f2]" onClick={openOrders} type="button"><ClipboardList aria-hidden="true" size={18} /></button><button className="h-9 px-3 text-sm text-[var(--muted)] hover:text-[var(--foreground)]" onClick={signOut} type="button">Sign out</button></> : <button className="inline-flex h-9 items-center gap-2 px-3 text-sm font-medium text-[var(--accent)] hover:bg-[#e9f2ed]" onClick={openAuth} type="button"><LogIn aria-hidden="true" size={16} />Sign in</button>}
-            <button aria-label={`Open cart, ${cartCount} items`} className="relative grid size-10 place-items-center border border-[var(--line)] hover:bg-[#f3f5f2]" onClick={() => { if (session.status === "authenticated") { setIsBasketOpen(true); if (basketLoadState === "idle" || basketLoadState === "unavailable") retryBasket(); } else { openAuth(); } }} type="button"><ShoppingBag aria-hidden="true" size={18} />{cartCount ? <span className="absolute -right-1 -top-1 grid min-w-5 place-items-center bg-[var(--accent)] px-1 text-xs font-semibold text-white">{cartCount}</span> : null}</button>
+      <header className="sticky top-0 z-30 border-b border-[var(--line)] bg-[var(--surface)]">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-5 gap-y-2 px-4 py-3 sm:px-6 lg:px-8">
+          <button aria-label="Browse catalog" className="flex shrink-0 items-center gap-3 text-left" onClick={openCatalog} type="button"><span className="grid size-9 place-items-center bg-[var(--accent)] text-white"><Box aria-hidden="true" size={19} /></span><span><span className="block text-sm font-semibold">MicroShop</span><span className="block text-xs text-[var(--muted)]">Customer store</span></span></button>
+          <nav aria-label="Purchase journey" className="order-3 flex w-full items-center gap-1 overflow-x-auto pb-1 sm:order-none sm:w-auto sm:flex-1 sm:pb-0">
+            <button className="h-9 shrink-0 px-3 text-sm font-medium text-[var(--accent)] hover:bg-[#e9f2ed]" onClick={openCatalog} type="button">Catalog</button>
+            <button aria-label={`Open cart and checkout, ${cartCount} items`} className="inline-flex h-9 shrink-0 items-center gap-2 px-3 text-sm font-medium text-[var(--muted)] hover:bg-[#f3f5f2] hover:text-[var(--foreground)]" onClick={openCart} type="button"><ShoppingBag aria-hidden="true" size={16} />Cart &amp; checkout{cartCount ? <span className="grid min-w-5 place-items-center bg-[var(--accent)] px-1 text-xs font-semibold text-white">{cartCount}</span> : null}</button>
+            <button className="inline-flex h-9 shrink-0 items-center gap-2 px-3 text-sm font-medium text-[var(--muted)] hover:bg-[#f3f5f2] hover:text-[var(--foreground)]" onClick={openAccount} type="button"><ClipboardList aria-hidden="true" size={16} />Orders &amp; account</button>
           </nav>
+          <div className="ml-auto flex items-center gap-2">{session.status === "authenticated" ? <><span className="hidden items-center gap-2 text-sm text-[var(--muted)] lg:inline-flex"><UserRound aria-hidden="true" size={16} />{session.user.userName}</span><button className="h-9 px-3 text-sm text-[var(--muted)] hover:text-[var(--foreground)]" onClick={signOut} type="button">Sign out</button></> : <button className="inline-flex h-9 items-center gap-2 px-3 text-sm font-medium text-[var(--accent)] hover:bg-[#e9f2ed]" onClick={openAuth} type="button"><LogIn aria-hidden="true" size={16} />Sign in</button>}</div>
         </div>
       </header>
 
-      <section className="pb-10">
-        <div className="relative min-h-72 overflow-hidden bg-[#17342c] sm:min-h-80">
-          <Image alt="Headphones, keyboard, desk organizer and USB-C hub arranged for the MicroShop catalog" className="object-cover object-center" fill priority sizes="100vw" src="/images/catalog-hero.png" />
-          <div className="relative mx-auto flex min-h-72 max-w-7xl items-end px-4 py-9 text-white sm:min-h-80 sm:px-6 lg:px-8">
-            <div className="max-w-xl">
-              <p className="text-sm font-medium text-[#d8e7de]">MicroShop everyday collection</p>
-              <h1 className="mt-2 text-3xl font-semibold sm:text-4xl">Tools for a calmer desk.</h1>
-              <p className="mt-3 max-w-lg text-sm leading-6 text-[#edf5f0] sm:text-base">Well-chosen essentials for focused work, reliable connection and an easier daily setup.</p>
-            </div>
+      <section className="pb-12 pt-7 sm:pt-10" ref={catalogSectionRef}>
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <p className="text-sm font-medium text-[var(--accent)]">Catalog</p>
+          <div className="mt-2 flex flex-col gap-5 border-b border-[var(--line)] pb-6 lg:flex-row lg:items-end lg:justify-between">
+            <div className="max-w-2xl"><h1 className="text-3xl font-semibold sm:text-4xl">Available products</h1><p className="mt-2 text-sm leading-6 text-[var(--muted)] sm:text-base">Search the current catalog, compare availability, then add only confirmed items to your cart.</p></div>
+            <label className="relative block w-full lg:max-w-md"><span className="sr-only">Search products</span><Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)]" size={18} /><input className="h-11 w-full border border-[var(--line)] bg-white pl-10 pr-3 text-sm outline-none focus:border-[var(--accent)]" onChange={(event) => setQuery(event.target.value)} placeholder="Search the catalog" type="search" value={query} /></label>
           </div>
-        </div>
-
-        <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 pt-6 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
-          <p className="text-sm text-[var(--muted)]">{catalog.products.length} products currently available</p>
-          <label className="relative block w-full sm:max-w-sm"><span className="sr-only">Search products</span><Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)]" size={18} /><input className="h-11 w-full border border-[var(--line)] bg-white pl-10 pr-3 text-sm outline-none focus:border-[var(--accent)]" onChange={(event) => setQuery(event.target.value)} placeholder="Search products" type="search" value={query} /></label>
+          <div aria-live="polite" className="mt-4 flex min-h-5 items-center justify-between gap-4 text-sm text-[var(--muted)]"><p>{catalogSummary}</p>{catalog.status === "loading" && products.length > 0 ? <span className="inline-flex items-center gap-2"><LoaderCircle aria-hidden="true" className="animate-spin" size={15} />Updating catalog…</span> : null}</div>
         </div>
 
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">        {catalog.status === "unavailable" ? <div className="mt-8 flex flex-col gap-4 border border-[#f3c5c1] bg-[#fff7f6] p-5 sm:flex-row sm:items-center sm:justify-between"><div className="flex gap-3"><AlertTriangle aria-hidden="true" className="mt-0.5 shrink-0 text-[var(--danger)]" size={20} /><div><h2 className="font-semibold">Catalog is temporarily unavailable</h2><p className="mt-1 text-sm text-[var(--muted)]">Check that the API gateway is running, then try again.</p></div></div><button className="inline-flex h-10 items-center justify-center gap-2 border border-[var(--accent)] px-4 text-sm font-medium text-[var(--accent)] hover:bg-[#e9f2ed]" onClick={reloadCatalog} type="button"><RefreshCw aria-hidden="true" size={16} />Retry</button></div> : null}
