@@ -37,6 +37,9 @@ async function proxyAddresses(request: Request, context: RouteContext) {
       body,
       cache: "no-store",
     });
+    if (upstream.status === 204) {
+      return new NextResponse(null, { status: upstream.status });
+    }
     return new NextResponse(await upstream.text(), { status: upstream.status, headers: { "Content-Type": upstream.headers.get("content-type") ?? "application/json" } });
   } catch {
     return NextResponse.json({ message: "Addresses are unavailable. Please try again." }, { status: 503 });
