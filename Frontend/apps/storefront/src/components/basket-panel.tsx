@@ -2,7 +2,8 @@
 
 import { AlertTriangle, LoaderCircle, Minus, Plus, RefreshCw, ShoppingBag, Trash2, X } from "lucide-react";
 import { useState } from "react";
-import type { Basket, OrderSummary } from "@/lib/storefront/types";
+import { AddressSelection, type AddressLoadState } from "@/components/address-selection";
+import type { AddressInput, Basket, CustomerAddress, OrderSummary } from "@/lib/storefront/types";
 
 type BasketLoadState = "idle" | "loading" | "ready" | "unavailable";
 
@@ -13,7 +14,18 @@ type BasketPanelProps = {
   message: string | null;
   confirmation: OrderSummary | null;
   isCheckingOut: boolean;
-  onCheckout: (couponCode: string) => void;
+  addresses: CustomerAddress[];
+  addressLoadState: AddressLoadState;
+  addressMessage: string | null;
+  selectedAddressId: string | null;
+  busyAddressId: string | null;
+  onCheckout: (couponCode: string, shippingAddressId: string) => void;
+  onSelectAddress: (addressId: string) => void;
+  onCreateAddress: (input: AddressInput) => void;
+  onUpdateAddress: (addressId: string, input: AddressInput) => void;
+  onDeleteAddress: (addressId: string) => void;
+  onSetDefaultAddress: (addressId: string) => void;
+  onRetryAddresses: () => void;
   onClose: () => void;
   onViewOrders: () => void;
   onRetry: () => void;
@@ -31,7 +43,18 @@ export function BasketPanel({
   message,
   confirmation,
   isCheckingOut,
+  addresses,
+  addressLoadState,
+  addressMessage,
+  selectedAddressId,
+  busyAddressId,
   onCheckout,
+  onSelectAddress,
+  onCreateAddress,
+  onUpdateAddress,
+  onDeleteAddress,
+  onSetDefaultAddress,
+  onRetryAddresses,
   onClose,
   onViewOrders,
   onRetry,
@@ -66,12 +89,15 @@ export function BasketPanel({
             <div><ShoppingBag aria-hidden="true" className="mx-auto text-[var(--muted)]" size={30} /><h3 className="mt-4 font-semibold">Your cart could not be loaded</h3><p className="mt-2 text-sm text-[var(--muted)]">Your saved items have not been changed. Try again when you are ready.</p><button className="mt-5 inline-flex h-10 items-center gap-2 border border-[var(--accent)] px-4 text-sm font-semibold text-[var(--accent)] hover:bg-[#e9f2ed]" onClick={onRetry} type="button"><RefreshCw aria-hidden="true" size={16} />Retry</button></div>
           </div>
         ) : items.length === 0 ? (
-          <div className="grid flex-1 place-items-center px-8 text-center">
-            <div>
+          <div className="flex flex-1 flex-col overflow-y-auto px-5 py-5">
+            <div className="grid flex-1 place-items-center px-3 text-center">
+              <div>
               <ShoppingBag aria-hidden="true" className="mx-auto text-[var(--muted)]" size={30} />
               <h3 className="mt-4 font-semibold">Your cart is empty</h3>
               <p className="mt-2 text-sm text-[var(--muted)]">Add products from the catalog when you are ready.</p>
+              </div>
             </div>
+            <AddressSelection addresses={addresses} busyAddressId={busyAddressId} loadState={addressLoadState} message={addressMessage} onCreate={onCreateAddress} onDelete={onDeleteAddress} onRetry={onRetryAddresses} onSelect={onSelectAddress} onSetDefault={onSetDefaultAddress} onUpdate={onUpdateAddress} selectedAddressId={selectedAddressId} />
           </div>
         ) : (
           <div className="flex-1 overflow-y-auto px-5 py-5">
@@ -99,6 +125,7 @@ export function BasketPanel({
                 );
               })}
             </ul>
+            <AddressSelection addresses={addresses} busyAddressId={busyAddressId} loadState={addressLoadState} message={addressMessage} onCreate={onCreateAddress} onDelete={onDeleteAddress} onRetry={onRetryAddresses} onSelect={onSelectAddress} onSetDefault={onSetDefaultAddress} onUpdate={onUpdateAddress} selectedAddressId={selectedAddressId} />
           </div>
         )}
 
@@ -107,7 +134,7 @@ export function BasketPanel({
             <span>Subtotal</span><span>{money.format(basket?.totalPrice ?? 0)}</span>
           </div>
           <label className="mt-5 block text-sm font-medium">Promotion code<input className="mt-2 h-10 w-full border border-[var(--line)] bg-white px-3 font-normal outline-none focus:border-[var(--accent)]" disabled={isCheckingOut} onChange={(event) => setCouponCode(event.target.value)} placeholder="Optional" value={couponCode} /></label>
-          <p className="mt-3 text-xs leading-5 text-[var(--muted)]">We will confirm current prices and availability before creating an order. Payment is not complete at this step.</p><button className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 bg-[var(--accent)] px-4 text-sm font-semibold text-white hover:bg-[var(--accent-strong)] disabled:cursor-not-allowed disabled:bg-[#8ba89b]" disabled={items.length === 0 || isCheckingOut} onClick={() => onCheckout(couponCode)} type="button">{isCheckingOut ? <span className="animate-pulse">Creating order</span> : "Create order"}</button>
+          <p className="mt-3 text-xs leading-5 text-[var(--muted)]">We will confirm current prices and availability before creating an order. Payment is not complete at this step.</p>{addressLoadState === "ready" && !selectedAddressId ? <p className="mt-2 text-xs font-medium text-[var(--danger)]" role="status">Select or add a delivery address before creating the order.</p> : null}<button className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 bg-[var(--accent)] px-4 text-sm font-semibold text-white hover:bg-[var(--accent-strong)] disabled:cursor-not-allowed disabled:bg-[#8ba89b]" disabled={items.length === 0 || isCheckingOut || addressLoadState !== "ready" || !selectedAddressId} onClick={() => selectedAddressId && onCheckout(couponCode, selectedAddressId)} type="button">{isCheckingOut ? <span className="animate-pulse">Creating order</span> : "Create order"}</button>
         </footer> : null}
       </aside>
     </div>

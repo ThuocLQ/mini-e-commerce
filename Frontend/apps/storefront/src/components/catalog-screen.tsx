@@ -4,12 +4,13 @@ import { AlertTriangle, Box, ClipboardList, LoaderCircle, LogIn, RefreshCw, Sear
 import Image from "next/image";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AuthDialog } from "@/components/auth-dialog";
+import { type AddressLoadState } from "@/components/address-selection";
 import { BasketPanel } from "@/components/basket-panel";
 import { OrderPanel } from "@/components/order-panel";
 import { ProductDetailDialog } from "@/components/product-detail-dialog";
 import { type CatalogProduct, getCatalogProducts } from "@/lib/gateway/catalog";
 import { productImageSource } from "@/lib/storefront/product-media";
-import type { Basket, CurrentUser, OrderSummary } from "@/lib/storefront/types";
+import type { AddressInput, Basket, CurrentUser, CustomerAddress, OrderSummary } from "@/lib/storefront/types";
 
 type CatalogState =
   | { status: "loading"; products: CatalogProduct[] }
@@ -30,6 +31,11 @@ export function CatalogScreen() {
   const [session, setSession] = useState<SessionState>({ status: "loading" });
   const [basket, setBasket] = useState<Basket | null>(null);
   const [basketLoadState, setBasketLoadState] = useState<BasketLoadState>("idle");
+  const [addresses, setAddresses] = useState<CustomerAddress[]>([]);
+  const [addressLoadState, setAddressLoadState] = useState<AddressLoadState>("idle");
+  const [addressMessage, setAddressMessage] = useState<string | null>(null);
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
+  const [busyAddressId, setBusyAddressId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [authNotice, setAuthNotice] = useState<string | null>(null);
@@ -48,11 +54,16 @@ export function CatalogScreen() {
   const [selectedProduct, setSelectedProduct] = useState<CatalogProduct | null>(null);
   const catalogSectionRef = useRef<HTMLElement>(null);
   const checkoutKeys = useRef(new Map<string, string>());
+  const addressCreateKeys = useRef(new Map<string, string>());
 
   const recoverExpiredSession = useCallback(() => {
     setSession({ status: "anonymous" });
     setBasket(null);
     setBasketLoadState("idle");
+    setAddresses([]);
+    setAddressLoadState("idle");
+    setAddressMessage(null);
+    setSelectedAddressId(null);
     setOrders([]);
     setOrderConfirmation(null);
     setRecentOrder(null);
@@ -84,6 +95,26 @@ export function CatalogScreen() {
       setBasketLoadState("ready");
     } catch (error) {
       setBasketLoadState("unavailable");
+      throw error;
+    }
+  }, [recoverExpiredSession]);
+
+  const loadAddresses = useCallback(async () => {
+    setAddressLoadState("loading");
+    try {
+      const response = await fetch("/api/addresses");
+      const payload: unknown = await response.json().catch(() => null);
+      if (response.status === 401) {
+        recoverExpiredSession();
+        return;
+      }
+      if (!response.ok || !isAddresses(payload)) throw new Error(messageOf(payload) ?? "Your saved addresses could not be loaded.");
+      const activeAddresses = payload.filter((address) => !address.isArchived);
+      setAddresses(activeAddresses);
+      setSelectedAddressId((current) => current && activeAddresses.some((address) => address.id === current) ? current : activeAddresses.find((address) => address.isDefault)?.id ?? activeAddresses[0]?.id ?? null);
+      setAddressLoadState("ready");
+    } catch (error) {
+      setAddressLoadState("unavailable");
       throw error;
     }
   }, [recoverExpiredSession]);
@@ -147,9 +178,10 @@ export function CatalogScreen() {
         }
         setSession({ status: "authenticated", user: payload.user });
         loadBasket(payload.user.userId).catch((error: unknown) => setBasketMessage(error instanceof Error ? error.message : "Your cart could not be loaded."));
+        loadAddresses().catch((error: unknown) => setAddressMessage(error instanceof Error ? error.message : "Your saved addresses could not be loaded."));
       })
       .catch(() => setSession({ status: "anonymous" }));
-  }, [loadBasket]);
+  }, [loadAddresses, loadBasket]);
 
   const products = useMemo(() => catalog.products, [catalog.products]);
   const searchTerm = query.trim();
@@ -255,14 +287,14 @@ export function CatalogScreen() {
     }
   }
 
-  async function checkout(couponCode: string) {
-    if (!basket || basketLoadState !== "ready") return;
+  async function checkout(couponCode: string, shippingAddressId: string) {
+    if (!basket || basketLoadState !== "ready" || !shippingAddressId) return;
 
     setIsCheckingOut(true);
     setBasketMessage(null);
     setOrderConfirmation(null);
 
-    const scope = basket.basketId + ":" + basket.version + ":" + couponCode.trim().toUpperCase();
+    const scope = basket.basketId + ":" + basket.version + ":" + couponCode.trim().toUpperCase() + ":" + shippingAddressId;
     const idempotencyKey = checkoutKeys.current.get(scope) ?? crypto.randomUUID();
     checkoutKeys.current.set(scope, idempotencyKey);
 
@@ -273,6 +305,7 @@ export function CatalogScreen() {
         body: JSON.stringify({
           basketId: basket.basketId,
           basketVersion: basket.version,
+          shippingAddressId,
           couponCode: couponCode.trim() || undefined,
           idempotencyKey,
         }),
@@ -302,6 +335,91 @@ export function CatalogScreen() {
       setBasketMessage(error instanceof Error ? error.message : "Your order could not be created.");
     } finally {
       setIsCheckingOut(false);
+    }
+  }
+
+  async function createAddress(input: AddressInput) {
+    setBusyAddressId("new");
+    setAddressMessage(null);
+    const scope = JSON.stringify(input);
+    const idempotencyKey = addressCreateKeys.current.get(scope) ?? crypto.randomUUID();
+    addressCreateKeys.current.set(scope, idempotencyKey);
+    try {
+      const response = await fetch("/api/addresses", { method: "POST", headers: { "Content-Type": "application/json", "Idempotency-Key": idempotencyKey }, body: JSON.stringify(input) });
+      const payload: unknown = await response.json().catch(() => null);
+      if (response.status === 401) {
+        recoverExpiredSession();
+        return;
+      }
+      if (!response.ok || !isAddress(payload)) throw new Error(messageOf(payload) ?? "This address could not be added.");
+      setSelectedAddressId(payload.id);
+      await loadAddresses();
+    } catch (error) {
+      setAddressMessage(error instanceof Error ? error.message : "This address could not be added.");
+    } finally {
+      setBusyAddressId(null);
+    }
+  }
+
+  async function updateAddress(addressId: string, input: AddressInput) {
+    setBusyAddressId(addressId);
+    setAddressMessage(null);
+    try {
+      const response = await fetch(`/api/addresses/${encodeURIComponent(addressId)}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) });
+      const payload: unknown = await response.json().catch(() => null);
+      if (response.status === 401) {
+        recoverExpiredSession();
+        return;
+      }
+      if (!response.ok || !isAddress(payload)) throw new Error(messageOf(payload) ?? "This address could not be updated.");
+      await loadAddresses();
+    } catch (error) {
+      setAddressMessage(error instanceof Error ? error.message : "This address could not be updated.");
+    } finally {
+      setBusyAddressId(null);
+    }
+  }
+
+  async function deleteAddress(addressId: string) {
+    setBusyAddressId(addressId);
+    setAddressMessage(null);
+    try {
+      const response = await fetch(`/api/addresses/${encodeURIComponent(addressId)}`, { method: "DELETE" });
+      if (response.status === 401) {
+        recoverExpiredSession();
+        return;
+      }
+      if (!response.ok) {
+        const payload: unknown = await response.json().catch(() => null);
+        throw new Error(messageOf(payload) ?? "This address could not be deleted.");
+      }
+      await loadAddresses();
+    } catch (error) {
+      setAddressMessage(error instanceof Error ? error.message : "This address could not be deleted.");
+    } finally {
+      setBusyAddressId(null);
+    }
+  }
+
+  async function setDefaultAddress(addressId: string) {
+    setBusyAddressId(addressId);
+    setAddressMessage(null);
+    try {
+      const response = await fetch(`/api/addresses/${encodeURIComponent(addressId)}/default`, { method: "PUT" });
+      if (response.status === 401) {
+        recoverExpiredSession();
+        return;
+      }
+      if (!response.ok) {
+        const payload: unknown = await response.json().catch(() => null);
+        throw new Error(messageOf(payload) ?? "This address could not be made your default.");
+      }
+      setSelectedAddressId(addressId);
+      await loadAddresses();
+    } catch (error) {
+      setAddressMessage(error instanceof Error ? error.message : "This address could not be made your default.");
+    } finally {
+      setBusyAddressId(null);
     }
   }
 
@@ -343,6 +461,10 @@ export function CatalogScreen() {
     }
     setIsBasketOpen(true);
     if (basketLoadState === "idle" || basketLoadState === "unavailable") retryBasket();
+    if (addressLoadState === "idle" || addressLoadState === "unavailable") {
+      setAddressMessage(null);
+      void loadAddresses().catch((error: unknown) => setAddressMessage(error instanceof Error ? error.message : "Your saved addresses could not be loaded."));
+    }
   }
 
   function openAccount() {
@@ -359,7 +481,12 @@ export function CatalogScreen() {
     setAuthNotice(null);
     setBasket(null);
     setBasketLoadState("idle");
+    setAddresses([]);
+    setAddressLoadState("idle");
+    setAddressMessage(null);
+    setSelectedAddressId(null);
     loadBasket(user.userId).catch((error: unknown) => setBasketMessage(error instanceof Error ? error.message : "Your cart could not be loaded."));
+    loadAddresses().catch((error: unknown) => setAddressMessage(error instanceof Error ? error.message : "Your saved addresses could not be loaded."));
   }
 
   async function signOut() {
@@ -367,6 +494,10 @@ export function CatalogScreen() {
     setSession({ status: "anonymous" });
     setBasket(null);
     setBasketLoadState("idle");
+    setAddresses([]);
+    setAddressLoadState("idle");
+    setAddressMessage(null);
+    setSelectedAddressId(null);
     setOrderConfirmation(null);
     setRecentOrder(null);
     setIsBasketOpen(false);
@@ -407,7 +538,7 @@ export function CatalogScreen() {
 
       <ProductDetailDialog busyProductId={busyProductId} onAdd={addToBasket} onClose={() => setSelectedProduct(null)} product={selectedProduct} />
       <AuthDialog notice={authNotice} onClose={() => { setIsAuthOpen(false); setAuthNotice(null); }} onSignedIn={signedIn} open={isAuthOpen} />
-      {isBasketOpen ? <BasketPanel basket={basket} busyProductId={busyProductId} confirmation={orderConfirmation} isCheckingOut={isCheckingOut} loadState={basketLoadState} message={basketMessage} onChangeQuantity={changeQuantity} onCheckout={checkout} onClose={() => setIsBasketOpen(false)} onRefresh={retryBasket} onRemove={removeItem} onRetry={retryBasket} onViewOrders={() => { setIsBasketOpen(false); openOrders(); }} /> : null}
+      {isBasketOpen ? <BasketPanel addressLoadState={addressLoadState} addressMessage={addressMessage} addresses={addresses} basket={basket} busyAddressId={busyAddressId} busyProductId={busyProductId} confirmation={orderConfirmation} isCheckingOut={isCheckingOut} loadState={basketLoadState} message={basketMessage} onChangeQuantity={changeQuantity} onCheckout={checkout} onClose={() => setIsBasketOpen(false)} onCreateAddress={createAddress} onDeleteAddress={deleteAddress} onRefresh={retryBasket} onRemove={removeItem} onRetry={retryBasket} onRetryAddresses={() => { setAddressMessage(null); void loadAddresses().catch((error: unknown) => setAddressMessage(error instanceof Error ? error.message : "Your saved addresses could not be loaded.")); }} onSelectAddress={setSelectedAddressId} onSetDefaultAddress={setDefaultAddress} onUpdateAddress={updateAddress} onViewOrders={() => { setIsBasketOpen(false); openOrders(); }} selectedAddressId={selectedAddressId} /> : null}
       {isOrdersOpen ? <OrderPanel isLoading={isOrdersLoading} message={ordersMessage} onClose={() => setIsOrdersOpen(false)} onRetry={() => void loadOrders()} onStartPayment={startPayment} orders={orders} paymentMessage={paymentMessage} recentOrder={recentOrder} startingPaymentOrderId={startingPaymentOrderId} /> : null}
     </main>
   );
@@ -444,6 +575,25 @@ function isBasket(value: unknown): value is Basket {
   return typeof basket.userId === "string" && typeof basket.basketId === "string" && typeof basket.totalPrice === "number" && typeof basket.version === "number" && Array.isArray(basket.items);
 }
 
+function isAddress(value: unknown): value is CustomerAddress {
+  if (typeof value !== "object" || value === null) return false;
+  const address = value as Record<string, unknown>;
+  return typeof address.id === "string"
+    && typeof address.label === "string"
+    && typeof address.recipientName === "string"
+    && typeof address.line1 === "string"
+    && (typeof address.line2 === "string" || address.line2 === null)
+    && typeof address.city === "string"
+    && typeof address.countryCode === "string"
+    && (typeof address.postalCode === "string" || address.postalCode === null)
+    && typeof address.isDefault === "boolean"
+    && typeof address.isArchived === "boolean"
+    && typeof address.createdAtUtc === "string"
+    && typeof address.updatedAtUtc === "string";
+}
+
+function isAddresses(value: unknown): value is CustomerAddress[] { return Array.isArray(value) && value.every(isAddress); }
+
 function isSession(value: unknown): value is { user: CurrentUser } {
   if (typeof value !== "object" || value === null) return false;
   const user = (value as { user?: unknown }).user;
@@ -478,7 +628,21 @@ function isOrderSummary(value: unknown): value is OrderSummary {
     && typeof order.totalAmount === "number"
     && typeof order.currency === "string"
     && Array.isArray(order.items)
-    && order.items.every(isOrderItem);
+    && order.items.every(isOrderItem)
+    && (order.shippingAddress === null || isShippingAddress(order.shippingAddress));
+}
+
+function isShippingAddress(value: unknown) {
+  if (typeof value !== "object" || value === null) return false;
+  const address = value as Record<string, unknown>;
+  return typeof address.addressId === "string"
+    && typeof address.label === "string"
+    && typeof address.recipientName === "string"
+    && typeof address.line1 === "string"
+    && (typeof address.line2 === "string" || address.line2 === null)
+    && typeof address.city === "string"
+    && typeof address.countryCode === "string"
+    && (typeof address.postalCode === "string" || address.postalCode === null);
 }
 
 function isOrderItem(value: unknown) {

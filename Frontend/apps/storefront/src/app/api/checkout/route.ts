@@ -8,6 +8,7 @@ export const dynamic = "force-dynamic";
 type CheckoutRequest = {
   basketId: string;
   basketVersion: number;
+  shippingAddressId: string;
   couponCode?: string;
   idempotencyKey: string;
 };
@@ -36,6 +37,7 @@ export async function POST(request: Request) {
       body: JSON.stringify({
         basketId: body.basketId,
         basketVersion: body.basketVersion,
+        shippingAddressId: body.shippingAddressId,
         couponCode: body.couponCode?.trim() || null,
       }),
       cache: "no-store",
@@ -64,8 +66,13 @@ function isCheckoutRequest(value: unknown): value is CheckoutRequest {
   return typeof body.basketId === "string"
     && typeof body.basketVersion === "number"
     && body.basketVersion > 0
+    && isGuid(body.shippingAddressId)
     && typeof body.idempotencyKey === "string"
     && body.idempotencyKey.length > 0
     && body.idempotencyKey.length <= 128
     && (body.couponCode === undefined || typeof body.couponCode === "string");
+}
+
+function isGuid(value: unknown): value is string {
+  return typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
 }
