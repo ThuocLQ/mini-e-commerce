@@ -191,11 +191,57 @@ public sealed class CheckoutIdempotencyTests
         Assert.Equal((discount.ReservationId, "Inventory reservation was rejected."), Assert.Single(discount.Releases));
     }
 
+    [Fact]
+    public async Task SelectedAddress_IsSnapshottedAndReplayReturnsTheSameSnapshot()
+    {
+        var customerId = Guid.NewGuid();
+        var productId = Guid.NewGuid();
+        var addressId = Guid.NewGuid();
+        var basket = CreateBasket(customerId, productId, quantity: 1);
+        var addressClient = new StubAddressSnapshotClient(new CustomerAddressSnapshot(addressId, "Home", "Ada Lovelace", "1 Main Street", null, "Hanoi", "VN", "10000"));
+        var repository = new StubOrderRepository(CreateOrder(customerId, productId, "other-checkout", new string('a', 64), Guid.NewGuid()));
+        var handler = CreateHandler(basket, repository, new RecordingInventoryReservationClient(), addressSnapshotClient: addressClient);
+        var command = new CheckoutCommand(customerId, "address-checkout", null, basket.BasketId, basket.Version, addressId);
+
+        await handler.Handle(command, TestContext.Current.CancellationToken);
+        addressClient.Address = Assert.IsType<CustomerAddressSnapshot>(addressClient.Address) with { Line1 = "Changed later" };
+        var replay = await CreateHandler(
+            basket,
+            new StubOrderRepository(repository.LastCreatedOrder!),
+            new RecordingInventoryReservationClient(),
+            addressSnapshotClient: new StubAddressSnapshotClient(null))
+            .Handle(command, TestContext.Current.CancellationToken);
+
+        Assert.Equal(repository.LastCreatedOrder!.Id, replay.Id);
+        Assert.Equal("1 Main Street", repository.LastCreatedOrder.ShippingAddress!.Line1);
+        Assert.Equal(1, addressClient.RequestCount);
+    }
+
+    [Fact]
+    public async Task SelectedAddressOwnedByAnotherCustomer_IsRejectedBeforeInventoryReservation()
+    {
+        var customerId = Guid.NewGuid();
+        var basket = CreateBasket(customerId, Guid.NewGuid(), quantity: 1);
+        var inventory = new RecordingInventoryReservationClient();
+        var handler = CreateHandler(
+            basket,
+            new StubOrderRepository(CreateOrder(customerId, Guid.NewGuid(), "other-checkout", new string('a', 64), Guid.NewGuid())),
+            inventory,
+            addressSnapshotClient: new StubAddressSnapshotClient(null));
+
+        await Assert.ThrowsAsync<ArgumentException>(() => handler.Handle(
+            new CheckoutCommand(customerId, "foreign-address", null, basket.BasketId, basket.Version, Guid.NewGuid()),
+            TestContext.Current.CancellationToken));
+
+        Assert.Empty(inventory.ReservedOrderIds);
+    }
+
     private static CheckoutHandler CreateHandler(
         BasketDto basket,
         IOrderRepository orderRepository,
         IInventoryReservationClient inventoryClient,
-        IDiscountClient? discountClient = null)
+        IDiscountClient? discountClient = null,
+        IAddressSnapshotClient? addressSnapshotClient = null)
     {
         return new CheckoutHandler(
             new StubBasketClient(basket),
@@ -204,6 +250,7 @@ public sealed class CheckoutIdempotencyTests
             new StubCatalogProductSnapshotClient(),
             discountClient ?? new StubDiscountClient(),
             inventoryClient,
+            addressSnapshotClient ?? new StubAddressSnapshotClient(null),
             new InlineUnitOfWork(),
             Options.Create(new OrderEventOptions { Currency = "USD" }),
             NullLogger<CheckoutHandler>.Instance);
@@ -235,7 +282,7 @@ public sealed class CheckoutIdempotencyTests
             .GroupBy(item => item.ProductId.Trim().ToUpperInvariant(), StringComparer.Ordinal)
             .OrderBy(group => group.Key, StringComparer.Ordinal)
             .Select(group => $"{group.Key}:{group.Sum(item => item.Quantity)}");
-        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes($"basketId={basket.BasketId:D}\nbasketVersion={basket.Version}\ncoupon={coupon}\nitems={string.Join(',', items)}"))).ToLowerInvariant();
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes($"basketId={basket.BasketId:D}\nbasketVersion={basket.Version}\ncoupon={coupon}\nshippingAddressId=\nitems={string.Join(',', items)}"))).ToLowerInvariant();
     }
 
     private sealed class StubBasketClient(BasketDto basket) : IBasketClient
@@ -248,6 +295,17 @@ public sealed class CheckoutIdempotencyTests
     {
         public Task<CatalogProductSnapshot?> GetProductAsync(Guid productId, CancellationToken cancellationToken = default) =>
             Task.FromResult<CatalogProductSnapshot?>(new CatalogProductSnapshot(productId, "Product", 10m));
+    }
+
+    private sealed class StubAddressSnapshotClient(CustomerAddressSnapshot? address) : IAddressSnapshotClient
+    {
+        public CustomerAddressSnapshot? Address { get; set; } = address;
+        public int RequestCount { get; private set; }
+        public Task<CustomerAddressSnapshot?> GetAddressAsync(Guid customerId, Guid addressId, CancellationToken cancellationToken = default)
+        {
+            RequestCount++;
+            return Task.FromResult(Address?.AddressId == addressId ? Address : null);
+        }
     }
 
     private sealed class StubDiscountClient : IDiscountClient

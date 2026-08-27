@@ -10,7 +10,8 @@ public sealed record OrderDto(
     decimal SubtotalAmount,
     string? DiscountCode,
     decimal DiscountAmount,
-    IReadOnlyList<OrderItemDto> Items);
+    IReadOnlyList<OrderItemDto> Items,
+    OrderAddressSnapshotDto? ShippingAddress);
 
 public sealed record OrderItemDto(
     Guid Id,
@@ -19,3 +20,13 @@ public sealed record OrderItemDto(
     decimal UnitPrice,
     int Quantity,
     decimal TotalPrice);
+
+public sealed record OrderAddressSnapshotDto(
+    Guid AddressId,
+    string Label,
+    string RecipientName,
+    string Line1,
+    string? Line2,
+    string City,
+    string CountryCode,
+    string? PostalCode);

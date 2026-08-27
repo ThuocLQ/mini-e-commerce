@@ -9,6 +9,7 @@ using OrderingService.Application.Discounts;
 using OrderingService.Application.IntegrationEvents;
 using OrderingService.Application.Orders;
 using OrderingService.Application.Outbox;
+using OrderingService.Application.Addresses;
 using OrderingService.Domain.Orders;
 
 namespace OrderingService.Application.Orders.Checkout;
@@ -21,6 +22,7 @@ public class CheckoutHandler : IRequestHandler<CheckoutCommand, OrderDto>
     private readonly ICatalogProductSnapshotClient _catalogProductClient;
     private readonly IDiscountClient _discountClient;
     private readonly IInventoryReservationClient _inventoryReservationClient;
+    private readonly IAddressSnapshotClient _addressSnapshotClient;
     private readonly IOrderingUnitOfWork _unitOfWork;
     private readonly OrderEventOptions _eventOptions;
     private readonly ILogger<CheckoutHandler> _logger;
@@ -32,6 +34,7 @@ public class CheckoutHandler : IRequestHandler<CheckoutCommand, OrderDto>
         ICatalogProductSnapshotClient catalogProductClient,
         IDiscountClient discountClient,
         IInventoryReservationClient inventoryReservationClient,
+        IAddressSnapshotClient addressSnapshotClient,
         IOrderingUnitOfWork unitOfWork,
         IOptions<OrderEventOptions> eventOptions,
         ILogger<CheckoutHandler> logger)
@@ -42,6 +45,7 @@ public class CheckoutHandler : IRequestHandler<CheckoutCommand, OrderDto>
         _catalogProductClient = catalogProductClient;
         _discountClient = discountClient;
         _inventoryReservationClient = inventoryReservationClient;
+        _addressSnapshotClient = addressSnapshotClient;
         _unitOfWork = unitOfWork;
         _eventOptions = eventOptions.Value;
         _logger = logger;
@@ -61,6 +65,7 @@ public class CheckoutHandler : IRequestHandler<CheckoutCommand, OrderDto>
         {
             EnsureMatchingCoupon(existingOrder, request.CouponCode);
             EnsureMatchingBasketIdentity(existingOrder, request.BasketId, request.BasketVersion);
+            EnsureMatchingShippingAddress(existingOrder, request.ShippingAddressId);
             return OrderMapper.ToDto(existingOrder);
         }
 
@@ -74,8 +79,14 @@ public class CheckoutHandler : IRequestHandler<CheckoutCommand, OrderDto>
         {
             EnsureMatchingCoupon(existingCheckout, request.CouponCode);
             EnsureMatchingBasketIdentity(existingCheckout, request.BasketId, request.BasketVersion);
+            EnsureMatchingShippingAddress(existingCheckout, request.ShippingAddressId);
             return OrderMapper.ToDto(existingCheckout);
         }
+
+        var shippingAddress = await GetShippingAddressSnapshotAsync(
+            request.CustomerId,
+            request.ShippingAddressId,
+            cancellationToken);
 
         var basket = await _basketClient.GetBasketAsync(request.CustomerId, cancellationToken);
 
@@ -95,7 +106,7 @@ public class CheckoutHandler : IRequestHandler<CheckoutCommand, OrderDto>
                 "Basket changed before checkout. Refresh the basket and use a new idempotency key.");
         }
 
-        var checkoutRequestHash = CreateCheckoutRequestHash(basket, request.CouponCode);
+        var checkoutRequestHash = CreateCheckoutRequestHash(basket, request.CouponCode, request.ShippingAddressId);
 
         // A checkout retry can reach InventoryService before the order transaction commits.
         // Keep the reservation key stable for an identical checkout so that retrying does not
@@ -110,7 +121,8 @@ public class CheckoutHandler : IRequestHandler<CheckoutCommand, OrderDto>
             _eventOptions.Currency,
             checkoutRequestHash,
             basket.Version,
-            basket.BasketId);
+            basket.BasketId,
+            shippingAddress);
 
         foreach (var item in basket.Items)
         {
@@ -208,6 +220,7 @@ public class CheckoutHandler : IRequestHandler<CheckoutCommand, OrderDto>
 
             EnsureMatchingCoupon(duplicatedOrder, request.CouponCode);
             EnsureMatchingBasketIdentity(duplicatedOrder, request.BasketId, request.BasketVersion);
+            EnsureMatchingShippingAddress(duplicatedOrder, request.ShippingAddressId);
             return OrderMapper.ToDto(duplicatedOrder);
         }
         catch
@@ -258,7 +271,39 @@ public class CheckoutHandler : IRequestHandler<CheckoutCommand, OrderDto>
         return idempotencyKey;
     }
 
-    private static string CreateCheckoutRequestHash(BasketDto basket, string? couponCode)
+    private async Task<OrderAddressSnapshot?> GetShippingAddressSnapshotAsync(
+        Guid customerId,
+        Guid? shippingAddressId,
+        CancellationToken cancellationToken)
+    {
+        if (shippingAddressId is null)
+        {
+            return null;
+        }
+
+        if (shippingAddressId == Guid.Empty)
+        {
+            throw new ArgumentException("ShippingAddressId cannot be empty.", nameof(shippingAddressId));
+        }
+
+        var address = await _addressSnapshotClient.GetAddressAsync(customerId, shippingAddressId.Value, cancellationToken);
+        if (address is null)
+        {
+            throw new ArgumentException("Selected shipping address does not exist or does not belong to the authenticated customer.", nameof(shippingAddressId));
+        }
+
+        return new OrderAddressSnapshot(
+            address.AddressId,
+            address.Label,
+            address.RecipientName,
+            address.Line1,
+            address.Line2,
+            address.City,
+            address.CountryCode,
+            address.PostalCode).Normalize();
+    }
+
+    private static string CreateCheckoutRequestHash(BasketDto basket, string? couponCode, Guid? shippingAddressId)
     {
         var normalizedCouponCode = string.IsNullOrWhiteSpace(couponCode)
             ? string.Empty
@@ -276,7 +321,8 @@ public class CheckoutHandler : IRequestHandler<CheckoutCommand, OrderDto>
             .OrderBy(group => group.Key, StringComparer.Ordinal)
             .Select(group => $"{group.Key}:{group.Sum(item => item.Quantity)}");
 
-        var canonicalRequest = $"basketId={basket.BasketId:D}\nbasketVersion={basket.Version}\ncoupon={normalizedCouponCode}\nitems={string.Join(',', canonicalItems)}";
+        var canonicalAddressId = shippingAddressId?.ToString("D") ?? string.Empty;
+        var canonicalRequest = $"basketId={basket.BasketId:D}\nbasketVersion={basket.Version}\ncoupon={normalizedCouponCode}\nshippingAddressId={canonicalAddressId}\nitems={string.Join(',', canonicalItems)}";
         var hash = SHA256.HashData(Encoding.UTF8.GetBytes(canonicalRequest));
         return Convert.ToHexString(hash).ToLowerInvariant();
     }
@@ -309,6 +355,15 @@ public class CheckoutHandler : IRequestHandler<CheckoutCommand, OrderDto>
         {
             throw new CheckoutIdempotencyConflictException(
                 "Idempotency key was already used with a different coupon code.");
+        }
+    }
+
+    private static void EnsureMatchingShippingAddress(Order order, Guid? shippingAddressId)
+    {
+        if (order.ShippingAddress?.AddressId != shippingAddressId)
+        {
+            throw new CheckoutIdempotencyConflictException(
+                "Idempotency key was already used with a different shipping address.");
         }
     }
 

@@ -308,6 +308,7 @@ services:
       ServiceUrls__CatalogHttp: http://catalogservice:8080
       ServiceUrls__DiscountHttp: http://discountservice:8080
       ServiceUrls__InventoryHttp: http://inventoryservice:8080
+      ServiceUrls__IdentityHttp: http://identityservice:8080
       Jwt__Issuer: MicroShop.IdentityService
       Jwt__Audience: MicroShop.Client
       Jwt__SecretKey: ${MICROSHOP_JWT_SECRET_KEY:?Set MICROSHOP_JWT_SECRET_KEY in .env.local-prod}
@@ -331,6 +332,8 @@ services:
       basketservice:
         condition: service_healthy
       inventoryservice:
+        condition: service_healthy
+      identityservice:
         condition: service_healthy
 
   discountservice:
@@ -374,6 +377,7 @@ services:
       Jwt__Audience: MicroShop.Client
       Jwt__SecretKey: ${MICROSHOP_JWT_SECRET_KEY:?Set MICROSHOP_JWT_SECRET_KEY in .env.local-prod}
       Jwt__ExpirationMinutes: 120
+      InternalApi__Key: ${MICROSHOP_INTERNAL_API_KEY:?Set MICROSHOP_INTERNAL_API_KEY in .env.local-prod}
       BootstrapAdmin__Enabled: "true"
       BootstrapAdmin__UserName: ${MICROSHOP_BOOTSTRAP_ADMIN_USERNAME:?Set MICROSHOP_BOOTSTRAP_ADMIN_USERNAME in .env.local-prod}
       BootstrapAdmin__Password: ${MICROSHOP_BOOTSTRAP_ADMIN_PASSWORD:?Set MICROSHOP_BOOTSTRAP_ADMIN_PASSWORD in .env.local-prod}

@@ -3,6 +3,7 @@ using OrderingService.Application.Baskets;
 using OrderingService.Application.Catalog;
 using OrderingService.Application.Discounts;
 using OrderingService.Application.Inventory;
+using OrderingService.Application.Addresses;
 using OrderingService.Application.Orders;
 using OrderingService.Application.Orders.Checkout;
 using OrderingService.API.Endpoints;
@@ -82,6 +83,12 @@ public static class DependencyInjection
                 }
 
                 if (exception is InventoryUnavailableException)
+                {
+                    await Results.Json(new { ErrorCode = "DOWNSTREAM_UNAVAILABLE", exception.Message }, statusCode: StatusCodes.Status503ServiceUnavailable).ExecuteAsync(context);
+                    return;
+                }
+
+                if (exception is AddressUnavailableException)
                 {
                     await Results.Json(new { ErrorCode = "DOWNSTREAM_UNAVAILABLE", exception.Message }, statusCode: StatusCodes.Status503ServiceUnavailable).ExecuteAsync(context);
                     return;

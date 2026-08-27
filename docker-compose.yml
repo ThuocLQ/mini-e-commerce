@@ -243,6 +243,7 @@ services:
       ServiceUrls__BasketHttp: http://basketservice:8080
       ServiceUrls__CatalogHttp: http://catalogservice:8080
       ServiceUrls__InventoryHttp: http://inventoryservice:8080
+      ServiceUrls__IdentityHttp: http://identityservice:8080
       OrderEvents__Currency: USD
       RabbitMq__Host: rabbitmq
       RabbitMq__VirtualHost: /
@@ -262,6 +263,8 @@ services:
       basketservice:
         condition: service_started
       inventoryservice:
+        condition: service_started
+      identityservice:
         condition: service_started
     ports:
       - "5028:8080"
@@ -310,6 +313,7 @@ services:
       Jwt__Audience: MicroShop.Client
       Jwt__SecretKey: microshop-development-secret-key-must-be-long-enough
       Jwt__ExpirationMinutes: 120
+      InternalApi__Key: microshop-development-internal-api-key
       BootstrapAdmin__Enabled: ${MICROSHOP_BOOTSTRAP_ADMIN_ENABLED:-false}
       BootstrapAdmin__UserName: ${MICROSHOP_BOOTSTRAP_ADMIN_USERNAME:-}
       BootstrapAdmin__Password: ${MICROSHOP_BOOTSTRAP_ADMIN_PASSWORD:-}

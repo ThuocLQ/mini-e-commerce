@@ -7,4 +7,5 @@ public sealed record CheckoutCommand(
     string? IdempotencyKey,
     string? CouponCode,
     Guid BasketId,
-    long BasketVersion) : IRequest<OrderDto>;
+    long BasketVersion,
+    Guid? ShippingAddressId = null) : IRequest<OrderDto>;

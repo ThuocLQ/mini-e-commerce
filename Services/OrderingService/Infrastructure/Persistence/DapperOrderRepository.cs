@@ -20,7 +20,7 @@ public sealed class DapperOrderRepository : IOrderRepository
         using var connection = _connectionFactory.CreateConnection();
 
         var orderRows = (await connection.QueryAsync<OrderRow>(new CommandDefinition("""
-            SELECT Id, CustomerId, CreatedAtUtc, Status, IdempotencyKey, CheckoutRequestHash, CheckoutBasketId, CheckoutBasketVersion, Currency, DiscountCode, DiscountAmount, DiscountReservationId
+            SELECT Id, CustomerId, CreatedAtUtc, Status, IdempotencyKey, CheckoutRequestHash, CheckoutBasketId, CheckoutBasketVersion, Currency, DiscountCode, DiscountAmount, DiscountReservationId, ShippingAddressId, ShippingAddressLabel, ShippingRecipientName, ShippingLine1, ShippingLine2, ShippingCity, ShippingCountryCode, ShippingPostalCode
             FROM Orders
             ORDER BY CreatedAtUtc DESC;
             """, cancellationToken: cancellationToken))).ToList();
@@ -40,7 +40,7 @@ public sealed class DapperOrderRepository : IOrderRepository
         using var connection = _connectionFactory.CreateConnection();
 
         var orderRows = (await connection.QueryAsync<OrderRow>(new CommandDefinition("""
-            SELECT Id, CustomerId, CreatedAtUtc, Status, IdempotencyKey, CheckoutRequestHash, CheckoutBasketId, CheckoutBasketVersion, Currency, DiscountCode, DiscountAmount, DiscountReservationId
+            SELECT Id, CustomerId, CreatedAtUtc, Status, IdempotencyKey, CheckoutRequestHash, CheckoutBasketId, CheckoutBasketVersion, Currency, DiscountCode, DiscountAmount, DiscountReservationId, ShippingAddressId, ShippingAddressLabel, ShippingRecipientName, ShippingLine1, ShippingLine2, ShippingCity, ShippingCountryCode, ShippingPostalCode
             FROM Orders
             WHERE CustomerId = @CustomerId
             ORDER BY CreatedAtUtc DESC;
@@ -83,12 +83,12 @@ public sealed class DapperOrderRepository : IOrderRepository
     {
         var sql = transaction is null
             ? """
-              SELECT Id, CustomerId, CreatedAtUtc, Status, IdempotencyKey, CheckoutRequestHash, CheckoutBasketId, CheckoutBasketVersion, Currency, DiscountCode, DiscountAmount, DiscountReservationId
+              SELECT Id, CustomerId, CreatedAtUtc, Status, IdempotencyKey, CheckoutRequestHash, CheckoutBasketId, CheckoutBasketVersion, Currency, DiscountCode, DiscountAmount, DiscountReservationId, ShippingAddressId, ShippingAddressLabel, ShippingRecipientName, ShippingLine1, ShippingLine2, ShippingCity, ShippingCountryCode, ShippingPostalCode
               FROM Orders
               WHERE Id = @Id;
               """
             : """
-              SELECT Id, CustomerId, CreatedAtUtc, Status, IdempotencyKey, CheckoutRequestHash, CheckoutBasketId, CheckoutBasketVersion, Currency, DiscountCode, DiscountAmount, DiscountReservationId
+              SELECT Id, CustomerId, CreatedAtUtc, Status, IdempotencyKey, CheckoutRequestHash, CheckoutBasketId, CheckoutBasketVersion, Currency, DiscountCode, DiscountAmount, DiscountReservationId, ShippingAddressId, ShippingAddressLabel, ShippingRecipientName, ShippingLine1, ShippingLine2, ShippingCity, ShippingCountryCode, ShippingPostalCode
               FROM Orders
               WHERE Id = @Id
               FOR UPDATE;
@@ -122,7 +122,7 @@ public sealed class DapperOrderRepository : IOrderRepository
         using var connection = _connectionFactory.CreateConnection();
 
         var orderRow = await connection.QuerySingleOrDefaultAsync<OrderRow>(new CommandDefinition("""
-            SELECT Id, CustomerId, CreatedAtUtc, Status, IdempotencyKey, CheckoutRequestHash, CheckoutBasketId, CheckoutBasketVersion, Currency, DiscountCode, DiscountAmount, DiscountReservationId
+            SELECT Id, CustomerId, CreatedAtUtc, Status, IdempotencyKey, CheckoutRequestHash, CheckoutBasketId, CheckoutBasketVersion, Currency, DiscountCode, DiscountAmount, DiscountReservationId, ShippingAddressId, ShippingAddressLabel, ShippingRecipientName, ShippingLine1, ShippingLine2, ShippingCity, ShippingCountryCode, ShippingPostalCode
             FROM Orders
             WHERE CustomerId = @CustomerId
               AND IdempotencyKey = @IdempotencyKey;
@@ -155,7 +155,7 @@ public sealed class DapperOrderRepository : IOrderRepository
         using var connection = _connectionFactory.CreateConnection();
 
         var orderRow = await connection.QuerySingleOrDefaultAsync<OrderRow>(new CommandDefinition("""
-            SELECT Id, CustomerId, CreatedAtUtc, Status, IdempotencyKey, CheckoutRequestHash, CheckoutBasketId, CheckoutBasketVersion, Currency, DiscountCode, DiscountAmount, DiscountReservationId
+            SELECT Id, CustomerId, CreatedAtUtc, Status, IdempotencyKey, CheckoutRequestHash, CheckoutBasketId, CheckoutBasketVersion, Currency, DiscountCode, DiscountAmount, DiscountReservationId, ShippingAddressId, ShippingAddressLabel, ShippingRecipientName, ShippingLine1, ShippingLine2, ShippingCity, ShippingCountryCode, ShippingPostalCode
             FROM Orders
             WHERE CustomerId = @CustomerId
               AND CheckoutBasketId = @BasketId
@@ -278,8 +278,8 @@ public sealed class DapperOrderRepository : IOrderRepository
         CancellationToken cancellationToken)
     {
         await connection.ExecuteAsync(new CommandDefinition("""
-            INSERT INTO Orders (Id, CustomerId, CreatedAtUtc, Status, TotalAmount, Currency, DiscountCode, DiscountAmount, DiscountReservationId, IdempotencyKey, CheckoutRequestHash, CheckoutBasketId, CheckoutBasketVersion)
-            VALUES (@Id, @CustomerId, @CreatedAtUtc, @Status, @TotalAmount, @Currency, @DiscountCode, @DiscountAmount, @DiscountReservationId, @IdempotencyKey, @CheckoutRequestHash, @CheckoutBasketId, @CheckoutBasketVersion);
+            INSERT INTO Orders (Id, CustomerId, CreatedAtUtc, Status, TotalAmount, Currency, DiscountCode, DiscountAmount, DiscountReservationId, IdempotencyKey, CheckoutRequestHash, CheckoutBasketId, CheckoutBasketVersion, ShippingAddressId, ShippingAddressLabel, ShippingRecipientName, ShippingLine1, ShippingLine2, ShippingCity, ShippingCountryCode, ShippingPostalCode)
+            VALUES (@Id, @CustomerId, @CreatedAtUtc, @Status, @TotalAmount, @Currency, @DiscountCode, @DiscountAmount, @DiscountReservationId, @IdempotencyKey, @CheckoutRequestHash, @CheckoutBasketId, @CheckoutBasketVersion, @ShippingAddressId, @ShippingAddressLabel, @ShippingRecipientName, @ShippingLine1, @ShippingLine2, @ShippingCity, @ShippingCountryCode, @ShippingPostalCode);
             """, new
         {
             order.Id,
@@ -294,7 +294,15 @@ public sealed class DapperOrderRepository : IOrderRepository
             order.IdempotencyKey,
             order.CheckoutRequestHash,
             order.CheckoutBasketId,
-            order.CheckoutBasketVersion
+            order.CheckoutBasketVersion,
+            ShippingAddressId = order.ShippingAddress?.AddressId,
+            ShippingAddressLabel = order.ShippingAddress?.Label,
+            ShippingRecipientName = order.ShippingAddress?.RecipientName,
+            ShippingLine1 = order.ShippingAddress?.Line1,
+            ShippingLine2 = order.ShippingAddress?.Line2,
+            ShippingCity = order.ShippingAddress?.City,
+            ShippingCountryCode = order.ShippingAddress?.CountryCode,
+            ShippingPostalCode = order.ShippingAddress?.PostalCode
         }, transaction, cancellationToken: cancellationToken));
 
         foreach (var item in order.Items)
@@ -337,7 +345,8 @@ public sealed class DapperOrderRepository : IOrderRepository
             row.Currency,
             row.CheckoutRequestHash,
             row.CheckoutBasketVersion,
-            row.CheckoutBasketId);
+            row.CheckoutBasketId,
+            ToShippingAddress(row));
 
         foreach (var itemRow in itemRows)
         {
@@ -361,6 +370,33 @@ public sealed class DapperOrderRepository : IOrderRepository
         return order;
     }
 
+    private static OrderAddressSnapshot? ToShippingAddress(OrderRow row)
+    {
+        if (row.ShippingAddressId is null)
+        {
+            return null;
+        }
+
+        if (string.IsNullOrWhiteSpace(row.ShippingAddressLabel) ||
+            string.IsNullOrWhiteSpace(row.ShippingRecipientName) ||
+            string.IsNullOrWhiteSpace(row.ShippingLine1) ||
+            string.IsNullOrWhiteSpace(row.ShippingCity) ||
+            string.IsNullOrWhiteSpace(row.ShippingCountryCode))
+        {
+            throw new InvalidOperationException($"Order '{row.Id:D}' has an incomplete shipping-address snapshot.");
+        }
+
+        return new OrderAddressSnapshot(
+            row.ShippingAddressId.Value,
+            row.ShippingAddressLabel,
+            row.ShippingRecipientName,
+            row.ShippingLine1,
+            row.ShippingLine2,
+            row.ShippingCity,
+            row.ShippingCountryCode,
+            row.ShippingPostalCode).Normalize();
+    }
+
     private sealed record OrderRow(
         Guid Id,
         Guid CustomerId,
@@ -373,7 +409,15 @@ public sealed class DapperOrderRepository : IOrderRepository
         string Currency,
         string? DiscountCode,
         decimal DiscountAmount,
-        Guid? DiscountReservationId);
+        Guid? DiscountReservationId,
+        Guid? ShippingAddressId,
+        string? ShippingAddressLabel,
+        string? ShippingRecipientName,
+        string? ShippingLine1,
+        string? ShippingLine2,
+        string? ShippingCity,
+        string? ShippingCountryCode,
+        string? ShippingPostalCode);
 
     private sealed record OrderItemRow(
         Guid Id,

@@ -22,6 +22,15 @@ public static class OrderMapper
                 item.ProductName,
                 item.UnitPrice,
                 item.Quantity,
-                item.TotalPrice)).ToList());
+                item.TotalPrice)).ToList(),
+            order.ShippingAddress is null ? null : new OrderAddressSnapshotDto(
+                order.ShippingAddress.AddressId,
+                order.ShippingAddress.Label,
+                order.ShippingAddress.RecipientName,
+                order.ShippingAddress.Line1,
+                order.ShippingAddress.Line2,
+                order.ShippingAddress.City,
+                order.ShippingAddress.CountryCode,
+                order.ShippingAddress.PostalCode));
     }
 }

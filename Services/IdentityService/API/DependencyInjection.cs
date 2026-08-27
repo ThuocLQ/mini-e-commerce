@@ -18,6 +18,7 @@ public static class DependencyInjection
     {
         app.MapAuthEndpoints();
         app.MapAddressEndpoints();
+        app.MapInternalAddressEndpoints();
 
         return app;
     }

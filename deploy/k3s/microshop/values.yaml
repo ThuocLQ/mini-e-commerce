@@ -167,6 +167,7 @@ apps:
       ServiceUrls__CatalogHttp: http://catalogservice:8080
       ServiceUrls__DiscountHttp: http://discountservice:8080
       ServiceUrls__InventoryHttp: http://inventoryservice:8080
+      ServiceUrls__IdentityHttp: http://identityservice:8080
       RabbitMq__Host: rabbitmq
       RabbitMq__VirtualHost: /
       RabbitMq__UserName: microshop
@@ -195,6 +196,7 @@ apps:
     secretEnv:
       MICROSHOP_POSTGRES_PASSWORD: postgres-password
       MICROSHOP_JWT_SECRET_KEY: jwt-secret-key
+      MICROSHOP_INTERNAL_API_KEY: internal-api-key
       MICROSHOP_BOOTSTRAP_ADMIN_USERNAME: bootstrap-admin-username
       MICROSHOP_BOOTSTRAP_ADMIN_PASSWORD: bootstrap-admin-password
     env:
@@ -204,10 +206,12 @@ apps:
       ServiceDefaults__ValidateProductionConfiguration: "true"
       ServiceDefaults__RequiredConfigurationKeys__0: ConnectionStrings:IdentityDb
       ServiceDefaults__RequiredConfigurationKeys__1: Jwt:SecretKey
+      ServiceDefaults__RequiredConfigurationKeys__2: InternalApi:Key
       ConnectionStrings__IdentityDb: Host=postgres;Port=5432;Database=identitydb;Username=microshop;Password=$(MICROSHOP_POSTGRES_PASSWORD)
       Jwt__Issuer: MicroShop.IdentityService
       Jwt__Audience: MicroShop.Client
       Jwt__SecretKey: $(MICROSHOP_JWT_SECRET_KEY)
+      InternalApi__Key: $(MICROSHOP_INTERNAL_API_KEY)
       Jwt__ExpirationMinutes: "120"
       BootstrapAdmin__Enabled: "true"
       BootstrapAdmin__UserName: $(MICROSHOP_BOOTSTRAP_ADMIN_USERNAME)

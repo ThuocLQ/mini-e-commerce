@@ -16,6 +16,7 @@ public sealed class Order
     public string? DiscountCode { get; private set; }
     public decimal DiscountAmount { get; private set; }
     public Guid? DiscountReservationId { get; private set; }
+    public OrderAddressSnapshot? ShippingAddress { get; }
     public IReadOnlyList<OrderItem> Items => _items;
     public decimal SubtotalAmount => _items.Sum(item => item.TotalPrice);
     public decimal TotalAmount => SubtotalAmount - DiscountAmount;
@@ -29,7 +30,8 @@ public sealed class Order
         string currency = "USD",
         string? checkoutRequestHash = null,
         long? checkoutBasketVersion = null,
-        Guid? checkoutBasketId = null)
+        Guid? checkoutBasketId = null,
+        OrderAddressSnapshot? shippingAddress = null)
     {
         if (id == Guid.Empty) throw new ArgumentException("Order id cannot be empty.", nameof(id));
         if (customerId == Guid.Empty) throw new ArgumentException("Customer id cannot be empty.", nameof(customerId));
@@ -69,6 +71,7 @@ public sealed class Order
         CheckoutBasketVersion = checkoutBasketVersion;
         CheckoutBasketId = checkoutBasketId;
         Currency = currency.Trim().ToUpperInvariant();
+        ShippingAddress = shippingAddress?.Normalize();
     }
 
     public void AddItem(OrderItem item)

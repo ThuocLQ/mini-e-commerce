@@ -40,6 +40,8 @@ public static class DependencyInjection
                              ?? throw new InvalidOperationException("ServiceUrls:DiscountHttp is missing.");
         var inventoryBaseUrl = configuration["ServiceUrls:InventoryHttp"]
                               ?? throw new InvalidOperationException("ServiceUrls:InventoryHttp is missing.");
+        var identityBaseUrl = configuration["ServiceUrls:IdentityHttp"]
+                             ?? throw new InvalidOperationException("ServiceUrls:IdentityHttp is missing.");
         var internalApiKey = configuration["InternalApi:Key"]
                              ?? throw new InvalidOperationException("InternalApi:Key is missing.");
         if (!environment.IsDevelopment() &&
@@ -73,6 +75,13 @@ public static class DependencyInjection
         services.AddHttpClient<IInventoryReservationClient, HttpInventoryReservationClient>(client =>
         {
             client.BaseAddress = new Uri(inventoryBaseUrl);
+            client.Timeout = TimeSpan.FromSeconds(5);
+        })
+        .AddHttpMessageHandler<InternalApiKeyDelegatingHandler>();
+
+        services.AddHttpClient<IAddressSnapshotClient, HttpAddressSnapshotClient>(client =>
+        {
+            client.BaseAddress = new Uri(identityBaseUrl);
             client.Timeout = TimeSpan.FromSeconds(5);
         })
         .AddHttpMessageHandler<InternalApiKeyDelegatingHandler>();
