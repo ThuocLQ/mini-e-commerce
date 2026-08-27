@@ -53,6 +53,8 @@ public static class DependencyInjection
         services.AddSingleton<IDbConnectionFactory, NpgsqlConnectionFactory>();
         services.AddSingleton<IDatabaseInitializer, PostgresDatabaseInitializer>();
         services.AddScoped<IUserRepository, DapperUserRepository>();
+        services.AddScoped<IAddressRepository, DapperAddressRepository>();
+        services.AddScoped<IdentityService.Application.Addresses.AddressService>();
         services.AddSingleton<IPasswordHasher, Pbkdf2PasswordHasher>();
         services.AddScoped<IAdminBootstrapper, AdminBootstrapper>();
         services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
