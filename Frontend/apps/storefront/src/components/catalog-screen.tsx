@@ -76,6 +76,9 @@ export function CatalogScreen() {
         recoverExpiredSession();
         return;
       }
+      if (response.status === 409) {
+        throw new Error("Your cart changed in another update. Refresh it before trying again.");
+      }
       if (!response.ok || !isBasket(payload)) throw new Error(messageOf(payload) ?? "Your cart could not be loaded.");
       setBasket(payload);
       setBasketLoadState("ready");
@@ -211,6 +214,11 @@ export function CatalogScreen() {
         recoverExpiredSession();
         return;
       }
+      if (response.status === 409) {
+        setBasketMessage("Your cart changed while this update was being made. Refresh it before continuing.");
+        await loadBasket(session.user.userId);
+        return;
+      }
       if (response.status === 204) return loadBasket(session.user.userId);
       const payload: unknown = await response.json().catch(() => null);
       if (!response.ok || !isBasket(payload)) throw new Error(messageOf(payload) ?? "Your cart could not be updated.");
@@ -230,6 +238,11 @@ export function CatalogScreen() {
       const response = await fetch(`/api/cart/${encodeURIComponent(session.user.userId)}/items/${encodeURIComponent(productId)}`, { method: "DELETE" });
       if (response.status === 401) {
         recoverExpiredSession();
+        return;
+      }
+      if (response.status === 409) {
+        setBasketMessage("Your cart changed while this item was being removed. Refresh it before continuing.");
+        await loadBasket(session.user.userId);
         return;
       }
       if (response.status === 204) return loadBasket(session.user.userId);
@@ -269,6 +282,11 @@ export function CatalogScreen() {
         recoverExpiredSession();
         return;
       }
+      if (response.status === 409) {
+        setBasketMessage("Your cart changed before the order could be created. It has been refreshed; review it and create the order again.");
+        await loadBasket(basket.userId);
+        return;
+      }
       if (!response.ok || !isOrderSummary(payload)) {
         throw new Error(messageOf(payload) ?? "Your order could not be created.");
       }
@@ -298,7 +316,7 @@ export function CatalogScreen() {
         return;
       }
       if (!response.ok || !isPayment(payload)) throw new Error(messageOf(payload) ?? "Payment could not be initiated.");
-      setPaymentMessage("Payment request #" + payload.id.slice(0, 8).toUpperCase() + " is pending provider confirmation. Your order status will update after confirmation.");
+      setPaymentMessage("Payment request #" + payload.id.slice(0, 8).toUpperCase() + " was created with status " + labelPaymentStatus(payload.status) + ". This is not payment confirmation; refresh your orders after the payment provider updates it.");
       await loadOrders();
     } catch (error) {
       setPaymentMessage(error instanceof Error ? error.message : "Payment could not be initiated.");
@@ -361,10 +379,10 @@ export function CatalogScreen() {
       <header className="sticky top-0 z-30 border-b border-[var(--line)] bg-[var(--surface)]">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-5 gap-y-2 px-4 py-3 sm:px-6 lg:px-8">
           <button aria-label="Browse catalog" className="flex shrink-0 items-center gap-3 text-left" onClick={openCatalog} type="button"><span className="grid size-9 place-items-center bg-[var(--accent)] text-white"><Box aria-hidden="true" size={19} /></span><span><span className="block text-sm font-semibold">MicroShop</span><span className="block text-xs text-[var(--muted)]">Customer store</span></span></button>
-          <nav aria-label="Purchase journey" className="order-3 flex w-full items-center gap-1 overflow-x-auto pb-1 sm:order-none sm:w-auto sm:flex-1 sm:pb-0">
-            <button className="h-9 shrink-0 px-3 text-sm font-medium text-[var(--accent)] hover:bg-[#e9f2ed]" onClick={openCatalog} type="button">Catalog</button>
-            <button aria-label={`Open cart and checkout, ${cartCount} items`} className="inline-flex h-9 shrink-0 items-center gap-2 px-3 text-sm font-medium text-[var(--muted)] hover:bg-[#f3f5f2] hover:text-[var(--foreground)]" onClick={openCart} type="button"><ShoppingBag aria-hidden="true" size={16} />Cart &amp; checkout{cartCount ? <span className="grid min-w-5 place-items-center bg-[var(--accent)] px-1 text-xs font-semibold text-white">{cartCount}</span> : null}</button>
-            <button className="inline-flex h-9 shrink-0 items-center gap-2 px-3 text-sm font-medium text-[var(--muted)] hover:bg-[#f3f5f2] hover:text-[var(--foreground)]" onClick={openAccount} type="button"><ClipboardList aria-hidden="true" size={16} />Orders &amp; account</button>
+          <nav aria-label="Purchase journey" className="order-3 grid w-full grid-cols-3 items-center gap-1 pb-1 sm:order-none sm:flex sm:w-auto sm:flex-1 sm:pb-0">
+            <button className="h-9 px-2 text-sm font-medium text-[var(--accent)] hover:bg-[#e9f2ed] sm:shrink-0 sm:px-3" onClick={openCatalog} type="button">Catalog</button>
+            <button aria-label={`Open cart and checkout, ${cartCount} items`} className="inline-flex h-9 items-center justify-center gap-2 px-2 text-sm font-medium text-[var(--muted)] hover:bg-[#f3f5f2] hover:text-[var(--foreground)] sm:shrink-0 sm:justify-start sm:px-3" onClick={openCart} type="button"><ShoppingBag aria-hidden="true" size={16} /><span className="sm:hidden">Cart</span><span className="hidden sm:inline">Cart &amp; checkout</span>{cartCount ? <span className="grid min-w-5 place-items-center bg-[var(--accent)] px-1 text-xs font-semibold text-white">{cartCount}</span> : null}</button>
+            <button className="inline-flex h-9 items-center justify-center gap-2 px-2 text-sm font-medium text-[var(--muted)] hover:bg-[#f3f5f2] hover:text-[var(--foreground)] sm:shrink-0 sm:justify-start sm:px-3" onClick={openAccount} type="button"><ClipboardList aria-hidden="true" size={16} /><span className="sm:hidden">Orders</span><span className="hidden sm:inline">Orders &amp; account</span></button>
           </nav>
           <div className="ml-auto flex items-center gap-2">{session.status === "authenticated" ? <><span className="hidden items-center gap-2 text-sm text-[var(--muted)] lg:inline-flex"><UserRound aria-hidden="true" size={16} />{session.user.userName}</span><button className="h-9 px-3 text-sm text-[var(--muted)] hover:text-[var(--foreground)]" onClick={signOut} type="button">Sign out</button></> : <button className="inline-flex h-9 items-center gap-2 px-3 text-sm font-medium text-[var(--accent)] hover:bg-[#e9f2ed]" onClick={openAuth} type="button"><LogIn aria-hidden="true" size={16} />Sign in</button>}</div>
         </div>
@@ -389,7 +407,7 @@ export function CatalogScreen() {
 
       <ProductDetailDialog busyProductId={busyProductId} onAdd={addToBasket} onClose={() => setSelectedProduct(null)} product={selectedProduct} />
       <AuthDialog notice={authNotice} onClose={() => { setIsAuthOpen(false); setAuthNotice(null); }} onSignedIn={signedIn} open={isAuthOpen} />
-      {isBasketOpen ? <BasketPanel basket={basket} busyProductId={busyProductId} confirmation={orderConfirmation} isCheckingOut={isCheckingOut} loadState={basketLoadState} message={basketMessage} onChangeQuantity={changeQuantity} onCheckout={checkout} onClose={() => setIsBasketOpen(false)} onRemove={removeItem} onRetry={retryBasket} onViewOrders={() => { setIsBasketOpen(false); openOrders(); }} /> : null}
+      {isBasketOpen ? <BasketPanel basket={basket} busyProductId={busyProductId} confirmation={orderConfirmation} isCheckingOut={isCheckingOut} loadState={basketLoadState} message={basketMessage} onChangeQuantity={changeQuantity} onCheckout={checkout} onClose={() => setIsBasketOpen(false)} onRefresh={retryBasket} onRemove={removeItem} onRetry={retryBasket} onViewOrders={() => { setIsBasketOpen(false); openOrders(); }} /> : null}
       {isOrdersOpen ? <OrderPanel isLoading={isOrdersLoading} message={ordersMessage} onClose={() => setIsOrdersOpen(false)} onRetry={() => void loadOrders()} onStartPayment={startPayment} orders={orders} paymentMessage={paymentMessage} recentOrder={recentOrder} startingPaymentOrderId={startingPaymentOrderId} /> : null}
     </main>
   );
@@ -433,7 +451,18 @@ function isSession(value: unknown): value is { user: CurrentUser } {
 }
 
 function messageOf(value: unknown): string | null {
-  return typeof value === "object" && value !== null && typeof (value as Record<string, unknown>).message === "string" ? (value as Record<string, string>).message : null;
+  if (typeof value === "string") return value;
+  if (typeof value !== "object" || value === null) return null;
+  const payload = value as Record<string, unknown>;
+  return typeof payload.message === "string"
+    ? payload.message
+    : typeof payload.Message === "string"
+      ? payload.Message
+      : typeof payload.error === "string"
+        ? payload.error
+        : typeof payload.title === "string"
+          ? payload.title
+          : null;
 }
 
 function hash(value: string) {
@@ -466,3 +495,5 @@ function isOrderItem(value: unknown) {
 function isPayment(value: unknown): value is { id: string; status: string } { return typeof value === "object" && value !== null && typeof (value as Record<string, unknown>).id === "string" && typeof (value as Record<string, unknown>).status === "string"; }
 
 function isOrders(value: unknown): value is OrderSummary[] { return Array.isArray(value) && value.every(isOrderSummary); }
+
+function labelPaymentStatus(status: string) { return status.replace(/([a-z])([A-Z])/g, "$1 $2").toLowerCase(); }

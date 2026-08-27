@@ -1,6 +1,6 @@
 "use client";
 
-import { LoaderCircle, Minus, Plus, RefreshCw, ShoppingBag, Trash2, X } from "lucide-react";
+import { AlertTriangle, LoaderCircle, Minus, Plus, RefreshCw, ShoppingBag, Trash2, X } from "lucide-react";
 import { useState } from "react";
 import type { Basket, OrderSummary } from "@/lib/storefront/types";
 
@@ -17,6 +17,7 @@ type BasketPanelProps = {
   onClose: () => void;
   onViewOrders: () => void;
   onRetry: () => void;
+  onRefresh: () => void;
   onChangeQuantity: (productId: string, quantity: number) => void;
   onRemove: (productId: string) => void;
 };
@@ -34,6 +35,7 @@ export function BasketPanel({
   onClose,
   onViewOrders,
   onRetry,
+  onRefresh,
   onChangeQuantity,
   onRemove,
 }: BasketPanelProps) {
@@ -52,7 +54,7 @@ export function BasketPanel({
             <X aria-hidden="true" size={18} />
           </button>
         </header>
-        {message ? <p className="mx-5 mt-4 border-l-2 border-[var(--danger)] bg-[#fff7f6] px-3 py-2 text-sm text-[var(--danger)]" role="alert">{message}</p> : null}
+        {message ? <div className="mx-5 mt-4 border-l-2 border-[var(--danger)] bg-[#fff7f6] px-3 py-3 text-sm text-[var(--danger)]" role="alert"><div className="flex gap-2"><AlertTriangle aria-hidden="true" className="mt-0.5 shrink-0" size={16} /><p>{message}</p></div><button className="mt-3 inline-flex h-9 items-center gap-2 border border-[var(--danger)] px-3 text-sm font-semibold hover:bg-white" onClick={onRefresh} type="button"><RefreshCw aria-hidden="true" size={15} />Refresh cart</button></div> : null}
         {confirmation ? <div className="mx-5 mt-4 border-l-2 border-[var(--accent)] bg-[#f4fbf6] px-3 py-3 text-sm text-[var(--accent-strong)]" role="status"><p>Order #{confirmation.id.slice(0, 8).toUpperCase()} was created and is awaiting payment.</p><button className="mt-3 inline-flex h-9 items-center border border-[var(--accent)] px-3 text-sm font-semibold text-[var(--accent)] hover:bg-white" onClick={onViewOrders} type="button">View order status</button></div> : null}
 
         {loadState === "loading" ? (
@@ -105,7 +107,7 @@ export function BasketPanel({
             <span>Subtotal</span><span>{money.format(basket?.totalPrice ?? 0)}</span>
           </div>
           <label className="mt-5 block text-sm font-medium">Promotion code<input className="mt-2 h-10 w-full border border-[var(--line)] bg-white px-3 font-normal outline-none focus:border-[var(--accent)]" disabled={isCheckingOut} onChange={(event) => setCouponCode(event.target.value)} placeholder="Optional" value={couponCode} /></label>
-          <p className="mt-3 text-xs leading-5 text-[var(--muted)]">Placing an order reserves the current items and creates a payment-pending order.</p><button className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 bg-[var(--accent)] px-4 text-sm font-semibold text-white hover:bg-[var(--accent-strong)] disabled:cursor-not-allowed disabled:bg-[#8ba89b]" disabled={items.length === 0 || isCheckingOut} onClick={() => onCheckout(couponCode)} type="button">{isCheckingOut ? <span className="animate-pulse">Creating order</span> : "Place order"}</button>
+          <p className="mt-3 text-xs leading-5 text-[var(--muted)]">We will confirm current prices and availability before creating an order. Payment is not complete at this step.</p><button className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 bg-[var(--accent)] px-4 text-sm font-semibold text-white hover:bg-[var(--accent-strong)] disabled:cursor-not-allowed disabled:bg-[#8ba89b]" disabled={items.length === 0 || isCheckingOut} onClick={() => onCheckout(couponCode)} type="button">{isCheckingOut ? <span className="animate-pulse">Creating order</span> : "Create order"}</button>
         </footer> : null}
       </aside>
     </div>
