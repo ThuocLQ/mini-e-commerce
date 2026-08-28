@@ -18,14 +18,18 @@
 
 	@apiHost host api.localhost
 	handle @apiHost {
-		reverse_proxy api-gateway:8080
+		reverse_proxy api-gateway:8080 {
+			header_up X-MicroShop-Client-IP {http.request.header.Cf-Connecting-Ip}
+		}
 	}
 
 	@apiPaths {
-		path /alive /health /auth /auth/* /catalog /catalog/* /cart /cart/* /orders /orders/* /payments /payments/* /inventory /inventory/* /discounts /discounts/* /suppliers /suppliers/* /procurement /procurement/* /order-summaries /order-summaries/*
+		path /alive /health /auth /auth/* /catalog /catalog/* /cart /cart/* /orders /orders/* /payments /payments/* /webhooks /webhooks/* /inventory /inventory/* /discounts /discounts/* /suppliers /suppliers/* /procurement /procurement/* /order-summaries /order-summaries/*
 	}
 	handle @apiPaths {
-		reverse_proxy api-gateway:8080
+		reverse_proxy api-gateway:8080 {
+			header_up X-MicroShop-Client-IP {http.request.header.Cf-Connecting-Ip}
+		}
 	}
 
 	handle {

@@ -6,6 +6,7 @@ using OrderingService.Application.Inventory;
 using OrderingService.Application.Addresses;
 using OrderingService.Application.Orders;
 using OrderingService.Application.Orders.Checkout;
+using OrderingService.Application.Orders.CheckoutQuote;
 using OrderingService.API.Endpoints;
 
 namespace OrderingService.API;
@@ -28,6 +29,7 @@ public static class DependencyInjection
     {
         app.MapOrderEndpoints();
         app.MapPaymentSagaEndpoints();
+        app.MapCheckoutQuoteEndpoints();
         app.MapCheckoutEndpoints();
 
         if (app is WebApplication webApplication && webApplication.Environment.IsDevelopment())
@@ -103,6 +105,16 @@ public static class DependencyInjection
                 if (exception is CheckoutIdempotencyConflictException)
                 {
                     await Results.Conflict(new { exception.Message }).ExecuteAsync(context);
+                    return;
+                }
+
+                if (exception is CheckoutQuoteConflictException quoteConflict)
+                {
+                    await Results.Conflict(new
+                    {
+                        ErrorCode = quoteConflict.ErrorCode,
+                        quoteConflict.Message
+                    }).ExecuteAsync(context);
                     return;
                 }
 

@@ -1,7 +1,7 @@
 "use client";
 
-import Image from "next/image";
 import { useEffect } from "react";
+import Link from "next/link";
 import { Box, LoaderCircle, ShoppingBag, X } from "lucide-react";
 import type { CatalogProduct } from "@/lib/gateway/catalog";
 import { productImageSource } from "@/lib/storefront/product-media";
@@ -30,7 +30,7 @@ export function ProductDetailDialog({ product, busyProductId, onAdd, onClose }: 
 
   const soldOut = product.stockQuantity <= 0;
   const isBusy = busyProductId === product.id;
-  const source = productImageSource(product.name);
+  const source = productImageSource(product.imageUrl);
 
   return (
     <div className="fixed inset-0 z-50 grid overflow-y-auto bg-black/35 px-4 py-4 sm:place-items-center sm:py-8" role="presentation">
@@ -43,8 +43,9 @@ export function ProductDetailDialog({ product, busyProductId, onAdd, onClose }: 
         </header>
 
         <div className="grid gap-6 p-5 sm:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] sm:p-7">
-          {source ? <div className="relative min-h-52 overflow-hidden bg-[#edf1ee]"><Image alt={product.name} className="object-contain p-6" fill sizes="(min-width: 640px) 380px, 90vw" src={source} /></div> : <div aria-hidden="true" className="grid min-h-52 place-items-center bg-[#e8edf5] text-[#425a77]"><Box size={56} strokeWidth={1.25} /></div>}
+          {source ? <div className="min-h-52 overflow-hidden bg-[#edf1ee]"><img alt={product.name} className="h-full min-h-52 w-full object-contain p-6" referrerPolicy="no-referrer" src={source} /></div> : <div aria-hidden="true" className="grid min-h-52 place-items-center bg-[#eef2ef] text-[var(--muted)]"><Box size={56} strokeWidth={1.25} /></div>}
           <div>
+            {product.category ? <p className="text-sm font-medium text-[var(--accent)]">{product.category}</p> : null}
             <h2 className="text-2xl font-semibold" id="product-detail-title">{product.name}</h2>
             <p className="mt-3 text-sm leading-6 text-[var(--muted)]" id="product-detail-description">{product.description || "No product description is available."}</p>
             <dl className="mt-6 divide-y divide-[var(--line)] border-y border-[var(--line)] text-sm">
@@ -55,6 +56,7 @@ export function ProductDetailDialog({ product, busyProductId, onAdd, onClose }: 
               {isBusy ? <LoaderCircle aria-hidden="true" className="animate-spin" size={17} /> : <ShoppingBag aria-hidden="true" size={17} />}
               {soldOut ? "Unavailable" : isBusy ? "Adding to cart" : "Add to cart"}
             </button>
+            <Link className="mt-3 inline-flex h-10 w-full items-center justify-center text-sm font-semibold text-[var(--accent)] hover:bg-[#e9f2ed]" href={`/products/${encodeURIComponent(product.id)}`}>Open full product page</Link>
           </div>
         </div>
       </section>

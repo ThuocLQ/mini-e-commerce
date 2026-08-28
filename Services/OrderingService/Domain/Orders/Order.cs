@@ -170,17 +170,52 @@ public sealed class Order
 
     public bool Cancel()
     {
+        return CancelBeforeFulfillment();
+    }
+
+    public bool CancelBeforeFulfillment()
+    {
         if (Status == OrderStatus.Cancelled)
         {
             return false;
         }
 
-        if (Status == OrderStatus.Paid)
+        if (Status is not (OrderStatus.Pending or OrderStatus.PendingPayment or OrderStatus.PaymentFailed))
         {
-            throw new InvalidOperationException("Paid order cannot be cancelled without a refund workflow.");
+            throw new InvalidOperationException(
+                $"Order cannot be cancelled while it is {Status}. Paid or fulfilled orders require a dedicated refund or return workflow.");
         }
 
         Status = OrderStatus.Cancelled;
+        return true;
+    }
+
+    public bool MoveToFulfillmentStatus(OrderStatus targetStatus)
+    {
+        if (targetStatus is not (OrderStatus.Confirmed or OrderStatus.Shipped or OrderStatus.Delivered))
+        {
+            throw new ArgumentOutOfRangeException(nameof(targetStatus), "Fulfillment target must be Confirmed, Shipped, or Delivered.");
+        }
+
+        if (Status == targetStatus)
+        {
+            return false;
+        }
+
+        var isAllowedTransition = (Status, targetStatus) switch
+        {
+            (OrderStatus.Paid, OrderStatus.Confirmed) => true,
+            (OrderStatus.Confirmed, OrderStatus.Shipped) => true,
+            (OrderStatus.Shipped, OrderStatus.Delivered) => true,
+            _ => false
+        };
+
+        if (!isAllowedTransition)
+        {
+            throw new InvalidOperationException($"Order cannot move from {Status} to {targetStatus} in the fulfillment workflow.");
+        }
+
+        Status = targetStatus;
         return true;
     }
 

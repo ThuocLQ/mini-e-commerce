@@ -65,23 +65,24 @@ export async function PUT(request: Request) {
   if (!hasSameOrigin(request)) return message("Cross-site requests are not accepted.", 403);
 
   const body = await readJson(request);
-  if (!isCredentials(body)) {
-    return message("Username and password are required.", 400);
+  if (!isRegistrationCredentials(body)) {
+    return message("Username, email, and password are required.", 400);
   }
 
   try {
     const response = await fetch(gatewayUrl("/auth/register"), {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({ userName: body.userName.trim(), password: body.password }),
+      body: JSON.stringify({ userName: body.userName.trim(), email: body.email.trim(), password: body.password }),
       cache: "no-store",
     });
 
+    const payload = await readJson(response);
     if (response.status === 409) {
-      return message("That username is already registered.", 409);
+      return message(registrationMessage(payload) ?? "That username or email is already registered.", 409);
     }
     if (!response.ok) {
-      return message("Account could not be created. Check the details and try again.", 400);
+      return message(registrationMessage(payload) ?? "Account could not be created. Check the details and try again.", 400);
     }
 
     return NextResponse.json({ registered: true }, { status: 201 });
@@ -103,7 +104,8 @@ export async function GET() {
   return response;
 }
 
-export function DELETE() {
+export function DELETE(request: Request) {
+  if (!hasSameOrigin(request)) return message("Cross-site requests are not accepted.", 403);
   const response = NextResponse.json({ success: true });
   response.cookies.set({
     name: cookieName,
@@ -170,6 +172,26 @@ function isCredentials(value: unknown): value is { userName: string; password: s
     && value.password.length > 0;
 }
 
+function isRegistrationCredentials(value: unknown): value is { userName: string; email: string; password: string } {
+  return isRecord(value)
+    && typeof value.email === "string"
+    && value.email.trim().length > 0
+    && isCredentials(value);
+}
+function registrationMessage(value: unknown): string | null {
+  if (!isRecord(value)) return null;
+  if (typeof value.message === "string" && value.message.trim()) return value.message;
+
+  const errors = value.errors;
+  if (!isRecord(errors)) return null;
+  for (const messages of Object.values(errors)) {
+    if (Array.isArray(messages) && typeof messages[0] === "string" && messages[0].trim()) {
+      return messages[0];
+    }
+  }
+
+  return null;
+}
 function isLogin(value: unknown): value is LoginResponse {
   return isRecord(value)
     && typeof value.accessToken === "string"
@@ -182,7 +204,8 @@ function isCurrentUser(value: unknown): value is CurrentUser {
   return isRecord(value)
     && typeof value.userId === "string"
     && typeof value.userName === "string"
-    && typeof value.role === "string";
+    && typeof value.role === "string"
+    && typeof value.isEmailVerified === "boolean";
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

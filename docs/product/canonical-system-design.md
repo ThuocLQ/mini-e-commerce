@@ -153,6 +153,61 @@ flowchart LR
 - Không dùng Kafka để điều phối transactional saga hay RabbitMQ để dựng read model; không hứa exactly-once.
 - Không thêm guest cart/merge, multi-warehouse/allocation, marketplace, split fulfilment/refund, returns/restock, loyalty, recommendation/search engine hoặc public supplier portal trước P0 acceptance.
 
+## 9. System Design v2: product-first delivery target
+
+### 9.1 Quyết định kiến trúc đã chốt
+
+- Không tách thêm service chỉ để mô phỏng enterprise. `Fulfillment` bắt đầu là bounded module có aggregate, persistence, API và event rõ ràng trong `OrderingService`; chỉ tách `FulfillmentService` khi multi-warehouse, multi-shipment, WMS/carrier integration hoặc ownership vận hành riêng tạo áp lực thực tế.
+- `InventoryService` là owner duy nhất của `onHand`, `reserved`, `committed` và `available`. `CatalogService` chỉ sở hữu product, price, sellability và availability snapshot advisory. Không để Operations thực hiện product update và stock update như một transaction UI giả.
+- `OrderingService` sở hữu quote/price snapshot, shipping/tax policy P0, status history, cancellation policy và order lifecycle. `PaymentService` sở hữu provider action, webhook, reconciliation và payment lifecycle; browser không xác nhận payment thành công.
+- `SupplierService` giữ độc lập bằng Spring Boot. Procurement không nằm trên customer critical path cho tới khi receipt-to-stock, role, audit và duplicate protection được chứng minh end-to-end.
+- Tất cả browser traffic vẫn theo Browser -> BFF -> ApiGateway. BFF chỉ expose capability allow-list, không phải reverse proxy tổng quát; browser không gọi service, broker, database hoặc endpoint `/_internal/*`.
+- Dữ liệu hiển thị cho user phải là dữ liệu thật từ owner database qua API/BFF. Không hard-code catalog, order, payment, inventory, metric hoặc timeline giả trong frontend. Portfolio seed là dữ liệu demo có thật: tạo idempotent qua API/import workflow, persist vào database và được gắn nhãn synthetic; production master data được quản lý bằng admin workflow/import có audit, không nhét vào DbUp migration sau bootstrap.
+
+### 9.2 Target information architecture
+
+Các route dưới đây là **đích triển khai**, không được coi là capability đã có cho tới khi contract, quyền, persistence, telemetry và browser E2E cùng hoàn thành.
+
+| Surface | Route / area target | Quyết định UX và contract |
+| --- | --- | --- |
+| Storefront discovery | `/`, `/products`, `/products/{productId}` | Listing có query/filter/sort/cursor khi Catalog hỗ trợ; product detail là URL shareable với media, price, sellability và availability advisory đã được server xác nhận. |
+| Storefront purchase | `/cart`, `/checkout` | Giỏ và checkout là page flow, không nhồi toàn bộ vào drawer; checkout hiển thị quote, tổng tiền, hạn reservation/payment và lỗi có thể phục hồi. |
+| Storefront account | `/account`, `/account/addresses`, `/orders`, `/orders/{orderId}` | Account, address book, order detail và status timeline là các màn hình recoverable; chỉ hiển thị cancel/refund/tracking khi server trả action hợp lệ. |
+| Storefront payment | `/orders/{orderId}/payment` hoặc provider return route | UI render provider action/return state do Payment trả về; pending/failed/retry/reconciliation không được suy diễn từ thao tác click. |
+| Operations catalog/inventory | `/catalog`, `/catalog/{productId}`, `/inventory` | Catalog editor tách khỏi stock policy; inventory reconciliation trước hết read-only, mutation chỉ xuất hiện sau command/audit/idempotency rõ. |
+| Operations case work | `/orders`, `/orders/{orderId}`, `/payments`, `/payments/{paymentId}` | Queue -> detail -> permitted action; detail có snapshot, state timeline, updated time, correlation/trace và runbook/reconciliation context nếu contract cấp. |
+| Operations fulfilment | `/fulfillment`, `/fulfillment/{id}` | Chỉ tạo sau paid-order queue, expected version, confirm/ship/deliver, carrier/tracking bắt buộc và audit đã tồn tại. |
+| Operations procurement | `/procurement` | Chỉ hiển thị workflow supplier -> PO -> receipt khi Gateway contract và receipt-to-stock idempotency đã chứng minh; nếu chưa, ẩn thay vì gắn nhãn placeholder như capability hoàn chỉnh. |
+
+### 9.3 Vertical slice delivery order
+
+1. **Foundation UX and contracts:** tách Storefront client workspace thành page/route theo domain, typed BFF adapters, common error states (`401`, `403`, `409`, `422`, `429`, `503`), session/role guard chung và browser test baseline. Không thay đổi business state machine ở bước này.
+2. **Discovery and product detail:** Catalog sellable read contract, cursor/filter/sort chỉ khi có persistence/index; product detail page và media policy. Không tách SearchService ở P0.
+3. **Quote to checkout:** quote + expiry, tax/shipping breakdown P0, cart conflict recovery, checkout review page, customer order detail/status history. Một key chỉ tạo một order/reservation.
+4. **Payment completion:** provider adapter boundary, hosted/redirect action hoặc equivalent server-confirmed action, return/callback state, pending/failed/retry UX và payment reconciliation queue. Sandbox chỉ cho Development/Portfolio; real payment cần commercial provider adapter.
+5. **Fulfilment:** `Paid -> FulfillmentRequested -> Confirmed -> Shipped -> Delivered`, paid-order queue, carrier/tracking validation, customer order tracking read view, audit và idempotent event handling.
+6. **Cancel and refund:** server-calculated eligibility, customer request reason, Operations review khi policy cần, void/refund exactly-once, reservation/promotion compensation và late callback reconciliation.
+7. **Notification and procurement hardening:** delivery record/provider/template/preference/retry/DLQ; receipt retry/recovery and audit. Không dùng sender log hoặc seeded data để khẳng định delivery/stock health.
+8. **Scale and release hardening:** SLO/load model, browser E2E in CI, contract compatibility, durable traces/logs, alert routing, encrypted off-host backups and timed restore drills; sau đó mới đặt mục tiêu multi-node/HA.
+
+### 9.4 Slice acceptance gate
+
+Một slice chỉ được promote khi toàn bộ điều kiện sau pass:
+
+- API/BFF có authorization, ownership, idempotency và response/error contract ổn định.
+- Domain transition có predecessor hợp lệ, CAS/expected version khi cạnh tranh, transaction + outbox và consumer dedup theo `eventId` khi đi async.
+- UI có loading, empty, validation, pending, retryable unavailable, conflict và confirmed success; không có optimistic terminal business state.
+- Browser E2E kiểm tra primary flow, duplicate submit, unauthorized/cross-user access và một failure state có ý nghĩa; accessibility có keyboard/focus/axe coverage.
+- Trace nối Browser/BFF -> Gateway -> service -> event/worker; log không lộ PII/payment secret; metric/alert/runbook tồn tại cho queue/outbox/saga liên quan.
+- Migration, rollback compatibility và recovery behavior được chứng minh trên composed runtime, không chỉ unit test.
+
+### 9.5 Release classification
+
+| Mức | Điều kiện |
+| --- | --- |
+| Portfolio supervised demo | Synthetic data, exact HTTPS origin/cookie, clean compose smoke, customer/admin journey smoke, no real payment, Quick Tunnel được xem là tạm thời. |
+| Pilot with real users | Commercial payment provider, fulfilment/cancel/refund, delivery notification, session revocation, audit, browser E2E, SLO/load verification, alert routing, encrypted off-host backup và restore drill. |
+| High-availability production | Tách failure domain dữ liệu/hạ tầng, replicated or managed data services, capacity/autoscaling plan, PDB/network policy, owned domain/named tunnel or ingress, disaster-recovery RPO/RTO đã kiểm thử. Single-VPS K3s không được gọi là HA. |
 ## 9. Rủi ro quyết định cần đóng
 
 1. README/legacy architecture docs có thể mô tả trước trạng thái hiện hành (ví dụ route/service mới và Kafka outbox). Khi khác nhau, source + composed runtime + test là bằng chứng; cập nhật tài liệu cũ ở một thay đổi riêng, không nhân đôi blueprint.

@@ -1,10 +1,10 @@
-const productImages: Record<string, string> = {
-  "Aurora Wireless Headphones": "/images/products/aurora-wireless-headphones.png",
-  "Orbit Mechanical Keyboard": "/images/products/orbit-mechanical-keyboard.png",
-  "Field Notes Desk Set": "/images/products/field-notes-desk-set.png",
-  "Atlas USB-C Hub": "/images/products/atlas-usb-c-hub.png",
-};
+export function productImageSource(imageUrl: string | null | undefined): string | null {
+  if (typeof imageUrl !== "string" || !imageUrl.trim()) return null;
 
-export function productImageSource(productName: string): string | null {
-  return productImages[productName] ?? null;
+  try {
+    const url = new URL(imageUrl);
+    return url.protocol === "http:" || url.protocol === "https:" ? url.toString() : null;
+  } catch {
+    return null;
+  }
 }

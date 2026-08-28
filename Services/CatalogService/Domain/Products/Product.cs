@@ -8,8 +8,22 @@ public sealed class Product
     public decimal Price { get; private set; }
     public int StockQuantity { get; }
     public bool IsActive { get; }
+    public string? Category { get; private set; }
+    public string? ImageUrl { get; private set; }
+    public string Sku { get; }
+    public string? Brand { get; private set; }
 
-    public Product(string id, string name, string description, decimal price, int stockQuantity = 0, bool isActive = true)
+    public Product(
+        string id,
+        string name,
+        string description,
+        decimal price,
+        int stockQuantity = 0,
+        bool isActive = true,
+        string? category = null,
+        string? imageUrl = null,
+        string? sku = null,
+        string? brand = null)
     {
         if (string.IsNullOrWhiteSpace(id))
         {
@@ -37,6 +51,10 @@ public sealed class Product
         Price = price;
         StockQuantity = stockQuantity;
         IsActive = isActive;
+        Category = NormalizeCategory(category);
+        ImageUrl = NormalizeImageUrl(imageUrl);
+        Sku = NormalizeSku(sku, id);
+        Brand = NormalizeBrand(brand);
     }
 
     public void Rename(string name)
@@ -62,5 +80,43 @@ public sealed class Product
         }
 
         Price = newPrice;
+    }
+
+    private static string? NormalizeCategory(string? category)
+    {
+        return string.IsNullOrWhiteSpace(category) ? null : category.Trim();
+    }
+
+    private static string? NormalizeImageUrl(string? imageUrl)
+    {
+        return string.IsNullOrWhiteSpace(imageUrl) ? null : imageUrl.Trim();
+    }
+
+    private static string NormalizeSku(string? sku, string id)
+    {
+        var normalized = string.IsNullOrWhiteSpace(sku) ? $"LEGACY-{id}" : sku.Trim();
+
+        if (normalized.Length > 64)
+        {
+            throw new ArgumentOutOfRangeException(nameof(sku), "Product SKU must not exceed 64 characters.");
+        }
+
+        return normalized;
+    }
+
+    private static string? NormalizeBrand(string? brand)
+    {
+        if (string.IsNullOrWhiteSpace(brand))
+        {
+            return null;
+        }
+
+        var normalized = brand.Trim();
+        if (normalized.Length > 100)
+        {
+            throw new ArgumentOutOfRangeException(nameof(brand), "Product brand must not exceed 100 characters.");
+        }
+
+        return normalized;
     }
 }

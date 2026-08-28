@@ -9,6 +9,7 @@ using OrderingService.Application.IntegrationEvents;
 using OrderingService.Application.Inventory;
 using OrderingService.Application.Orders;
 using OrderingService.Application.Orders.Checkout;
+using OrderingService.Application.Orders.CheckoutQuote;
 using OrderingService.Domain.Orders;
 using OrderingService.Domain.Outbox;
 
@@ -243,16 +244,33 @@ public sealed class CheckoutIdempotencyTests
         IDiscountClient? discountClient = null,
         IAddressSnapshotClient? addressSnapshotClient = null)
     {
+        var basketClient = new StubBasketClient(basket);
+        var catalogClient = new StubCatalogProductSnapshotClient();
+        var discount = discountClient ?? new StubDiscountClient();
+        var addressClient = addressSnapshotClient ?? new StubAddressSnapshotClient(null);
+        var orderOptions = Options.Create(new OrderEventOptions { Currency = "USD" });
+        var addressResolver = new CheckoutAddressSnapshotResolver(addressClient);
+        var quoteEvaluator = new CheckoutQuoteEvaluator(
+            basketClient,
+            catalogClient,
+            discount,
+            new StubInventoryAvailabilityClient(),
+            addressResolver,
+            orderOptions,
+            TimeProvider.System);
+
         return new CheckoutHandler(
-            new StubBasketClient(basket),
+            basketClient,
             orderRepository,
             new StubOutboxRepository(),
-            new StubCatalogProductSnapshotClient(),
-            discountClient ?? new StubDiscountClient(),
+            catalogClient,
+            discount,
             inventoryClient,
-            addressSnapshotClient ?? new StubAddressSnapshotClient(null),
+            addressResolver,
+            quoteEvaluator,
+            new StubCheckoutQuoteTokenService(),
             new InlineUnitOfWork(),
-            Options.Create(new OrderEventOptions { Currency = "USD" }),
+            orderOptions,
             NullLogger<CheckoutHandler>.Instance);
     }
 
@@ -340,6 +358,22 @@ public sealed class CheckoutIdempotencyTests
         }
     }
 
+    private sealed class StubInventoryAvailabilityClient : IInventoryAvailabilityClient
+    {
+        public Task<IReadOnlyList<InventoryAvailabilityItem>> GetAvailabilityAsync(
+            IReadOnlyList<InventoryAvailabilityRequestItem> items,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<InventoryAvailabilityItem>>(
+                items.Select(item => new InventoryAvailabilityItem(item.ProductId, true)).ToList());
+    }
+
+    private sealed class StubCheckoutQuoteTokenService : ICheckoutQuoteTokenService
+    {
+        public string Create(CheckoutQuoteTokenPayload payload) => "unused";
+
+        public CheckoutQuoteTokenPayload ReadAndValidate(string token, CheckoutQuoteRequestBinding request) =>
+            throw new InvalidOperationException("Quote tokens are not used by these legacy checkout tests.");
+    }
     private sealed class RecordingInventoryReservationClient(bool succeeds = true) : IInventoryReservationClient
     {
         public List<Guid> ReservedOrderIds { get; } = [];

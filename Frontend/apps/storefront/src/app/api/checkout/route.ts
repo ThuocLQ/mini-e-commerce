@@ -11,6 +11,7 @@ type CheckoutRequest = {
   shippingAddressId: string;
   couponCode?: string;
   idempotencyKey: string;
+  quoteToken?: string;
 };
 
 export async function POST(request: Request) {
@@ -39,6 +40,7 @@ export async function POST(request: Request) {
         basketVersion: body.basketVersion,
         shippingAddressId: body.shippingAddressId,
         couponCode: body.couponCode?.trim() || null,
+        quoteToken: body.quoteToken?.trim() || null,
       }),
       cache: "no-store",
     });
@@ -70,7 +72,8 @@ function isCheckoutRequest(value: unknown): value is CheckoutRequest {
     && typeof body.idempotencyKey === "string"
     && body.idempotencyKey.length > 0
     && body.idempotencyKey.length <= 128
-    && (body.couponCode === undefined || typeof body.couponCode === "string");
+    && (body.couponCode === undefined || typeof body.couponCode === "string")
+    && (body.quoteToken === undefined || (typeof body.quoteToken === "string" && body.quoteToken.length <= 4096));
 }
 
 function isGuid(value: unknown): value is string {

@@ -28,6 +28,7 @@
     <ProjectReference Include="..\..\Services\OrderingService\OrderingService.csproj" />
     <ProjectReference Include="..\..\Services\PaymentService\PaymentService.csproj" />
     <ProjectReference Include="..\..\Workers\ProjectionWorker\ProjectionWorker.csproj" />
+    <ProjectReference Include="..\..\Services\NotificationWorker\NotificationWorker.csproj" />
   </ItemGroup>
 
 </Project>

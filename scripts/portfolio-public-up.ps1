@@ -6,6 +6,7 @@ param(
     [string]$GatewayBaseUrl = "http://api.localhost:5027",
     [switch]$Build,
     [switch]$SkipPortfolioStart,
+    [switch]$IncludeOperations,
     [int]$TunnelReadyTimeoutSeconds = 60
 )
 
@@ -229,18 +230,23 @@ function Assert-BffOriginPolicy {
 
 $tunnels = @()
 try {
-    $tunnels += Start-QuickTunnel -Name "storefront" -OriginHostHeader "localhost"
-    $tunnels += Start-QuickTunnel -Name "operations" -OriginHostHeader "operations.localhost"
+    $storefrontTunnel = Start-QuickTunnel -Name "storefront" -OriginHostHeader "localhost"
+    $tunnels += $storefrontTunnel
 
     $frontendParameters = @{
         Mode = $Mode
         EnvFile = $EnvFile
         GatewayBaseUrl = $GatewayBaseUrl
-        StorefrontPublicOrigin = $tunnels[0].Url
-        OperationsPublicOrigin = $tunnels[1].Url
+        StorefrontPublicOrigin = $storefrontTunnel.Url
         RecreateFrontends = $true
         SkipSmoke = $true
         SkipSeed = $true
+    }
+
+    if ($IncludeOperations) {
+        $operationsTunnel = Start-QuickTunnel -Name "operations" -OriginHostHeader "operations.localhost"
+        $tunnels += $operationsTunnel
+        $frontendParameters.OperationsPublicOrigin = $operationsTunnel.Url
     }
 
     & (Join-Path $PSScriptRoot "portfolio-up.ps1") @frontendParameters

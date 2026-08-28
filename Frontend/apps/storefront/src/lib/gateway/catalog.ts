@@ -4,6 +4,10 @@ export type CatalogProduct = {
   description: string;
   price: number;
   stockQuantity: number;
+  category?: string | null;
+  imageUrl?: string | null;
+  sku?: string | null;
+  brand?: string | null;
 };
 
 type CatalogRequest = {
@@ -35,5 +39,9 @@ function isCatalogProduct(value: unknown): value is CatalogProduct {
     && typeof product.name === "string"
     && typeof product.description === "string"
     && typeof product.price === "number"
-    && typeof product.stockQuantity === "number";
+    && typeof product.stockQuantity === "number"
+    && (product.category === undefined || product.category === null || typeof product.category === "string")
+    && (product.imageUrl === undefined || product.imageUrl === null || typeof product.imageUrl === "string")
+    && (product.sku === undefined || product.sku === null || typeof product.sku === "string")
+    && (product.brand === undefined || product.brand === null || typeof product.brand === "string");
 }

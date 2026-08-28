@@ -47,16 +47,19 @@ function Get-ExactHttpsOrigin {
 
 $hasStorefrontPublicOrigin = -not [string]::IsNullOrWhiteSpace($StorefrontPublicOrigin)
 $hasOperationsPublicOrigin = -not [string]::IsNullOrWhiteSpace($OperationsPublicOrigin)
-if ($hasStorefrontPublicOrigin -ne $hasOperationsPublicOrigin) {
-    throw "StorefrontPublicOrigin and OperationsPublicOrigin must be supplied together."
+if ($hasOperationsPublicOrigin -and -not $hasStorefrontPublicOrigin) {
+    throw "OperationsPublicOrigin requires StorefrontPublicOrigin."
 }
 
 if ($RecreateFrontends -and -not $hasStorefrontPublicOrigin) {
-    throw "RecreateFrontends requires exact HTTPS origins for StorefrontPublicOrigin and OperationsPublicOrigin."
+    throw "RecreateFrontends requires an exact HTTPS StorefrontPublicOrigin."
 }
 
 if ($hasStorefrontPublicOrigin) {
     $StorefrontPublicOrigin = Get-ExactHttpsOrigin -Value $StorefrontPublicOrigin -Name "StorefrontPublicOrigin"
+}
+
+if ($hasOperationsPublicOrigin) {
     $OperationsPublicOrigin = Get-ExactHttpsOrigin -Value $OperationsPublicOrigin -Name "OperationsPublicOrigin"
 }
 
@@ -74,9 +77,12 @@ $scopedEnvironment = @{}
 if ($hasStorefrontPublicOrigin) {
     $scopedEnvironment = @{
         MICROSHOP_STOREFRONT_PUBLIC_ORIGIN = $StorefrontPublicOrigin
-        MICROSHOP_OPERATIONS_PUBLIC_ORIGIN = $OperationsPublicOrigin
         MICROSHOP_STOREFRONT_COOKIE_SECURE = "true"
-        MICROSHOP_OPERATIONS_COOKIE_SECURE = "true"
+    }
+
+    if ($hasOperationsPublicOrigin) {
+        $scopedEnvironment["MICROSHOP_OPERATIONS_PUBLIC_ORIGIN"] = $OperationsPublicOrigin
+        $scopedEnvironment["MICROSHOP_OPERATIONS_COOKIE_SECURE"] = "true"
     }
 }
 
@@ -89,12 +95,17 @@ try {
 
     if ($RecreateFrontends) {
         Write-Host "Applying exact public origins and secure cookies to portfolio frontends..."
-        & docker compose @composeArgs up -d --no-deps --force-recreate storefront operations
+        $frontendServices = @("storefront")
+        if ($hasOperationsPublicOrigin) {
+            $frontendServices += "operations"
+        }
+
+        & docker compose @composeArgs up -d --no-deps --force-recreate @frontendServices
         if ($LASTEXITCODE -ne 0) {
             throw "docker compose frontend recreation failed with exit code $LASTEXITCODE."
         }
 
-        & docker compose @composeArgs ps storefront operations
+        & docker compose @composeArgs ps @frontendServices
         if ($LASTEXITCODE -ne 0) {
             throw "docker compose ps failed with exit code $LASTEXITCODE."
         }

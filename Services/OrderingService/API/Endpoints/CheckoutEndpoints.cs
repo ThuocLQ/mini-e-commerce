@@ -34,7 +34,14 @@ public static class CheckoutEndpoints
         }
 
         var result = await sender.Send(
-            new CheckoutCommand(customerId, idempotencyKey ?? request.IdempotencyKey, request.CouponCode, request.BasketId, request.BasketVersion, request.ShippingAddressId),
+            new CheckoutCommand(
+                customerId,
+                idempotencyKey ?? request.IdempotencyKey,
+                request.CouponCode,
+                request.BasketId,
+                request.BasketVersion,
+                request.ShippingAddressId,
+                request.QuoteToken),
             cancellationToken);
 
         return Results.Created($"/orders/{result.Id}", result);
@@ -47,5 +54,11 @@ public static class CheckoutEndpoints
         return Guid.TryParse(customerIdValue, out customerId);
     }
 
-    private sealed record CheckoutRequest(string? IdempotencyKey, string? CouponCode, Guid BasketId, long BasketVersion, Guid? ShippingAddressId);
+    private sealed record CheckoutRequest(
+        string? IdempotencyKey,
+        string? CouponCode,
+        Guid BasketId,
+        long BasketVersion,
+        Guid? ShippingAddressId,
+        string? QuoteToken);
 }

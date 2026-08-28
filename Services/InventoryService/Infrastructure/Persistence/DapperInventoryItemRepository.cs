@@ -3,6 +3,7 @@ using System.Text.Json;
 using BuildingBlocks.Contracts.Correlation;
 using BuildingBlocks.Contracts.Events.Inventory;
 using InventoryService.Application.Abstractions;
+using InventoryService.Application.Inventory.GetInventoryAvailability;
 using InventoryService.Application.Inventory.GetInventoryItems;
 using InventoryService.Application.Inventory.ReceiveInventoryStock;
 using InventoryService.Domain.Outbox;
@@ -41,6 +42,26 @@ public sealed class DapperInventoryItemRepository : IInventoryItemRepository
             row.UpdatedAtUtc)).ToList();
     }
 
+    public async Task<IReadOnlyList<InventoryAvailabilityDto>> GetAvailabilityAsync(
+        IReadOnlyList<InventoryAvailabilityRequestItem> items,
+        CancellationToken cancellationToken = default)
+    {
+        using var connection = _connectionFactory.CreateConnection();
+
+        var productIds = items.Select(item => item.ProductId.ToString("D")).ToArray();
+        var quantities = items.Select(item => item.Quantity).ToArray();
+        var rows = await connection.QueryAsync<InventoryAvailabilityRow>(new CommandDefinition("""
+            SELECT requested.ProductId,
+                   COALESCE(inventory.StockQuantity - inventory.ReservedQuantity >= requested.Quantity, FALSE) AS Available
+            FROM unnest(@ProductIds::text[], @Quantities::integer[]) WITH ORDINALITY AS requested(ProductId, Quantity, Position)
+            LEFT JOIN InventoryItems inventory ON inventory.ProductId = requested.ProductId
+            ORDER BY requested.Position;
+            """, new { ProductIds = productIds, Quantities = quantities }, cancellationToken: cancellationToken));
+
+        return rows
+            .Select(row => new InventoryAvailabilityDto(Guid.Parse(row.ProductId), row.Available))
+            .ToList();
+    }
     public async Task UpsertStockAsync(string productId, int stockQuantity, CancellationToken cancellationToken = default)
     {
         using var connection = _connectionFactory.CreateConnection();
@@ -149,4 +170,5 @@ public sealed class DapperInventoryItemRepository : IInventoryItemRepository
     }
     private sealed record InventoryItemRow(string ProductId, int StockQuantity, int ReservedQuantity, DateTime UpdatedAtUtc);
     private sealed record InventoryItemSnapshotRow(string ProductId, int StockQuantity, int ReservedQuantity, int AvailableQuantity, DateTime UpdatedAtUtc);
+    private sealed record InventoryAvailabilityRow(string ProductId, bool Available);
 }

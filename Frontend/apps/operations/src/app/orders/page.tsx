@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ArrowLeft, CircleAlert, ClipboardList, CreditCard, LoaderCircle, RefreshCw, Search, ShieldAlert } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { OperationsWorkspace } from "@/components/operations-workspace";
+import { problemMessage } from "@/lib/http/problem-details";
 import { loadOrderPaymentQueue, OperationsApiError, type OrderPaymentRow } from "@/lib/operations/order-payment-queue";
 
 type User = { userId: string; userName: string; role: string };
@@ -20,6 +21,8 @@ export default function OrdersPage() {
   const [filter, setFilter] = useState<QueueFilter>("attention");
   const [query, setQuery] = useState("");
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
+  const [advancingOrderId, setAdvancingOrderId] = useState<string | null>(null);
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -83,6 +86,29 @@ export default function OrdersPage() {
     });
   }, [filter, orders, query]);
 
+  async function advanceFulfillment(order: OrderPaymentRow, targetStatus: "Confirmed" | "Shipped" | "Delivered") {
+    setAdvancingOrderId(order.id);
+    setActionMessage(null);
+    try {
+      const response = await fetch(`/api/orders/admin/${encodeURIComponent(order.id)}/fulfillment`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetStatus }),
+      });
+      const payload: unknown = await response.json().catch(() => null);
+      if (!response.ok || !isOrder(payload)) {
+        throw new Error(messageOf(payload) ?? "Fulfillment transition could not be applied.");
+      }
+
+      setOrders((current) => current.map((currentOrder) => currentOrder.id === payload.id ? { ...currentOrder, ...payload } : currentOrder));
+      setActionMessage(`Order ${shortId(payload.id)} moved to ${humanize(payload.status)}.`);
+    } catch (exception) {
+      setError(exception instanceof Error ? exception.message : "Fulfillment transition could not be applied.");
+    } finally {
+      setAdvancingOrderId(null);
+    }
+  }
+
   if (authorized !== true) {
     return <main className="signin"><div><LoaderCircle className="spin" size={22} /><p>Checking administrator access…</p></div></main>;
   }
@@ -102,7 +128,7 @@ export default function OrdersPage() {
       <Metric label="Captured value" value={money.format(summary.paidRevenue)} />
     </div>
 
-    {error ? <div className="notice"><CircleAlert size={19} /><span>{error}</span><button onClick={() => void load()}>Retry</button></div> : null}
+    {error ? <div className="notice"><CircleAlert size={19} /><span>{error}</span><button onClick={() => void load()}>Retry</button></div> : null}{actionMessage ? <div className="notice success"><span>{actionMessage}</span><button onClick={() => setActionMessage(null)}>Dismiss</button></div> : null}
 
     <div className="queue-toolbar">
       <label className="search"><Search size={17} /><span className="sr-only">Search order payment queue</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Order, customer, payment or provider reference" /></label>
@@ -113,7 +139,7 @@ export default function OrdersPage() {
 
     <p className="queue-meta">{loading ? "Refreshing queue…" : updatedAt ? `Last refreshed ${dateTime.format(updatedAt)} · ${visibleOrders.length} shown` : "Loading queue…"}</p>
     <div className="table-wrap">
-      <table><thead><tr><th>Order</th><th>Payment</th><th>Customer</th><th>Created</th><th>Items</th><th>Total</th></tr></thead>
+      <table><thead><tr><th>Order</th><th>Payment</th><th>Customer</th><th>Created</th><th>Items</th><th>Total</th><th>Fulfillment</th></tr></thead>
         <tbody>{visibleOrders.map((order) => <tr key={order.id}>
           <td><strong><ClipboardList size={16} />{shortId(order.id)}</strong><span><Status value={order.status} /></span></td>
           <td><PaymentCell payment={order.payment} /></td>
@@ -121,11 +147,20 @@ export default function OrdersPage() {
           <td>{formatDate(order.createdAtUtc)}</td>
           <td>{order.items.length}</td>
           <td><strong>{money.format(order.totalAmount)}</strong><span>{order.discountCode ? `${order.discountCode} applied` : order.currency}</span></td>
+          <td><FulfillmentAction advancingOrderId={advancingOrderId} onAdvance={advanceFulfillment} order={order} /></td>
         </tr>)}</tbody>
       </table>
       {!loading && !error && visibleOrders.length === 0 ? <div className="empty"><ShieldAlert size={22} /><p>{orders.length === 0 ? "No checkout orders have been created yet." : "No orders match the current queue filter."}</p>{orders.length > 0 ? <button className="command" onClick={() => { setFilter("all"); setQuery(""); }}>Clear filters</button> : null}</div> : null}
     </div>
   </main></OperationsWorkspace>;
+}
+
+function FulfillmentAction({ order, advancingOrderId, onAdvance }: { order: OrderPaymentRow; advancingOrderId: string | null; onAdvance: (order: OrderPaymentRow, targetStatus: "Confirmed" | "Shipped" | "Delivered") => void }) {
+  const target = nextFulfillmentStatus(order.status);
+  if (!target) return <span className="muted-copy">No action</span>;
+  const label = target === "Confirmed" ? "Confirm order" : target === "Shipped" ? "Mark shipped" : "Mark delivered";
+  const busy = advancingOrderId === order.id;
+  return <button className="command primary" disabled={advancingOrderId !== null} onClick={() => onAdvance(order, target)} type="button">{busy ? <LoaderCircle className="spin" size={15} /> : null}{busy ? "Updating" : label}</button>;
 }
 
 function PaymentCell({ payment }: { payment: OrderPaymentRow["payment"] }) {
@@ -142,5 +177,8 @@ function humanize(value: string) { return value.replace(/([A-Z])/g, " $1").trim(
 function shortId(value: string) { return value.slice(0, 8); }
 function formatDate(value: string) { const date = new Date(value); return Number.isNaN(date.valueOf()) ? "Unknown" : dateTime.format(date); }
 function filterLabel(value: QueueFilter) { return value === "attention" ? "Needs review" : value === "all" ? "All orders" : value === "unpaid" ? "Not captured" : "Captured"; }
+function nextFulfillmentStatus(status: string): "Confirmed" | "Shipped" | "Delivered" | null { return status === "Paid" ? "Confirmed" : status === "Confirmed" ? "Shipped" : status === "Shipped" ? "Delivered" : null; }
+function isOrder(value: unknown): value is OrderPaymentRow { return typeof value === "object" && value !== null && typeof (value as Record<string, unknown>).id === "string" && typeof (value as Record<string, unknown>).status === "string"; }
+const messageOf = problemMessage;
 function isUser(value: unknown): value is User { return typeof value === "object" && value !== null && typeof (value as Record<string, unknown>).userId === "string" && typeof (value as Record<string, unknown>).role === "string"; }
 function isAbortError(value: unknown) { return value instanceof DOMException && value.name === "AbortError"; }

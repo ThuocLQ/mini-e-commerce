@@ -17,8 +17,10 @@ public static class DependencyInjection
     public static IEndpointRouteBuilder MapApiEndpoints(this IEndpointRouteBuilder app)
     {
         app.MapAuthEndpoints();
+        app.MapEmailVerificationEndpoints();
         app.MapAddressEndpoints();
         app.MapInternalAddressEndpoints();
+        app.MapInternalCustomerContactEndpoints();
 
         return app;
     }

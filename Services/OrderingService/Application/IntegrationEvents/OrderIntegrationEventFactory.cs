@@ -90,6 +90,9 @@ public static class OrderIntegrationEventFactory
     {
         OrderStatus.Pending or OrderStatus.PendingPayment => "OrderCreated",
         OrderStatus.Paid => "OrderPaid",
+        OrderStatus.Confirmed => "OrderConfirmed",
+        OrderStatus.Shipped => "OrderShipped",
+        OrderStatus.Delivered => "OrderDelivered",
         OrderStatus.Refunded => "OrderRefunded",
         OrderStatus.PaymentFailed => "OrderPaymentFailed",
         OrderStatus.Cancelled => "OrderCancelled",
@@ -100,8 +103,9 @@ public static class OrderIntegrationEventFactory
     {
         OrderStatus.Pending or OrderStatus.PendingPayment => 1,
         OrderStatus.Paid or OrderStatus.PaymentFailed => 2,
-        OrderStatus.Cancelled => 3,
-        OrderStatus.Refunded => 4,
+        OrderStatus.Confirmed or OrderStatus.Cancelled => 3,
+        OrderStatus.Shipped or OrderStatus.Refunded => 4,
+        OrderStatus.Delivered => 5,
         _ => throw new InvalidOperationException($"Order status '{status}' has no projection sequence.")
     };
 }

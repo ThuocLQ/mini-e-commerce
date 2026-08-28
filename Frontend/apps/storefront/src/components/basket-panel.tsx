@@ -3,7 +3,7 @@
 import { AlertTriangle, LoaderCircle, Minus, Plus, RefreshCw, ShoppingBag, Trash2, X } from "lucide-react";
 import { useState } from "react";
 import { AddressSelection, type AddressLoadState } from "@/components/address-selection";
-import type { AddressInput, Basket, CustomerAddress, OrderSummary } from "@/lib/storefront/types";
+import type { AddressInput, Basket, CheckoutQuote, CustomerAddress, OrderSummary } from "@/lib/storefront/types";
 
 type BasketLoadState = "idle" | "loading" | "ready" | "unavailable";
 
@@ -14,12 +14,16 @@ type BasketPanelProps = {
   message: string | null;
   confirmation: OrderSummary | null;
   isCheckingOut: boolean;
+  isReviewingCheckout: boolean;
+  quote: CheckoutQuote | null;
   addresses: CustomerAddress[];
   addressLoadState: AddressLoadState;
   addressMessage: string | null;
   selectedAddressId: string | null;
   busyAddressId: string | null;
   onCheckout: (couponCode: string, shippingAddressId: string) => void;
+  onReview: (couponCode: string, shippingAddressId: string) => void;
+  onInvalidateQuote: () => void;
   onSelectAddress: (addressId: string) => void;
   onCreateAddress: (input: AddressInput) => void;
   onUpdateAddress: (addressId: string, input: AddressInput) => void;
@@ -43,12 +47,16 @@ export function BasketPanel({
   message,
   confirmation,
   isCheckingOut,
+  isReviewingCheckout,
+  quote,
   addresses,
   addressLoadState,
   addressMessage,
   selectedAddressId,
   busyAddressId,
   onCheckout,
+  onReview,
+  onInvalidateQuote,
   onSelectAddress,
   onCreateAddress,
   onUpdateAddress,
@@ -131,10 +139,11 @@ export function BasketPanel({
 
         {loadState === "ready" ? <footer className="border-t border-[var(--line)] p-5">
           <div className="flex items-center justify-between text-lg font-semibold">
-            <span>Subtotal</span><span>{money.format(basket?.totalPrice ?? 0)}</span>
+            <span>Basket subtotal</span><span>{money.format(basket?.totalPrice ?? 0)}</span>
           </div>
-          <label className="mt-5 block text-sm font-medium">Promotion code<input className="mt-2 h-10 w-full border border-[var(--line)] bg-white px-3 font-normal outline-none focus:border-[var(--accent)]" disabled={isCheckingOut} onChange={(event) => setCouponCode(event.target.value)} placeholder="Optional" value={couponCode} /></label>
-          <p className="mt-3 text-xs leading-5 text-[var(--muted)]">We will confirm current prices and availability before creating an order. Payment is not complete at this step.</p>{addressLoadState === "ready" && !selectedAddressId ? <p className="mt-2 text-xs font-medium text-[var(--danger)]" role="status">Select or add a delivery address before creating the order.</p> : null}<button className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 bg-[var(--accent)] px-4 text-sm font-semibold text-white hover:bg-[var(--accent-strong)] disabled:cursor-not-allowed disabled:bg-[#8ba89b]" disabled={items.length === 0 || isCheckingOut || addressLoadState !== "ready" || !selectedAddressId} onClick={() => selectedAddressId && onCheckout(couponCode, selectedAddressId)} type="button">{isCheckingOut ? <span className="animate-pulse">Creating order</span> : "Create order"}</button>
+          <label className="mt-5 block text-sm font-medium">Promotion code<input className="mt-2 h-10 w-full border border-[var(--line)] bg-white px-3 font-normal outline-none focus:border-[var(--accent)]" disabled={isCheckingOut || isReviewingCheckout} onChange={(event) => { setCouponCode(event.target.value); onInvalidateQuote(); }} placeholder="Optional" value={couponCode} /></label>
+          {quote ? <section aria-live="polite" className="mt-4 border border-[var(--line)] bg-[#f7faf8] p-3 text-sm"><div className="flex items-center justify-between gap-3 font-semibold"><span>Reviewed total</span><span>{money.format(quote.totalAmount)}</span></div><p className="mt-1 text-xs leading-5 text-[var(--muted)]">{quote.coupon.message}</p>{quote.items.some((item) => item.priceChanged) ? <p className="mt-2 text-xs font-medium text-[#9a5b11]">Current catalog pricing changed from the basket snapshot.</p> : null}{quote.issues.length > 0 ? <ul className="mt-2 space-y-1 text-xs text-[var(--danger)]">{quote.issues.map((issue) => <li key={`${issue.code}:${issue.productId ?? "order"}`}>{issue.message}</li>)}</ul> : null}{quote.finalRevalidationRequired ? <p className="mt-2 text-xs text-[var(--muted)]">Pricing and availability are checked again when the order is created.</p> : null}</section> : null}
+          <p className="mt-3 text-xs leading-5 text-[var(--muted)]">Review uses current catalog, promotion, and inventory data. It does not reserve stock or a promotion.</p>{addressLoadState === "ready" && !selectedAddressId ? <p className="mt-2 text-xs font-medium text-[var(--danger)]" role="status">Select or add a delivery address before reviewing the order.</p> : null}<button className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 border border-[var(--accent)] px-4 text-sm font-semibold text-[var(--accent)] hover:bg-[#e9f2ed] disabled:cursor-not-allowed disabled:border-[#b5beb6] disabled:text-[#8b948d]" disabled={items.length === 0 || isCheckingOut || isReviewingCheckout || addressLoadState !== "ready" || !selectedAddressId} onClick={() => selectedAddressId && onReview(couponCode, selectedAddressId)} type="button">{isReviewingCheckout ? <span className="animate-pulse">Reviewing order</span> : "Review order"}</button><button className="mt-2 inline-flex h-11 w-full items-center justify-center gap-2 bg-[var(--accent)] px-4 text-sm font-semibold text-white hover:bg-[var(--accent-strong)] disabled:cursor-not-allowed disabled:bg-[#8ba89b]" disabled={items.length === 0 || isCheckingOut || isReviewingCheckout || !quote?.canCheckout || !quote.quoteToken || Date.parse(quote.expiresAtUtc) <= Date.now()} onClick={() => selectedAddressId && onCheckout(couponCode, selectedAddressId)} type="button">{isCheckingOut ? <span className="animate-pulse">Creating order</span> : "Create order"}</button>
         </footer> : null}
       </aside>
     </div>

@@ -1,5 +1,3 @@
-using CatalogService.Domain.Products;
-
 namespace CatalogService.Application.Products;
 
 public sealed record ProductDto(
@@ -7,4 +5,8 @@ public sealed record ProductDto(
     string Name,
     string Description,
     decimal Price,
-    int StockQuantity);
+    int StockQuantity,
+    string? Category = null,
+    string? ImageUrl = null,
+    string? Sku = null,
+    string? Brand = null);

@@ -3,6 +3,9 @@ using IdentityService.Application.Abstractions;
 using IdentityService.Infrastructure.Auth;
 using IdentityService.Infrastructure.Bootstrap;
 using IdentityService.Infrastructure.Persistence;
+using IdentityService.Infrastructure.Outbox;
+using BuildingBlocks.Contracts.Events.Identity;
+using MassTransit;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -55,10 +58,28 @@ public static class DependencyInjection
         services.AddScoped<IUserRepository, DapperUserRepository>();
         services.AddScoped<IAddressRepository, DapperAddressRepository>();
         services.AddScoped<IdentityService.Application.Addresses.AddressService>();
+        services.AddScoped<IdentityService.Application.Auth.EmailVerificationService>();
         services.AddSingleton<IPasswordHasher, Pbkdf2PasswordHasher>();
         services.AddScoped<IAdminBootstrapper, AdminBootstrapper>();
         services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
         services.AddPostgresReadinessCheck(configuration, "IdentityDb");
+        services.AddRabbitMqReadinessCheck(configuration);
+        services.AddOptions<IdentityOutboxPublisherOptions>()
+            .Bind(configuration.GetSection(IdentityOutboxPublisherOptions.SectionName))
+            .Validate(options => options.BatchSize is > 0 and <= 100, "IdentityOutboxPublisher:BatchSize must be between 1 and 100.")
+            .Validate(options => options.IntervalSeconds > 0, "IdentityOutboxPublisher:IntervalSeconds must be positive.")
+            .ValidateOnStart();
+        services.AddHostedService<IdentityOutboxPublisherBackgroundService>();
+
+        var rabbitHost = configuration["RabbitMq:Host"] ?? throw new InvalidOperationException("RabbitMq:Host is missing.");
+        var rabbitUserName = configuration["RabbitMq:UserName"] ?? throw new InvalidOperationException("RabbitMq:UserName is missing.");
+        var rabbitPassword = configuration["RabbitMq:Password"] ?? throw new InvalidOperationException("RabbitMq:Password is missing.");
+        var rabbitVirtualHost = configuration["RabbitMq:VirtualHost"] ?? "/";
+        services.AddMassTransit(configurator => configurator.UsingRabbitMq((_, bus) =>
+        {
+            bus.Message<CustomerEmailVerificationRequestedIntegrationEvent>(message => message.SetEntityName("identity.email-verification-requested"));
+            bus.Host(rabbitHost, rabbitVirtualHost, host => { host.Username(rabbitUserName); host.Password(rabbitPassword); });
+        }));
 
         services
             .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)

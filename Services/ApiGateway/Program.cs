@@ -1,3 +1,4 @@
+using System.Net;
 using System.Text;
 using System.Threading.RateLimiting;
 using ApiGateway;
@@ -143,5 +144,12 @@ static string GetRateLimitCategory(PathString path)
 
 static string GetClientKey(HttpContext context)
 {
+    // Caddy overwrites this header from Cloudflare before requests enter the private gateway network.
+    var clientIpHeader = context.Request.Headers["X-MicroShop-Client-IP"].FirstOrDefault();
+    if (IPAddress.TryParse(clientIpHeader, out var clientIp))
+    {
+        return clientIp.ToString();
+    }
+
     return context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
 }

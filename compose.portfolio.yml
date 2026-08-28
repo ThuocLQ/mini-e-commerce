@@ -18,6 +18,10 @@ services:
     mem_limit: 128m
     cpus: 0.25
 
+  mailpit:
+    mem_limit: 128m
+    cpus: 0.25
+
   rabbitmq:
     mem_limit: 384m
     cpus: 0.50
@@ -69,6 +73,13 @@ services:
   paymentservice:
     mem_limit: 256m
     cpus: 0.50
+    # Portfolio is intentionally the only compose profile that enables the
+    # simulated provider. The local-prod and Kubernetes manifests remain
+    # fail-fast until a commercial provider adapter is configured.
+    environment:
+      ASPNETCORE_ENVIRONMENT: Portfolio
+      ServiceDefaults__ExposeHealthEndpoints: 'true'
+      PaymentProvider__Provider: Sandbox
 
   orderqueryservice:
     mem_limit: 256m

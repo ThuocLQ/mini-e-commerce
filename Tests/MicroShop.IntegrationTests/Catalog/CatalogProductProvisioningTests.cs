@@ -38,7 +38,7 @@ public sealed class CatalogProductProvisioningTests
             new DapperCatalogOutboxRepository(connectionFactory));
 
         var created = await handler.Handle(
-            new CreateProductCommand("Provisioned product", 19.99m, "Outbox test", 5),
+            new CreateProductCommand("Provisioned product", 19.99m, "Outbox test", 5, Sku: "PROVISIONED-001"),
             cancellationToken);
 
         using var connection = connectionFactory.CreateConnection();
@@ -55,6 +55,20 @@ public sealed class CatalogProductProvisioningTests
         Assert.Equal(1, eventCount);
     }
 
+    [Fact]
+    public void CreateProductValidator_RejectsMissingSku()
+    {
+        var validator = new CreateProductCommandValidator();
+
+        var result = validator.Validate(new CreateProductCommand(
+            "Product without a commercial code",
+            19.99m,
+            "Validation test",
+            5));
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, error => error.PropertyName == nameof(CreateProductCommand.Sku));
+    }
     [Fact]
     public async Task InventoryAvailabilitySnapshot_DoesNotAllowAnOlderEventToOverwriteNewerStock()
     {

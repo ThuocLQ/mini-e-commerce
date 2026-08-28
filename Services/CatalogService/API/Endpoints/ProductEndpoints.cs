@@ -1,5 +1,7 @@
+using CatalogService.Application.Products;
 using CatalogService.Application.Products.CreateProduct;
 using CatalogService.Application.Products.DeleteProduct;
+using CatalogService.Application.Products.DiscoverProducts;
 using CatalogService.Application.Products.GetProductById;
 using CatalogService.Application.Products.GetProductCount;
 using CatalogService.Application.Products.GetProducts;
@@ -29,6 +31,34 @@ public static class ProductEndpoints
             return Results.Ok(result);
         });
 
+        group.MapGet("/discovery", async (
+            string? keyword,
+            string? category,
+            string? sort,
+            int? pageSize,
+            string? cursor,
+            IValidator<DiscoverProductsQuery> validator,
+            ISender sender,
+            CancellationToken cancellationToken) =>
+        {
+            if (!ProductDiscoverySortExtensions.TryParse(sort, out var parsedSort))
+            {
+                return Results.ValidationProblem(new Dictionary<string, string[]>
+                {
+                    ["sort"] = ["Sort must be one of: name_asc, name_desc, price_asc, price_desc."]
+                });
+            }
+
+            var query = new DiscoverProductsQuery(keyword, category, parsedSort, pageSize ?? 24, cursor);
+            var validationResult = await validator.ValidateAsync(query, cancellationToken);
+
+            if (!validationResult.IsValid)
+            {
+                return ValidationProblem(validationResult);
+            }
+
+            return Results.Ok(await sender.Send(query, cancellationToken));
+        });
         //Search product
         group.MapGet("/search", async (
             string? keyword,
@@ -80,7 +110,7 @@ public static class ProductEndpoints
             ISender sender,
             CancellationToken cancellationToken) =>
         {
-            var command = new CreateProductCommand(request.Name, request.Price, request.Description, request.StockQuantity);
+            var command = new CreateProductCommand(request.Name, request.Price, request.Description, request.StockQuantity, request.Category, request.ImageUrl, request.Sku, request.Brand);
             var validationResult = await validator.ValidateAsync(command, cancellationToken);
 
             if (!validationResult.IsValid)
@@ -100,7 +130,7 @@ public static class ProductEndpoints
             ISender sender,
             CancellationToken cancellationToken) =>
         {
-            var command = new UpdateProductCommand(id, updatedProduct.Name, updatedProduct.Price, updatedProduct.Description);
+            var command = new UpdateProductCommand(id, updatedProduct.Name, updatedProduct.Price, updatedProduct.Description, updatedProduct.Category, updatedProduct.ImageUrl, updatedProduct.Brand, updatedProduct.Sku);
             var validationResult = await validator.ValidateAsync(command, cancellationToken);
 
             if (!validationResult.IsValid)

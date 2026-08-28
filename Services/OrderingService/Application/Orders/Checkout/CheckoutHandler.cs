@@ -10,6 +10,7 @@ using OrderingService.Application.IntegrationEvents;
 using OrderingService.Application.Orders;
 using OrderingService.Application.Outbox;
 using OrderingService.Application.Addresses;
+using OrderingService.Application.Orders.CheckoutQuote;
 using OrderingService.Domain.Orders;
 
 namespace OrderingService.Application.Orders.Checkout;
@@ -22,7 +23,9 @@ public class CheckoutHandler : IRequestHandler<CheckoutCommand, OrderDto>
     private readonly ICatalogProductSnapshotClient _catalogProductClient;
     private readonly IDiscountClient _discountClient;
     private readonly IInventoryReservationClient _inventoryReservationClient;
-    private readonly IAddressSnapshotClient _addressSnapshotClient;
+    private readonly CheckoutAddressSnapshotResolver _addressSnapshotResolver;
+    private readonly CheckoutQuoteEvaluator _quoteEvaluator;
+    private readonly ICheckoutQuoteTokenService _quoteTokenService;
     private readonly IOrderingUnitOfWork _unitOfWork;
     private readonly OrderEventOptions _eventOptions;
     private readonly ILogger<CheckoutHandler> _logger;
@@ -34,7 +37,9 @@ public class CheckoutHandler : IRequestHandler<CheckoutCommand, OrderDto>
         ICatalogProductSnapshotClient catalogProductClient,
         IDiscountClient discountClient,
         IInventoryReservationClient inventoryReservationClient,
-        IAddressSnapshotClient addressSnapshotClient,
+        CheckoutAddressSnapshotResolver addressSnapshotResolver,
+        CheckoutQuoteEvaluator quoteEvaluator,
+        ICheckoutQuoteTokenService quoteTokenService,
         IOrderingUnitOfWork unitOfWork,
         IOptions<OrderEventOptions> eventOptions,
         ILogger<CheckoutHandler> logger)
@@ -45,7 +50,9 @@ public class CheckoutHandler : IRequestHandler<CheckoutCommand, OrderDto>
         _catalogProductClient = catalogProductClient;
         _discountClient = discountClient;
         _inventoryReservationClient = inventoryReservationClient;
-        _addressSnapshotClient = addressSnapshotClient;
+        _addressSnapshotResolver = addressSnapshotResolver;
+        _quoteEvaluator = quoteEvaluator;
+        _quoteTokenService = quoteTokenService;
         _unitOfWork = unitOfWork;
         _eventOptions = eventOptions.Value;
         _logger = logger;
@@ -54,8 +61,8 @@ public class CheckoutHandler : IRequestHandler<CheckoutCommand, OrderDto>
     public async Task<OrderDto> Handle(CheckoutCommand request, CancellationToken cancellationToken)
     {
         var idempotencyKey = NormalizeIdempotencyKey(request.IdempotencyKey);
-        EnsureValidBasketId(request.BasketId);
-        EnsureValidBasketVersion(request.BasketVersion);
+        CheckoutRequestValidation.EnsureValidBasketId(request.BasketId);
+        CheckoutRequestValidation.EnsureValidBasketVersion(request.BasketVersion);
         var existingOrder = await _orderRepository.GetByCustomerAndIdempotencyKeyAsync(
             request.CustomerId,
             idempotencyKey,
@@ -83,12 +90,26 @@ public class CheckoutHandler : IRequestHandler<CheckoutCommand, OrderDto>
             return OrderMapper.ToDto(existingCheckout);
         }
 
-        var shippingAddress = await GetShippingAddressSnapshotAsync(
+        CheckoutQuoteEvaluation? quoteEvaluation = null;
+        if (!string.IsNullOrWhiteSpace(request.QuoteToken))
+        {
+            var requestBinding = new CheckoutQuoteRequestBinding(
+                request.CustomerId,
+                request.BasketId,
+                request.BasketVersion,
+                request.CouponCode,
+                request.ShippingAddressId);
+            var quoteToken = _quoteTokenService.ReadAndValidate(request.QuoteToken, requestBinding);
+            quoteEvaluation = await _quoteEvaluator.EvaluateAsync(requestBinding, cancellationToken);
+            CheckoutQuoteSnapshotVerifier.EnsureCurrentState(quoteToken, quoteEvaluation);
+        }
+
+        var shippingAddress = quoteEvaluation?.ShippingAddress ?? await _addressSnapshotResolver.ResolveAsync(
             request.CustomerId,
             request.ShippingAddressId,
             cancellationToken);
 
-        var basket = await _basketClient.GetBasketAsync(request.CustomerId, cancellationToken);
+        var basket = quoteEvaluation?.Basket ?? await _basketClient.GetBasketAsync(request.CustomerId, cancellationToken);
 
         if (basket is null || basket.Items is null || basket.Items.Count == 0)
         {
@@ -124,30 +145,45 @@ public class CheckoutHandler : IRequestHandler<CheckoutCommand, OrderDto>
             basket.BasketId,
             shippingAddress);
 
-        foreach (var item in basket.Items)
+        if (quoteEvaluation is not null)
         {
-            if (!Guid.TryParse(item.ProductId, out var productId) || productId == Guid.Empty)
+            foreach (var item in quoteEvaluation.Items)
             {
-                throw new ArgumentException("Basket contains an invalid product id.");
+                order.AddItem(new OrderItem(
+                    Guid.NewGuid(),
+                    item.ProductId!.Value,
+                    item.ProductName!,
+                    item.CurrentUnitPrice!.Value,
+                    item.Quantity));
             }
-
-            var product = await _catalogProductClient.GetProductAsync(productId, cancellationToken);
-            if (product is null)
+        }
+        else
+        {
+            foreach (var item in basket.Items)
             {
-                throw new ArgumentException($"Product '{productId:D}' no longer exists and cannot be checked out.");
-            }
+                if (!Guid.TryParse(item.ProductId, out var productId) || productId == Guid.Empty)
+                {
+                    throw new ArgumentException("Basket contains an invalid product id.");
+                }
 
-            if (product.Price < 0)
-            {
-                throw new InvalidOperationException($"Product '{productId:D}' has an invalid current price.");
-            }
+                var product = await _catalogProductClient.GetProductAsync(productId, cancellationToken);
+                if (product is null)
+                {
+                    throw new ArgumentException($"Product '{productId:D}' no longer exists and cannot be checked out.");
+                }
 
-            order.AddItem(new OrderItem(
-                Guid.NewGuid(),
-                productId,
-                product.Name,
-                product.Price,
-                item.Quantity));
+                if (product.Price < 0)
+                {
+                    throw new InvalidOperationException($"Product '{productId:D}' has an invalid current price.");
+                }
+
+                order.AddItem(new OrderItem(
+                    Guid.NewGuid(),
+                    productId,
+                    product.Name,
+                    product.Price,
+                    item.Quantity));
+            }
         }
 
         if (!string.IsNullOrWhiteSpace(request.CouponCode))
@@ -271,43 +307,9 @@ public class CheckoutHandler : IRequestHandler<CheckoutCommand, OrderDto>
         return idempotencyKey;
     }
 
-    private async Task<OrderAddressSnapshot?> GetShippingAddressSnapshotAsync(
-        Guid customerId,
-        Guid? shippingAddressId,
-        CancellationToken cancellationToken)
-    {
-        if (shippingAddressId is null)
-        {
-            return null;
-        }
-
-        if (shippingAddressId == Guid.Empty)
-        {
-            throw new ArgumentException("ShippingAddressId cannot be empty.", nameof(shippingAddressId));
-        }
-
-        var address = await _addressSnapshotClient.GetAddressAsync(customerId, shippingAddressId.Value, cancellationToken);
-        if (address is null)
-        {
-            throw new ArgumentException("Selected shipping address does not exist or does not belong to the authenticated customer.", nameof(shippingAddressId));
-        }
-
-        return new OrderAddressSnapshot(
-            address.AddressId,
-            address.Label,
-            address.RecipientName,
-            address.Line1,
-            address.Line2,
-            address.City,
-            address.CountryCode,
-            address.PostalCode).Normalize();
-    }
-
     private static string CreateCheckoutRequestHash(BasketDto basket, string? couponCode, Guid? shippingAddressId)
     {
-        var normalizedCouponCode = string.IsNullOrWhiteSpace(couponCode)
-            ? string.Empty
-            : couponCode.Trim().ToUpperInvariant();
+        var normalizedCouponCode = CheckoutRequestValidation.NormalizeCouponCode(couponCode) ?? string.Empty;
 
         var canonicalItems = basket.Items!
             .Select(item => new
@@ -364,22 +366,6 @@ public class CheckoutHandler : IRequestHandler<CheckoutCommand, OrderDto>
         {
             throw new CheckoutIdempotencyConflictException(
                 "Idempotency key was already used with a different shipping address.");
-        }
-    }
-
-    private static void EnsureValidBasketVersion(long basketVersion)
-    {
-        if (basketVersion <= 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(basketVersion), "BasketVersion must be greater than zero.");
-        }
-    }
-
-    private static void EnsureValidBasketId(Guid basketId)
-    {
-        if (basketId == Guid.Empty)
-        {
-            throw new ArgumentException("BasketId cannot be empty.", nameof(basketId));
         }
     }
 

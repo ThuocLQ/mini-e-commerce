@@ -12,6 +12,8 @@ using OrderingService.Infrastructure.Messaging;
 using OrderingService.Infrastructure.Outbox;
 using OrderingService.Infrastructure.Sagas;
 using OrderingService.Infrastructure.Persistence;
+using OrderingService.Infrastructure.CheckoutQuote;
+using OrderingService.Application.Orders.CheckoutQuote;
 
 namespace OrderingService.Infrastructure;
 
@@ -79,6 +81,13 @@ public static class DependencyInjection
         })
         .AddHttpMessageHandler<InternalApiKeyDelegatingHandler>();
 
+        services.AddHttpClient<IInventoryAvailabilityClient, HttpInventoryAvailabilityClient>(client =>
+        {
+            client.BaseAddress = new Uri(inventoryBaseUrl);
+            client.Timeout = TimeSpan.FromSeconds(5);
+        })
+        .AddHttpMessageHandler<InternalApiKeyDelegatingHandler>();
+
         services.AddHttpClient<IAddressSnapshotClient, HttpAddressSnapshotClient>(client =>
         {
             client.BaseAddress = new Uri(identityBaseUrl);
@@ -91,6 +100,14 @@ public static class DependencyInjection
             .Bind(configuration.GetSection(OrderEventOptions.SectionName))
             .Validate(options => !string.IsNullOrWhiteSpace(options.Currency), "OrderEvents:Currency is required.")
             .ValidateOnStart();
+
+        services
+            .AddOptions<CheckoutQuoteOptions>()
+            .Bind(configuration.GetSection(CheckoutQuoteOptions.SectionName))
+            .Validate(options => options.LifetimeSeconds is >= 30 and <= 900,
+                "CheckoutQuote:LifetimeSeconds must be between 30 and 900 seconds.")
+            .ValidateOnStart();
+        services.AddSingleton<ICheckoutQuoteTokenService, HmacCheckoutQuoteTokenService>();
 
         services
             .AddOptions<RabbitMqOptions>()

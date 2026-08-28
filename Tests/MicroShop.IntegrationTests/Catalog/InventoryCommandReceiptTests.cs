@@ -1,14 +1,89 @@
 using InventoryService.Application.Abstractions;
+using InventoryService.Application.Inventory.GetInventoryAvailability;
 using InventoryService.Infrastructure.Persistence;
 using InventoryService.Infrastructure.Persistence.Outbox;
+using BuildingBlocks.Contracts.Events.Inventory;
 using Dapper;
 using Microsoft.Extensions.Configuration;
+using System.Text.Json;
 using Testcontainers.PostgreSql;
 
 namespace MicroShop.IntegrationTests.Inventory;
 
 public sealed class InventoryCommandReceiptTests
 {
+    [Fact]
+    public async Task Availability_ReturnsFalseForMissingOrInsufficientItemsWithoutMutatingStock()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var postgres = new PostgreSqlBuilder("postgres:17-alpine")
+            .WithDatabase("inventory_availability_test")
+            .WithUsername("postgres")
+            .WithPassword("postgres")
+            .Build();
+
+        await postgres.StartAsync(cancellationToken);
+
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["ConnectionStrings:InventoryDb"] = postgres.GetConnectionString()
+            })
+            .Build();
+
+        var connectionFactory = new NpgsqlConnectionFactory(configuration);
+        await new PostgresDatabaseInitializer(configuration).InitializeAsync(cancellationToken);
+
+        var availableProductId = Guid.NewGuid();
+        var insufficientProductId = Guid.NewGuid();
+        var missingProductId = Guid.NewGuid();
+
+        using (var connection = connectionFactory.CreateConnection())
+        {
+            await connection.ExecuteAsync(new CommandDefinition("""
+                INSERT INTO InventoryItems (ProductId, StockQuantity, ReservedQuantity, UpdatedAtUtc)
+                VALUES
+                    (@AvailableProductId, 5, 2, CURRENT_TIMESTAMP),
+                    (@InsufficientProductId, 2, 1, CURRENT_TIMESTAMP);
+                """, new
+            {
+                AvailableProductId = availableProductId.ToString("D"),
+                InsufficientProductId = insufficientProductId.ToString("D")
+            }, cancellationToken: cancellationToken));
+        }
+
+        var repository = new DapperInventoryItemRepository(
+            connectionFactory,
+            new DapperInventoryOutboxRepository(connectionFactory));
+
+        var result = await repository.GetAvailabilityAsync(
+            [
+                new InventoryAvailabilityRequestItem(availableProductId, 3),
+                new InventoryAvailabilityRequestItem(insufficientProductId, 2),
+                new InventoryAvailabilityRequestItem(missingProductId, 1)
+            ],
+            cancellationToken);
+
+        Assert.Equal(
+            [
+                new InventoryAvailabilityDto(availableProductId, true),
+                new InventoryAvailabilityDto(insufficientProductId, false),
+                new InventoryAvailabilityDto(missingProductId, false)
+            ],
+            result);
+
+        using var verificationConnection = connectionFactory.CreateConnection();
+        var reservations = await verificationConnection.ExecuteScalarAsync<int>(new CommandDefinition(
+            "SELECT COUNT(*) FROM InventoryReservations;", cancellationToken: cancellationToken));
+        var quantities = (await verificationConnection.QueryAsync<(int StockQuantity, int ReservedQuantity)>(new CommandDefinition("""
+            SELECT StockQuantity, ReservedQuantity
+            FROM InventoryItems;
+            """, cancellationToken: cancellationToken))).ToList();
+
+        Assert.Equal(0, reservations);
+        Assert.Contains((5, 2), quantities);
+        Assert.Contains((2, 1), quantities);
+    }
     [Fact]
     public async Task ConcurrentReservations_AllowOnlyOneOrderToClaimTheLastAvailableStock()
     {
@@ -135,6 +210,13 @@ public sealed class InventoryCommandReceiptTests
               AND CausationId = @CausationId;
             """,
             new { CausationId = messageId.ToString("D") }, cancellationToken: cancellationToken));
+        var committedOutcomeContent = await verificationConnection.ExecuteScalarAsync<string>(new CommandDefinition("""
+            SELECT Content
+            FROM InventoryOutboxMessages
+            WHERE Type = 'BuildingBlocks.Contracts.Events.Inventory.InventoryCommittedIntegrationEvent'
+              AND CausationId = @CausationId;
+            """,
+            new { CausationId = messageId.ToString("D") }, cancellationToken: cancellationToken));
         var availabilityEventCount = await verificationConnection.ExecuteScalarAsync<int>(new CommandDefinition("""
             SELECT COUNT(*)
             FROM InventoryOutboxMessages
@@ -147,6 +229,10 @@ public sealed class InventoryCommandReceiptTests
         Assert.Equal("Committed", status);
         Assert.Equal(1, receiptCount);
         Assert.Equal(1, committedOutcomeCount);
+        Assert.NotNull(committedOutcomeContent);
+        var committedOutcome = JsonSerializer.Deserialize<InventoryCommittedIntegrationEvent>(committedOutcomeContent!, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        Assert.NotNull(committedOutcome);
+        Assert.Equal(orderId, committedOutcome.OrderId);
         Assert.Equal(2, availabilityEventCount);
     }
 

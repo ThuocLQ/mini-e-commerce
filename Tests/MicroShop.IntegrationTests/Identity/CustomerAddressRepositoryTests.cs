@@ -28,7 +28,7 @@ public sealed class CustomerAddressRepositoryTests
         await new PostgresDatabaseInitializer(configuration).InitializeAsync(cancellationToken);
 
         var registered = await new RegisterHandler(new DapperUserRepository(connectionFactory), new Pbkdf2PasswordHasher(), NullLogger<RegisterHandler>.Instance)
-            .Handle(new RegisterCommand("address-customer", "CustomerPassword#2026"), cancellationToken);
+            .Handle(new RegisterCommand("address-customer", "address-customer@example.test", "CustomerPassword#2026"), cancellationToken);
         var service = new AddressService(new DapperAddressRepository(connectionFactory));
         var firstInput = new AddressInput("Home", "Ada Lovelace", "1 Main Street", null, "Hanoi", "VN", "10000", false);
 

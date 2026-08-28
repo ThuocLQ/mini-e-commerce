@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ArrowLeft, BadgeDollarSign, CircleAlert, LoaderCircle, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { OperationsWorkspace } from "@/components/operations-workspace";
+import { problemMessage } from "@/lib/http/problem-details";
 
 type Payment = { id: string; orderId: string; customerId: string; amount: number; currency: string; status: string; providerTransactionId: string | null; failureReason: string | null; createdAtUtc: string; completedAtUtc: string | null };
 const money = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
@@ -45,4 +46,4 @@ export default function PaymentsPage() {
 function Metric({ label, value, tone }: { label: string; value: string; tone?: string }) { return <div className={`metric ${tone ?? ""}`}><span>{label}</span><strong>{value}</strong></div>; }
 function PaymentStatus({ value, reason }: { value: string; reason: string | null }) { const lower = value.toLowerCase(); const className = lower.includes("captured") ? "status paid" : lower.includes("failed") ? "status cancelled" : lower.includes("refund") || lower.includes("void") ? "status neutral" : "status pending"; return <span className={className}>{value.replace(/([A-Z])/g, " $1").trim()}{reason ? `: ${reason}` : ""}</span>; }
 function shortId(value: string) { return value.slice(0, 8); }
-function messageOf(value: unknown): string | null { return typeof value === "object" && value !== null && typeof (value as Record<string, unknown>).message === "string" ? (value as { message: string }).message : null; }
+const messageOf = problemMessage;

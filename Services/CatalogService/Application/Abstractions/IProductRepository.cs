@@ -16,6 +16,7 @@ public interface IProductRepository
     
     Task<IReadOnlyList<Product>> GetAllAsync(CancellationToken cancellationToken = default);
     Task<Product?> GetByIdAsync(string id, CancellationToken cancellationToken = default);
+    Task<ProductDiscoveryResult> DiscoverAsync(ProductDiscoveryCriteria criteria, CancellationToken cancellationToken = default);
     Task<List<Product>> SearchAsync(ProductQueryCriteria criteria, CancellationToken cancellationToken = default);
     Task<List<Product>> SearchAsync(string? keyword, CancellationToken cancellationToken = default);
     Task<int> CountAsync(CancellationToken cancellationToken = default);

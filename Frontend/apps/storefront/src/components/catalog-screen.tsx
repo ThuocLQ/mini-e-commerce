@@ -1,16 +1,18 @@
 "use client";
 
 import { AlertTriangle, Box, ClipboardList, LoaderCircle, LogIn, RefreshCw, Search, ShoppingBag, UserRound } from "lucide-react";
-import Image from "next/image";
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AuthDialog } from "@/components/auth-dialog";
+import { EmailVerificationStatus } from "@/components/email-verification-status";
 import { type AddressLoadState } from "@/components/address-selection";
 import { BasketPanel } from "@/components/basket-panel";
 import { OrderPanel } from "@/components/order-panel";
 import { ProductDetailDialog } from "@/components/product-detail-dialog";
 import { type CatalogProduct, getCatalogProducts } from "@/lib/gateway/catalog";
+import { problemMessage } from "@/lib/http/problem-details";
 import { productImageSource } from "@/lib/storefront/product-media";
-import type { AddressInput, Basket, CurrentUser, CustomerAddress, OrderSummary } from "@/lib/storefront/types";
+import type { AddressInput, Basket, CheckoutQuote, CurrentUser, CustomerAddress, OrderSummary, PaymentSummary } from "@/lib/storefront/types";
 
 type CatalogState =
   | { status: "loading"; products: CatalogProduct[] }
@@ -43,13 +45,18 @@ export function CatalogScreen() {
   const [basketMessage, setBasketMessage] = useState<string | null>(null);
   const [busyProductId, setBusyProductId] = useState<string | null>(null);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
+  const [isReviewingCheckout, setIsReviewingCheckout] = useState(false);
+  const [checkoutQuote, setCheckoutQuote] = useState<CheckoutQuote | null>(null);
   const [orderConfirmation, setOrderConfirmation] = useState<OrderSummary | null>(null);
   const [recentOrder, setRecentOrder] = useState<OrderSummary | null>(null);
   const [orders, setOrders] = useState<OrderSummary[]>([]);
+  const [paymentsByOrder, setPaymentsByOrder] = useState<Record<string, PaymentSummary | null>>({});
   const [ordersMessage, setOrdersMessage] = useState<string | null>(null);
   const [isOrdersOpen, setIsOrdersOpen] = useState(false);
   const [isOrdersLoading, setIsOrdersLoading] = useState(false);
   const [startingPaymentOrderId, setStartingPaymentOrderId] = useState<string | null>(null);
+  const [completingSandboxPaymentId, setCompletingSandboxPaymentId] = useState<string | null>(null);
+  const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(null);
   const [paymentMessage, setPaymentMessage] = useState<string | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<CatalogProduct | null>(null);
   const catalogSectionRef = useRef<HTMLElement>(null);
@@ -66,6 +73,7 @@ export function CatalogScreen() {
     setAddressMessage(null);
     setSelectedAddressId(null);
     setOrders([]);
+    setPaymentsByOrder({});
     setOrderConfirmation(null);
     setRecentOrder(null);
     setIsBasketOpen(false);
@@ -133,14 +141,25 @@ export function CatalogScreen() {
       if (!response.ok || !isOrders(payload)) {
         throw new Error(messageOf(payload) ?? "Your orders could not be loaded.");
       }
+
       setOrders(payload);
+      const paymentEntries = await Promise.all(payload.map(async (order) => {
+        try {
+          const paymentResponse = await fetch(`/api/payments/orders/${encodeURIComponent(order.id)}`);
+          if (paymentResponse.status === 404) return [order.id, null] as const;
+          const paymentPayload: unknown = await paymentResponse.json().catch(() => null);
+          return [order.id, paymentResponse.ok && isPaymentSummary(paymentPayload) ? paymentPayload : null] as const;
+        } catch {
+          return [order.id, null] as const;
+        }
+      }));
+      setPaymentsByOrder(Object.fromEntries(paymentEntries));
     } catch (error) {
       setOrdersMessage(error instanceof Error ? error.message : "Your orders could not be loaded.");
     } finally {
       setIsOrdersLoading(false);
     }
   }, [recoverExpiredSession]);
-
   const requestCatalog = useCallback((keyword?: string, signal?: AbortSignal) => getCatalogProducts({ query: keyword, signal }), []);
 
   const retryBasket = useCallback(() => {
@@ -193,6 +212,10 @@ export function CatalogScreen() {
       : `${products.length} product${products.length === 1 ? "" : "s"} available`;
 
   const cartCount = basket?.items.reduce((total, item) => total + item.quantity, 0) ?? 0;
+
+  useEffect(() => {
+    setCheckoutQuote(null);
+  }, [basket?.basketId, basket?.version, selectedAddressId]);
 
   async function reloadCatalog() {
     setCatalog((current) => ({ ...current, status: "loading" }));
@@ -288,8 +311,56 @@ export function CatalogScreen() {
     }
   }
 
+  async function reviewCheckout(couponCode: string, shippingAddressId: string) {
+    if (!basket || basketLoadState !== "ready" || !shippingAddressId) return;
+
+    setIsReviewingCheckout(true);
+    setBasketMessage(null);
+    setOrderConfirmation(null);
+
+    try {
+      const response = await fetch("/api/checkout/quote", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          basketId: basket.basketId,
+          basketVersion: basket.version,
+          shippingAddressId,
+          couponCode: couponCode.trim() || undefined,
+        }),
+      });
+      const payload: unknown = await response.json().catch(() => null);
+      if (response.status === 401) {
+        recoverExpiredSession();
+        return;
+      }
+      if (response.status === 409) {
+        setCheckoutQuote(null);
+        setBasketMessage("Your cart changed before it could be reviewed. It has been refreshed; review it again.");
+        await loadBasket(basket.userId);
+        return;
+      }
+      if (!response.ok || !isCheckoutQuote(payload)) {
+        throw new Error(messageOf(payload) ?? "Your order could not be reviewed.");
+      }
+
+      setCheckoutQuote(payload);
+    } catch (error) {
+      setCheckoutQuote(null);
+      setBasketMessage(error instanceof Error ? error.message : "Your order could not be reviewed.");
+    } finally {
+      setIsReviewingCheckout(false);
+    }
+  }
+
   async function checkout(couponCode: string, shippingAddressId: string) {
     if (!basket || basketLoadState !== "ready" || !shippingAddressId) return;
+
+    const quote = checkoutQuote;
+    if (!quote || !quote.canCheckout || !quote.quoteToken || Date.parse(quote.expiresAtUtc) <= Date.now()) {
+      setBasketMessage("Review the current cart before creating an order.");
+      return;
+    }
 
     setIsCheckingOut(true);
     setBasketMessage(null);
@@ -309,6 +380,7 @@ export function CatalogScreen() {
           shippingAddressId,
           couponCode: couponCode.trim() || undefined,
           idempotencyKey,
+          quoteToken: quote.quoteToken,
         }),
       });
       const payload: unknown = await response.json().catch(() => null);
@@ -317,7 +389,8 @@ export function CatalogScreen() {
         return;
       }
       if (response.status === 409) {
-        setBasketMessage("Your cart changed before the order could be created. It has been refreshed; review it and create the order again.");
+        setCheckoutQuote(null);
+        setBasketMessage("The cart, price, promotion, or availability changed before the order could be created. It has been refreshed; review it again.");
         await loadBasket(basket.userId);
         return;
       }
@@ -325,6 +398,7 @@ export function CatalogScreen() {
         throw new Error(messageOf(payload) ?? "Your order could not be created.");
       }
 
+      setCheckoutQuote(null);
       setOrderConfirmation(payload);
       setRecentOrder(payload);
       try {
@@ -338,7 +412,6 @@ export function CatalogScreen() {
       setIsCheckingOut(false);
     }
   }
-
   async function createAddress(input: AddressInput) {
     setBusyAddressId("new");
     setAddressMessage(null);
@@ -441,12 +514,70 @@ export function CatalogScreen() {
         return;
       }
       if (!response.ok || !isPaymentAction(payload)) throw new Error(messageOf(payload) ?? "Payment could not be initiated.");
+      setPaymentsByOrder((current) => ({ ...current, [orderId]: payload.payment }));
       setPaymentMessage("Payment action #" + payload.payment.id.slice(0, 8).toUpperCase() + " is " + labelPaymentStatus(payload.payment.status) + " and expires " + new Date(payload.action.expiresAtUtc).toLocaleTimeString() + ". Your order remains awaiting confirmed payment; refresh after the provider callback is processed.");
       await loadOrders();
     } catch (error) {
       setPaymentMessage(error instanceof Error ? error.message : "Payment could not be initiated.");
     } finally {
       setStartingPaymentOrderId(null);
+    }
+  }
+
+  async function completeSandboxPayment(paymentId: string, orderId: string) {
+    setCompletingSandboxPaymentId(paymentId);
+    setPaymentMessage(null);
+    try {
+      const response = await fetch(`/api/payments/${encodeURIComponent(paymentId)}/sandbox-completion`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ outcome: "Approve" }),
+      });
+      const payload: unknown = await response.json().catch(() => null);
+      if (response.status === 401) {
+        recoverExpiredSession();
+        return;
+      }
+      if (!response.ok || !isSandboxPaymentCompletion(payload)) {
+        throw new Error(messageOf(payload) ?? "Sandbox payment could not be completed.");
+      }
+
+      setPaymentsByOrder((current) => ({ ...current, [orderId]: payload.payment }));
+      setPaymentMessage("Sandbox provider confirmation was accepted. The order will advance after payment and inventory processing complete.");
+      await loadOrders();
+    } catch (error) {
+      setPaymentMessage(error instanceof Error ? error.message : "Sandbox payment could not be completed.");
+    } finally {
+      setCompletingSandboxPaymentId(null);
+    }
+  }
+
+  async function cancelOrder(orderId: string) {
+    setCancellingOrderId(orderId);
+    setPaymentMessage(null);
+    try {
+      const response = await fetch(`/api/orders/${encodeURIComponent(orderId)}/cancel`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason: "Cancelled by customer from storefront before fulfillment." }),
+      });
+      const payload: unknown = await response.json().catch(() => null);
+      if (response.status === 401) {
+        recoverExpiredSession();
+        return;
+      }
+      if (!response.ok || !isOrderSummary(payload)) {
+        throw new Error(messageOf(payload) ?? "Your order could not be cancelled.");
+      }
+
+      setOrders((current) => current.map((order) => order.id === payload.id ? payload : order));
+      setRecentOrder((current) => current?.id === payload.id ? payload : current);
+      setPaymentMessage("Order cancellation was recorded. Reservation release and any payment compensation continue safely in the background.");
+      await loadOrders();
+    } catch (error) {
+      setPaymentMessage(error instanceof Error ? error.message : "Your order could not be cancelled.");
+    } finally {
+      setCancellingOrderId(null);
     }
   }
 
@@ -518,11 +649,11 @@ export function CatalogScreen() {
         <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-5 gap-y-2 px-4 py-3 sm:px-6 lg:px-8">
           <button aria-label="Browse catalog" className="flex shrink-0 items-center gap-3 text-left" onClick={openCatalog} type="button"><span className="grid size-9 place-items-center bg-[var(--accent)] text-white"><Box aria-hidden="true" size={19} /></span><span><span className="block text-sm font-semibold">MicroShop</span><span className="block text-xs text-[var(--muted)]">Customer store</span></span></button>
           <nav aria-label="Purchase journey" className="order-3 grid w-full grid-cols-3 items-center gap-1 pb-1 sm:order-none sm:flex sm:w-auto sm:flex-1 sm:pb-0">
-            <button className="h-9 px-2 text-sm font-medium text-[var(--accent)] hover:bg-[#e9f2ed] sm:shrink-0 sm:px-3" onClick={openCatalog} type="button">Catalog</button>
+            <Link className="inline-flex h-9 items-center justify-center px-2 text-sm font-medium text-[var(--accent)] hover:bg-[#e9f2ed] sm:shrink-0 sm:px-3" href="/products">Browse products</Link>
             <button aria-label={`Open cart and checkout, ${cartCount} items`} className="inline-flex h-9 items-center justify-center gap-2 px-2 text-sm font-medium text-[var(--muted)] hover:bg-[#f3f5f2] hover:text-[var(--foreground)] sm:shrink-0 sm:justify-start sm:px-3" onClick={openCart} type="button"><ShoppingBag aria-hidden="true" size={16} /><span className="sm:hidden">Cart</span><span className="hidden sm:inline">Cart &amp; checkout</span>{cartCount ? <span className="grid min-w-5 place-items-center bg-[var(--accent)] px-1 text-xs font-semibold text-white">{cartCount}</span> : null}</button>
             <button className="inline-flex h-9 items-center justify-center gap-2 px-2 text-sm font-medium text-[var(--muted)] hover:bg-[#f3f5f2] hover:text-[var(--foreground)] sm:shrink-0 sm:justify-start sm:px-3" onClick={openAccount} type="button"><ClipboardList aria-hidden="true" size={16} /><span className="sm:hidden">Orders</span><span className="hidden sm:inline">Orders &amp; account</span></button>
           </nav>
-          <div className="ml-auto flex items-center gap-2">{session.status === "authenticated" ? <><span className="hidden items-center gap-2 text-sm text-[var(--muted)] lg:inline-flex"><UserRound aria-hidden="true" size={16} />{session.user.userName}</span><button className="h-9 px-3 text-sm text-[var(--muted)] hover:text-[var(--foreground)]" onClick={signOut} type="button">Sign out</button></> : <button className="inline-flex h-9 items-center gap-2 px-3 text-sm font-medium text-[var(--accent)] hover:bg-[#e9f2ed]" onClick={openAuth} type="button"><LogIn aria-hidden="true" size={16} />Sign in</button>}</div>
+          <div className="ml-auto flex items-center gap-2">{session.status === "authenticated" ? <><span className="hidden items-center gap-2 text-sm text-[var(--muted)] lg:inline-flex"><UserRound aria-hidden="true" size={16} />{session.user.userName}<EmailVerificationStatus isVerified={session.user.isEmailVerified} /></span><button className="h-9 px-3 text-sm text-[var(--muted)] hover:text-[var(--foreground)]" onClick={signOut} type="button">Sign out</button></> : <button className="inline-flex h-9 items-center gap-2 px-3 text-sm font-medium text-[var(--accent)] hover:bg-[#e9f2ed]" onClick={openAuth} type="button"><LogIn aria-hidden="true" size={16} />Sign in</button>}</div>
         </div>
       </header>
 
@@ -545,8 +676,8 @@ export function CatalogScreen() {
 
       <ProductDetailDialog busyProductId={busyProductId} onAdd={addToBasket} onClose={() => setSelectedProduct(null)} product={selectedProduct} />
       <AuthDialog notice={authNotice} onClose={() => { setIsAuthOpen(false); setAuthNotice(null); }} onSignedIn={signedIn} open={isAuthOpen} />
-      {isBasketOpen ? <BasketPanel addressLoadState={addressLoadState} addressMessage={addressMessage} addresses={addresses} basket={basket} busyAddressId={busyAddressId} busyProductId={busyProductId} confirmation={orderConfirmation} isCheckingOut={isCheckingOut} loadState={basketLoadState} message={basketMessage} onChangeQuantity={changeQuantity} onCheckout={checkout} onClose={() => setIsBasketOpen(false)} onCreateAddress={createAddress} onDeleteAddress={deleteAddress} onRefresh={retryBasket} onRemove={removeItem} onRetry={retryBasket} onRetryAddresses={() => { setAddressMessage(null); void loadAddresses().catch((error: unknown) => setAddressMessage(error instanceof Error ? error.message : "Your saved addresses could not be loaded.")); }} onSelectAddress={setSelectedAddressId} onSetDefaultAddress={setDefaultAddress} onUpdateAddress={updateAddress} onViewOrders={() => { setIsBasketOpen(false); openOrders(); }} selectedAddressId={selectedAddressId} /> : null}
-      {isOrdersOpen ? <OrderPanel isLoading={isOrdersLoading} message={ordersMessage} onClose={() => setIsOrdersOpen(false)} onRetry={() => void loadOrders()} onStartPayment={startPayment} orders={orders} paymentMessage={paymentMessage} recentOrder={recentOrder} startingPaymentOrderId={startingPaymentOrderId} /> : null}
+      {isBasketOpen ? <BasketPanel addressLoadState={addressLoadState} addressMessage={addressMessage} addresses={addresses} basket={basket} busyAddressId={busyAddressId} busyProductId={busyProductId} confirmation={orderConfirmation} isCheckingOut={isCheckingOut} isReviewingCheckout={isReviewingCheckout} loadState={basketLoadState} message={basketMessage} onChangeQuantity={changeQuantity} onCheckout={checkout} onClose={() => setIsBasketOpen(false)} onCreateAddress={createAddress} onDeleteAddress={deleteAddress} onInvalidateQuote={() => setCheckoutQuote(null)} onRefresh={retryBasket} onRemove={removeItem} onRetry={retryBasket} onRetryAddresses={() => { setAddressMessage(null); void loadAddresses().catch((error: unknown) => setAddressMessage(error instanceof Error ? error.message : "Your saved addresses could not be loaded.")); }} onReview={reviewCheckout} onSelectAddress={setSelectedAddressId} onSetDefaultAddress={setDefaultAddress} onUpdateAddress={updateAddress} onViewOrders={() => { setIsBasketOpen(false); openOrders(); }} quote={checkoutQuote} selectedAddressId={selectedAddressId} /> : null}
+      {isOrdersOpen ? <OrderPanel cancellingOrderId={cancellingOrderId} completingSandboxPaymentId={completingSandboxPaymentId} isLoading={isOrdersLoading} message={ordersMessage} onCancelOrder={cancelOrder} onClose={() => setIsOrdersOpen(false)} onCompleteSandboxPayment={completeSandboxPayment} onRetry={() => void loadOrders()} onStartPayment={startPayment} orders={orders} paymentsByOrder={paymentsByOrder} paymentMessage={paymentMessage} recentOrder={recentOrder} startingPaymentOrderId={startingPaymentOrderId} /> : null}
     </main>
   );
 }
@@ -562,14 +693,12 @@ function ProductGrid({ busyProductId, onAdd, onViewDetails, products, query }: {
 }
 
 function ProductMedia({ product }: { product: CatalogProduct }) {
-  const source = productImageSource(product.name);
+  const source = productImageSource(product.imageUrl);
   if (source) {
-    return <div className="relative h-32 overflow-hidden bg-[#edf1ee]"><Image alt={product.name} className="object-contain p-3" fill sizes="(min-width: 1280px) 280px, (min-width: 1024px) 30vw, (min-width: 640px) 45vw, 90vw" src={source} /></div>;
+    return <div className="h-32 overflow-hidden bg-[#edf1ee]"><img alt={product.name} className="h-full w-full object-contain p-3" loading="lazy" referrerPolicy="no-referrer" src={source} /></div>;
   }
 
-  const tones = ["#e3eee7", "#e8edf5", "#f3ebdd", "#f0e7ec"];
-  const tone = tones[Math.abs(hash(product.id)) % tones.length];
-  return <div aria-hidden="true" className="grid h-32 place-items-center" style={{ backgroundColor: tone }}><Box size={34} strokeWidth={1.5} /></div>;
+  return <div aria-hidden="true" className="grid h-32 place-items-center bg-[#eef2ef] text-[var(--muted)]"><Box size={34} strokeWidth={1.5} /></div>;
 }
 
 function Stock({ quantity }: { quantity: number }) {
@@ -607,25 +736,25 @@ function isSession(value: unknown): value is { user: CurrentUser } {
   return typeof user === "object" && user !== null && typeof (user as Record<string, unknown>).userId === "string" && typeof (user as Record<string, unknown>).userName === "string" && typeof (user as Record<string, unknown>).role === "string";
 }
 
-function messageOf(value: unknown): string | null {
-  if (typeof value === "string") return value;
-  if (typeof value !== "object" || value === null) return null;
-  const payload = value as Record<string, unknown>;
-  return typeof payload.message === "string"
-    ? payload.message
-    : typeof payload.Message === "string"
-      ? payload.Message
-      : typeof payload.error === "string"
-        ? payload.error
-        : typeof payload.title === "string"
-          ? payload.title
-          : null;
-}
+const messageOf = problemMessage;
 
-function hash(value: string) {
-  return Array.from(value).reduce((total, character) => ((total << 5) - total + character.charCodeAt(0)) | 0, 0);
+function isCheckoutQuote(value: unknown): value is CheckoutQuote {
+  if (typeof value !== "object" || value === null) return false;
+  const quote = value as Record<string, unknown>;
+  return typeof quote.basketId === "string"
+    && typeof quote.basketVersion === "number"
+    && (typeof quote.quoteToken === "string" || quote.quoteToken === null)
+    && typeof quote.canCheckout === "boolean"
+    && Array.isArray(quote.issues)
+    && typeof quote.evaluatedAtUtc === "string"
+    && typeof quote.expiresAtUtc === "string"
+    && typeof quote.finalRevalidationRequired === "boolean"
+    && typeof quote.currency === "string"
+    && typeof quote.subtotalAmount === "number"
+    && typeof quote.discountAmount === "number"
+    && typeof quote.totalAmount === "number"
+    && Array.isArray(quote.items);
 }
-
 function isOrderSummary(value: unknown): value is OrderSummary {
   if (typeof value !== "object" || value === null) return false;
   const order = value as Record<string, unknown>;
@@ -663,13 +792,32 @@ function isOrderItem(value: unknown) {
     && typeof item.totalPrice === "number";
 }
 
-function isPaymentAction(value: unknown): value is { payment: { id: string; status: string }; action: { expiresAtUtc: string } } {
+function isPaymentSummary(value: unknown): value is PaymentSummary {
+  if (typeof value !== "object" || value === null) return false;
+  const payment = value as Record<string, unknown>;
+  return typeof payment.id === "string"
+    && typeof payment.orderId === "string"
+    && typeof payment.customerId === "string"
+    && typeof payment.amount === "number"
+    && typeof payment.currency === "string"
+    && typeof payment.status === "string"
+    && (typeof payment.failureReason === "string" || payment.failureReason === null)
+    && typeof payment.createdAtUtc === "string"
+    && (typeof payment.completedAtUtc === "string" || payment.completedAtUtc === null)
+    && (typeof payment.provider === "string" || payment.provider === null)
+    && (typeof payment.paymentActionExpiresAtUtc === "string" || payment.paymentActionExpiresAtUtc === null);
+}
+function isSandboxPaymentCompletion(value: unknown): value is { payment: PaymentSummary } {
+  return typeof value === "object" && value !== null && isPaymentSummary((value as Record<string, unknown>).payment);
+}
+
+function isPaymentAction(value: unknown): value is { payment: PaymentSummary; action: { expiresAtUtc: string } } {
   if (typeof value !== "object" || value === null) return false;
   const payload = value as Record<string, unknown>;
   if (typeof payload.payment !== "object" || payload.payment === null || typeof payload.action !== "object" || payload.action === null) return false;
   const payment = payload.payment as Record<string, unknown>;
   const action = payload.action as Record<string, unknown>;
-  return typeof payment.id === "string" && typeof payment.status === "string" && typeof action.expiresAtUtc === "string";
+  return isPaymentSummary(payment) && typeof action.expiresAtUtc === "string";
 }
 
 function isOrders(value: unknown): value is OrderSummary[] { return Array.isArray(value) && value.every(isOrderSummary); }

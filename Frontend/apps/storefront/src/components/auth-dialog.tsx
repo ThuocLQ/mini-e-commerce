@@ -16,6 +16,7 @@ type AuthDialogProps = {
 export function AuthDialog({ open, notice, onClose, onSignedIn }: AuthDialogProps) {
   const [userName, setUserName] = useState("");
   const [password, setPassword] = useState("");
+  const [email, setEmail] = useState("");
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [mode, setMode] = useState<"sign-in" | "register">("sign-in");
@@ -46,13 +47,13 @@ export function AuthDialog({ open, notice, onClose, onSignedIn }: AuthDialogProp
       const response = await fetch("/api/session", {
         method: isRegistering ? "PUT" : "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({ userName, password }),
+        body: JSON.stringify({ userName, email, password }),
       });
       const payload: unknown = await response.json().catch(() => null);
 
       if (isRegistering && response.ok && isRegistrationPayload(payload)) {
         setMode("sign-in");
-        setFeedback({ tone: "success", text: "Account created. Sign in to continue." });
+        setFeedback({ tone: "success", text: "Account created. Check your inbox to verify your email before receiving order updates." });
         return;
       }
 
@@ -86,7 +87,8 @@ export function AuthDialog({ open, notice, onClose, onSignedIn }: AuthDialogProp
         <form className="mt-6 space-y-4" onSubmit={submit}>
           {notice ? <p className="border-l-2 border-[#d8d6c5] bg-[#fbfaf2] px-3 py-2 text-sm text-[#6f6317]" role="status">{notice}</p> : null}
           <label className="block text-sm font-medium">Username<input autoFocus autoComplete="username" className="mt-2 h-11 w-full border border-[var(--line)] bg-white px-3 text-base outline-none focus:border-[var(--accent)]" onChange={(event) => setUserName(event.target.value)} required value={userName} /></label>
-          <label className="block text-sm font-medium">Password<input autoComplete={isRegistering ? "new-password" : "current-password"} className="mt-2 h-11 w-full border border-[var(--line)] bg-white px-3 text-base outline-none focus:border-[var(--accent)]" minLength={8} onChange={(event) => setPassword(event.target.value)} required type="password" value={password} /></label>
+          {isRegistering ? <label className="block text-sm font-medium">Email<input autoComplete="email" className="mt-2 h-11 w-full border border-[var(--line)] bg-white px-3 text-base outline-none focus:border-[var(--accent)]" onChange={(event) => setEmail(event.target.value)} required type="email" value={email} /></label> : null}
+          <label className="block text-sm font-medium">Password{isRegistering ? <span className="ml-2 text-xs font-normal text-[var(--muted)]">At least 14 characters</span> : null}<input autoComplete={isRegistering ? "new-password" : "current-password"} className="mt-2 h-11 w-full border border-[var(--line)] bg-white px-3 text-base outline-none focus:border-[var(--accent)]" minLength={isRegistering ? 14 : 1} onChange={(event) => setPassword(event.target.value)} required type="password" value={password} /></label>
           {feedback ? <p aria-live="polite" className={feedback.tone === "success" ? "border-l-2 border-[var(--accent)] bg-[#f4fbf6] px-3 py-2 text-sm text-[var(--accent-strong)]" : "border-l-2 border-[var(--danger)] bg-[#fff7f6] px-3 py-2 text-sm text-[var(--danger)]"} role={feedback.tone === "success" ? "status" : "alert"}>{feedback.text}</p> : null}
           <button className="inline-flex h-11 w-full items-center justify-center gap-2 bg-[var(--accent)] px-4 text-sm font-semibold text-white hover:bg-[var(--accent-strong)] disabled:cursor-not-allowed disabled:bg-[#8ba89b]" disabled={isSubmitting} type="submit">{isSubmitting ? <LoaderCircle aria-hidden="true" className="animate-spin" size={17} /> : null}{isSubmitting ? (isRegistering ? "Creating account" : "Signing in") : (isRegistering ? "Create account" : "Sign in")}</button>
           <button className="w-full text-sm font-medium text-[var(--accent)] hover:underline" disabled={isSubmitting} onClick={() => { setMode(isRegistering ? "sign-in" : "register"); setFeedback(null); }} type="button">{isRegistering ? "Use an existing account" : "Create an account"}</button>

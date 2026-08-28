@@ -2,7 +2,6 @@ using CatalogService.Application.Abstractions;
 using CatalogService.Domain.Products;
 using CatalogService.Domain.Outbox;
 using BuildingBlocks.Contracts.Events.Inventory;
-using System.Data;
 using System.Text.Json;
 using MediatR;
 
@@ -26,12 +25,21 @@ public sealed class CreateProductHandler : IRequestHandler<CreateProductCommand,
 
     public async Task<ProductDto> Handle(CreateProductCommand request, CancellationToken cancellationToken)
     {
+        if (string.IsNullOrWhiteSpace(request.Sku))
+        {
+            throw new ArgumentException("Product SKU is required.", nameof(request.Sku));
+        }
+
         var product = new Product(
             Guid.NewGuid().ToString(),
             request.Name,
             request.Description ?? string.Empty,
             request.Price,
-            request.StockQuantity);
+            request.StockQuantity,
+            category: request.Category,
+            imageUrl: request.ImageUrl,
+            sku: request.Sku,
+            brand: request.Brand);
 
         var created = await _unitOfWork.ExecuteAsync(async transaction =>
         {

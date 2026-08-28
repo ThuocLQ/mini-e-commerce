@@ -1,6 +1,7 @@
 using System.Text.Json;
 using BuildingBlocks.Contracts.Events;
 using BuildingBlocks.Contracts.Events.Orders;
+using ProjectionWorker.Application.Events;
 
 namespace MicroShop.IntegrationTests.Projection;
 

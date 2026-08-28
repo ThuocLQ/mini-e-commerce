@@ -45,7 +45,8 @@ export async function POST(request: Request) {
   }
 }
 
-export function DELETE() {
+export function DELETE(request: Request) {
+  if (!hasSameOrigin(request)) return message("Cross-site requests are not accepted.", 403);
   const response = NextResponse.json({ success: true });
   response.cookies.set({ name: cookieName, value: "", httpOnly: true, sameSite: "lax", secure: shouldUseSecureCookies(), path: "/", expires: new Date(0) });
   return response;

@@ -51,7 +51,7 @@ public sealed class AdminBootstrapperTests
 
         using var connection = connectionFactory.CreateConnection();
         var user = await connection.QuerySingleAsync<UserRow>(new CommandDefinition("""
-            SELECT UserName, PasswordHash, Role, IsActive
+            SELECT UserName, PasswordHash, Role, IsActive, Email
             FROM Users
             WHERE NormalizedUserName = 'BOOTSTRAP-ADMIN';
             """, cancellationToken: cancellationToken));
@@ -63,6 +63,7 @@ public sealed class AdminBootstrapperTests
         Assert.Equal("bootstrap-admin", user.UserName);
         Assert.Equal("Admin", user.Role);
         Assert.True(user.IsActive);
+        Assert.Null(user.Email);
         Assert.True(hasher.Verify("BootstrapAdmin#2026", user.PasswordHash));
     }
 
@@ -104,16 +105,19 @@ public sealed class AdminBootstrapperTests
             NullLogger<RegisterHandler>.Instance);
 
         var registered = await handler.Handle(
-            new RegisterCommand("customer-one", "CustomerPassword#2026"),
+            new RegisterCommand("customer-one", "customer-one@example.test", "CustomerPassword#2026"),
             cancellationToken);
 
         await Assert.ThrowsAsync<UserNameAlreadyExistsException>(() => handler.Handle(
-            new RegisterCommand("CUSTOMER-ONE", "DifferentPassword#2026"),
+            new RegisterCommand("CUSTOMER-ONE", "customer-two@example.test", "DifferentPassword#2026"),
+            cancellationToken));
+        await Assert.ThrowsAsync<EmailAlreadyExistsException>(() => handler.Handle(
+            new RegisterCommand("customer-two", "CUSTOMER-ONE@example.test", "DifferentPassword#2026"),
             cancellationToken));
 
         using var connection = connectionFactory.CreateConnection();
         var user = await connection.QuerySingleAsync<UserRow>(new CommandDefinition("""
-            SELECT UserName, PasswordHash, Role, IsActive
+            SELECT UserName, PasswordHash, Role, IsActive, Email
             FROM Users
             WHERE Id = @Id;
             """, new { Id = registered.UserId }, cancellationToken: cancellationToken));
@@ -121,8 +125,9 @@ public sealed class AdminBootstrapperTests
         Assert.Equal("customer-one", user.UserName);
         Assert.Equal("Customer", user.Role);
         Assert.True(user.IsActive);
+        Assert.Equal("customer-one@example.test", user.Email);
         Assert.True(hasher.Verify("CustomerPassword#2026", user.PasswordHash));
     }
 
-    private sealed record UserRow(string UserName, string PasswordHash, string Role, bool IsActive);
+    private sealed record UserRow(string UserName, string PasswordHash, string Role, bool IsActive, string? Email);
 }

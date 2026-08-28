@@ -1,5 +1,6 @@
 using InventoryService.API.Contracts;
 using InventoryService.Application.Inventory.CommitInventory;
+using InventoryService.Application.Inventory.GetInventoryAvailability;
 using InventoryService.Application.Inventory.ReleaseInventory;
 using InventoryService.Application.Inventory.ReserveInventory;
 using InventoryService.Application.Inventory.ReceiveInventoryStock;
@@ -50,6 +51,17 @@ public static class InventoryEndpoints
             return result.Succeeded ? Results.Ok(result) : Results.Conflict(result);
         });
 
+        group.MapPost("/availability", async (InventoryAvailabilityRequest request, ISender sender, CancellationToken cancellationToken) =>
+        {
+            IReadOnlyList<InventoryAvailabilityRequestItem> items = request.Items?
+                .Select(item => new InventoryAvailabilityRequestItem(item.ProductId, item.Quantity))
+                .ToArray()
+                ?? Array.Empty<InventoryAvailabilityRequestItem>();
+
+            var result = await sender.Send(new GetInventoryAvailabilityQuery(items), cancellationToken);
+            return Results.Ok(new InventoryAvailabilityResponse(
+                result.Select(item => new InventoryAvailabilityItemResponse(item.ProductId, item.Available)).ToList()));
+        });
         group.MapPut("/items/{productId}/stock", async (string productId, InventoryStockRequest request, ISender sender, CancellationToken cancellationToken) =>
         {
             await sender.Send(new UpsertInventoryStockCommand(productId, request.StockQuantity), cancellationToken);

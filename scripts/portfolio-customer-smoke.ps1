@@ -1,7 +1,12 @@
 [CmdletBinding()]
 param(
     [string]$StorefrontBaseUrl = "http://localhost:5027",
+    [string]$GatewayBaseUrl = "http://api.localhost:5027",
+    [string]$EnvFile = ".env.local-prod",
+    [ValidateSet("Cancellation", "Fulfillment")]
+    [string]$Scenario = "Cancellation",
     [string]$UserName,
+    [string]$Email,
     [string]$Password = "PortfolioSmoke!2026"
 )
 
@@ -15,9 +20,34 @@ if (-not $storefrontUri.IsAbsoluteUri -or $storefrontUri.GetLeftPart([UriPartial
 if ([string]::IsNullOrWhiteSpace($UserName)) {
     $UserName = "portfolio-smoke-" + [Guid]::NewGuid().ToString("N").Substring(0, 10)
 }
+if ([string]::IsNullOrWhiteSpace($Email)) {
+    $Email = "$UserName@example.test"
+}
 
 $headers = @{ Origin = $StorefrontBaseUrl; Accept = "application/json" }
-$credentials = @{ userName = $UserName; password = $Password } | ConvertTo-Json
+$credentials = @{ userName = $UserName; email = $Email; password = $Password } | ConvertTo-Json
+
+function Get-EnvFileValue {
+    param([Parameter(Mandatory = $true)][string]$Key)
+
+    if (-not (Test-Path -Path $EnvFile)) {
+        throw "Missing $EnvFile."
+    }
+
+    foreach ($line in Get-Content -Path $EnvFile) {
+        $trimmed = $line.Trim()
+        if ([string]::IsNullOrWhiteSpace($trimmed) -or $trimmed.StartsWith("#")) {
+            continue
+        }
+
+        $separatorIndex = $trimmed.IndexOf("=")
+        if ($separatorIndex -gt 0 -and $trimmed.Substring(0, $separatorIndex).Trim() -eq $Key) {
+            return $trimmed.Substring($separatorIndex + 1).Trim()
+        }
+    }
+
+    return $null
+}
 
 function Assert-Status {
     param(
@@ -78,7 +108,16 @@ if ([string]::IsNullOrWhiteSpace($cart.basketId) -or @($cart.items).Count -eq 0)
 }
 Write-Host "[ok] add item to cart"
 
-$order = Invoke-RestMethod -Uri "$StorefrontBaseUrl/api/checkout" -Method Post -Headers $headers -ContentType "application/json" -Body (@{ basketId = $cart.basketId; basketVersion = $cart.version; shippingAddressId = $address.id; idempotencyKey = [Guid]::NewGuid().ToString() } | ConvertTo-Json) -WebSession $storefrontSession
+$quote = Invoke-RestMethod -Uri "$StorefrontBaseUrl/api/checkout/quote" -Method Post -Headers $headers -ContentType "application/json" -Body (@{ basketId = $cart.basketId; basketVersion = $cart.version; shippingAddressId = $address.id } | ConvertTo-Json) -WebSession $storefrontSession
+if (-not $quote.canCheckout -or [string]::IsNullOrWhiteSpace($quote.quoteToken) -or $quote.totalAmount -le 0) {
+    throw "Checkout quote was not eligible to create an order."
+}
+if ($quote.finalRevalidationRequired -ne $true) {
+    throw "Checkout quote did not require final revalidation."
+}
+Write-Host "[ok] checkout quote with current pricing and availability"
+
+$order = Invoke-RestMethod -Uri "$StorefrontBaseUrl/api/checkout" -Method Post -Headers $headers -ContentType "application/json" -Body (@{ basketId = $cart.basketId; basketVersion = $cart.version; shippingAddressId = $address.id; idempotencyKey = [Guid]::NewGuid().ToString(); quoteToken = $quote.quoteToken } | ConvertTo-Json) -WebSession $storefrontSession
 if ([string]::IsNullOrWhiteSpace($order.id) -or $order.status -ne "PendingPayment") {
     throw "Checkout did not create a PendingPayment order."
 }
@@ -103,21 +142,124 @@ if ($null -eq $snapshotOrder -or $null -eq $snapshotOrder.shippingAddress -or $s
 }
 Write-Host "[ok] customer order history and immutable address snapshot"
 
-$payment = Invoke-RestMethod -Uri "$StorefrontBaseUrl/api/payments" -Method Post -Headers $headers -ContentType "application/json" -Body (@{ orderId = $order.id } | ConvertTo-Json) -WebSession $storefrontSession
-if ([string]::IsNullOrWhiteSpace($payment.id) -or $payment.status -ne "PendingAuthorization") {
-    throw "Payment initiation did not return a PendingAuthorization payment."
+$paymentAction = Invoke-RestMethod -Uri "$StorefrontBaseUrl/api/payments" -Method Post -Headers $headers -ContentType "application/json" -Body (@{ orderId = $order.id } | ConvertTo-Json) -WebSession $storefrontSession
+if ($null -eq $paymentAction.payment -or [string]::IsNullOrWhiteSpace($paymentAction.payment.id) -or $paymentAction.payment.status -ne "PendingAuthorization") {
+    throw "Payment initiation did not return a PendingAuthorization payment action."
 }
-Write-Host "[ok] payment initiation"
+if ($null -eq $paymentAction.action -or -not $paymentAction.action.sandboxCompletionAvailable -or [string]::IsNullOrWhiteSpace($paymentAction.action.expiresAtUtc)) {
+    throw "Portfolio payment initiation did not return a valid sandbox action."
+}
+Write-Host "[ok] sandbox payment initiation"
+$initialPaymentStatus = Invoke-RestMethod -Uri "$StorefrontBaseUrl/api/payments/orders/$($order.id)" -Method Get -WebSession $storefrontSession
+if ($initialPaymentStatus.id -ne $paymentAction.payment.id -or $initialPaymentStatus.orderId -ne $order.id -or $initialPaymentStatus.status -ne "PendingAuthorization") {
+    throw "Persisted payment status was not available for the created order."
+}
+Write-Host "[ok] persisted payment status by order"
 
+$finalOrder = $null
+$projectionStatus = $null
+$completedPaymentStatus = $null
+
+if ($Scenario -eq "Cancellation") {
+    $cancelledOrder = Invoke-RestMethod -Uri "$StorefrontBaseUrl/api/orders/$($order.id)/cancel" -Method Post -Headers $headers -ContentType "application/json" -Body (@{ reason = "Portfolio smoke cancellation before fulfillment." } | ConvertTo-Json) -WebSession $storefrontSession
+    if ($cancelledOrder.id -ne $order.id -or $cancelledOrder.status -ne "Cancelled") {
+        throw "Customer cancellation did not return the cancelled order."
+    }
+    $ordersAfterCancellation = Invoke-RestMethod -Uri "$StorefrontBaseUrl/api/orders" -Method Get -WebSession $storefrontSession
+    $persistedCancelledOrder = @($ordersAfterCancellation | Where-Object { $_.id -eq $order.id })[0]
+    if ($null -eq $persistedCancelledOrder -or $persistedCancelledOrder.status -ne "Cancelled") {
+        throw "Customer cancellation was not persisted in the customer order list."
+    }
+    $finalOrder = $persistedCancelledOrder
+    Write-Host "[ok] pre-fulfillment order cancellation"
+}
+else {
+    $completion = Invoke-WebRequest -Uri "$StorefrontBaseUrl/api/payments/$($paymentAction.payment.id)/sandbox-completion" -Method Post -Headers $headers -ContentType "application/json" -Body (@{ outcome = "Approve" } | ConvertTo-Json) -WebSession $storefrontSession -UseBasicParsing
+    Assert-Status -Actual $completion.StatusCode -Expected 202 -Operation "Sandbox payment completion"
+
+    for ($attempt = 1; $attempt -le 30; $attempt++) {
+        Start-Sleep -Seconds 1
+        $currentOrders = Invoke-RestMethod -Uri "$StorefrontBaseUrl/api/orders" -Method Get -WebSession $storefrontSession
+        $candidate = @($currentOrders | Where-Object { $_.id -eq $order.id })[0]
+        if ($null -ne $candidate -and $candidate.status -eq "Paid") {
+            $finalOrder = $candidate
+            break
+        }
+    }
+    if ($null -eq $finalOrder) {
+        throw "Order did not become Paid after sandbox payment completion."
+    }
+
+    $completedPaymentStatus = $null
+    for ($attempt = 1; $attempt -le 30; $attempt++) {
+        $candidatePayment = Invoke-RestMethod -Uri "$StorefrontBaseUrl/api/payments/orders/$($order.id)" -Method Get -WebSession $storefrontSession
+        if ($candidatePayment.status -eq "Captured") {
+            $completedPaymentStatus = $candidatePayment
+            break
+        }
+        Start-Sleep -Seconds 1
+    }
+    if ($null -eq $completedPaymentStatus) {
+        throw "Payment did not become Captured after sandbox payment completion."
+    }
+    Write-Host "[ok] sandbox payment captured and order paid"
+
+    $adminUserName = Get-EnvFileValue "MICROSHOP_BOOTSTRAP_ADMIN_USERNAME"
+    $adminPassword = Get-EnvFileValue "MICROSHOP_BOOTSTRAP_ADMIN_PASSWORD"
+    if ([string]::IsNullOrWhiteSpace($adminUserName) -or [string]::IsNullOrWhiteSpace($adminPassword)) {
+        throw "Fulfillment smoke requires bootstrap admin credentials in $EnvFile."
+    }
+    $adminLogin = Invoke-RestMethod -Uri "$GatewayBaseUrl/auth/login" -Method Post -ContentType "application/json" -Body (@{ userName = $adminUserName; password = $adminPassword } | ConvertTo-Json) -TimeoutSec 15
+    if ([string]::IsNullOrWhiteSpace($adminLogin.accessToken)) {
+        throw "Administrator sign-in did not return an access token."
+    }
+    $adminHeaders = @{ Authorization = "Bearer $($adminLogin.accessToken)"; Accept = "application/json" }
+    foreach ($targetStatus in @("Confirmed", "Shipped", "Delivered")) {
+        $transition = Invoke-RestMethod -Uri "$GatewayBaseUrl/orders/admin/$($order.id)/fulfillment" -Method Post -Headers $adminHeaders -ContentType "application/json" -Body (@{ targetStatus = $targetStatus } | ConvertTo-Json) -TimeoutSec 15
+        if ($transition.status -ne $targetStatus) {
+            throw "Fulfillment transition did not reach $targetStatus."
+        }
+    }
+    $customerOrdersAfterFulfillment = Invoke-RestMethod -Uri "$StorefrontBaseUrl/api/orders" -Method Get -WebSession $storefrontSession
+    $finalOrder = @($customerOrdersAfterFulfillment | Where-Object { $_.id -eq $order.id })[0]
+    if ($null -eq $finalOrder -or $finalOrder.status -ne "Delivered") {
+        throw "Delivered order was not visible in the customer order detail."
+    }
+    Write-Host "[ok] administrator fulfillment transitions"
+
+    for ($attempt = 1; $attempt -le 30; $attempt++) {
+        Start-Sleep -Seconds 1
+        try {
+            $projection = Invoke-RestMethod -Uri "$GatewayBaseUrl/order-summaries/$($order.id)" -Method Get -Headers $adminHeaders -TimeoutSec 15
+            if ($projection.status -eq "Delivered") {
+                $projectionStatus = $projection.status
+                break
+            }
+        }
+        catch {
+            # The projection is eventually consistent; retry until the timeout.
+        }
+    }
+    if ($projectionStatus -ne "Delivered") {
+        throw "Order projection did not reach Delivered after the fulfillment transitions."
+    }
+    Write-Host "[ok] Kafka to Mongo order projection"
+}
 [PSCustomObject]@{
     Customer = $customer.user.userName
+    CustomerEmail = $Email
     Product = $product.name
     OrderId = $order.id
-    OrderStatus = $order.status
-    PaymentId = $payment.id
-    PaymentStatus = $payment.status
+    OrderStatus = $finalOrder.status
+    PaymentId = $paymentAction.payment.id
+    InitialPaymentStatus = $initialPaymentStatus.status
+    FinalPaymentStatus = if ($null -ne $completedPaymentStatus) { $completedPaymentStatus.status } else { $initialPaymentStatus.status }
     ShippingAddressId = $address.id
     ShippingAddressSnapshotImmutable = $true
+    QuoteTotal = $quote.totalAmount
+    QuoteFinalRevalidationRequired = $quote.finalRevalidationRequired
+    Scenario = $Scenario
+    ProjectionStatus = $projectionStatus
 } | Format-List
 
 Write-Host "Storefront customer journey smoke passed."

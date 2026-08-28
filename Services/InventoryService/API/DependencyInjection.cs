@@ -28,7 +28,17 @@ public static class DependencyInjection
 
     public static WebApplication UseApiExceptionHandling(this WebApplication app)
     {
-        app.UseExceptionHandler(errorApp => errorApp.Run(context => Results.Problem().ExecuteAsync(context)));
+        app.UseExceptionHandler(errorApp => errorApp.Run(context =>
+        {
+            var exception = context.Features.Get<IExceptionHandlerFeature>()?.Error;
+            return exception is ArgumentException argumentException
+                ? Results.ValidationProblem(new Dictionary<string, string[]>
+                {
+                    ["request"] = [argumentException.Message]
+                }).ExecuteAsync(context)
+                : Results.Problem().ExecuteAsync(context);
+        }));
+
         return app;
     }
 }

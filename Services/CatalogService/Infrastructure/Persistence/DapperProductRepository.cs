@@ -20,8 +20,8 @@ public sealed class DapperProductRepository : IProductRepository
         using var connection = CreateConnection();
 
         await connection.ExecuteAsync(new CommandDefinition("""
-            INSERT INTO Products (Id, Name, Description, Price, StockQuantity, IsActive)
-            VALUES (@Id, @Name, @Description, @Price, @StockQuantity, @IsActive)
+            INSERT INTO Products (Id, Name, Description, Price, StockQuantity, IsActive, Category, ImageUrl, Sku, Brand)
+            VALUES (@Id, @Name, @Description, @Price, @StockQuantity, @IsActive, @Category, @ImageUrl, @Sku, @Brand)
             """, new
         {
             product.Id,
@@ -29,7 +29,11 @@ public sealed class DapperProductRepository : IProductRepository
             product.Description,
             product.Price,
             product.StockQuantity,
-            product.IsActive
+            product.IsActive,
+            product.Category,
+            product.ImageUrl,
+            product.Sku,
+            product.Brand
         }, cancellationToken: cancellationToken));
 
         return product;
@@ -38,8 +42,8 @@ public sealed class DapperProductRepository : IProductRepository
     public async Task<Product> CreateAsync(Product product, IDbTransaction transaction, CancellationToken cancellationToken = default)
     {
         await transaction.Connection!.ExecuteAsync(new CommandDefinition("""
-            INSERT INTO Products (Id, Name, Description, Price, StockQuantity, IsActive)
-            VALUES (@Id, @Name, @Description, @Price, @StockQuantity, @IsActive)
+            INSERT INTO Products (Id, Name, Description, Price, StockQuantity, IsActive, Category, ImageUrl, Sku, Brand)
+            VALUES (@Id, @Name, @Description, @Price, @StockQuantity, @IsActive, @Category, @ImageUrl, @Sku, @Brand)
             """, new
         {
             product.Id,
@@ -47,7 +51,11 @@ public sealed class DapperProductRepository : IProductRepository
             product.Description,
             product.Price,
             product.StockQuantity,
-            product.IsActive
+            product.IsActive,
+            product.Category,
+            product.ImageUrl,
+            product.Sku,
+            product.Brand
         }, transaction, cancellationToken: cancellationToken));
 
         return product;
@@ -59,14 +67,24 @@ public sealed class DapperProductRepository : IProductRepository
 
         var affectedRows = await connection.ExecuteAsync(new CommandDefinition("""
             UPDATE Products
-            SET Name = @Name, Description = @Description, Price = @Price
+            SET Name = @Name,
+                Description = @Description,
+                Price = @Price,
+                Category = @Category,
+                ImageUrl = @ImageUrl,
+                Brand = @Brand,
+                Sku = @Sku
             WHERE Id = @Id AND IsActive = true;
             """, new
         {
             product.Id,
             product.Name,
             product.Description,
-            product.Price
+            product.Price,
+            product.Category,
+            product.ImageUrl,
+            product.Brand,
+            product.Sku
         }, cancellationToken: cancellationToken));
 
         if (affectedRows == 0)
@@ -128,7 +146,7 @@ public sealed class DapperProductRepository : IProductRepository
         using var connection = CreateConnection();
 
         var rows = await connection.QueryAsync<ProductRow>(new CommandDefinition("""
-            SELECT Id, Name, Description, Price, StockQuantity, IsActive
+            SELECT Id, Name, Description, Price, StockQuantity, IsActive, Category, ImageUrl, Sku, Brand
             FROM Products
             WHERE IsActive = true
             ORDER BY Name;
@@ -142,7 +160,7 @@ public sealed class DapperProductRepository : IProductRepository
         using var connection = CreateConnection();
 
         var row = await connection.QueryFirstOrDefaultAsync<ProductRow>(new CommandDefinition("""
-            SELECT Id, Name, Description, Price, StockQuantity, IsActive
+            SELECT Id, Name, Description, Price, StockQuantity, IsActive, Category, ImageUrl, Sku, Brand
             FROM Products
             WHERE Id = @Id AND IsActive = true;
             """, new { Id = id }, cancellationToken: cancellationToken));
@@ -150,6 +168,84 @@ public sealed class DapperProductRepository : IProductRepository
         return row is null ? null : ToDomain(row);
     }
 
+    public async Task<ProductDiscoveryResult> DiscoverAsync(
+        ProductDiscoveryCriteria criteria,
+        CancellationToken cancellationToken = default)
+    {
+        using var connection = CreateConnection();
+
+        var parameters = new DynamicParameters();
+        var whereClauses = new List<string> { "IsActive = true" };
+
+        if (!string.IsNullOrWhiteSpace(criteria.Keyword))
+        {
+            whereClauses.Add("(Name ILIKE @Keyword OR Description ILIKE @Keyword)");
+            parameters.Add("Keyword", $"%{criteria.Keyword}%");
+        }
+
+        if (!string.IsNullOrWhiteSpace(criteria.Category))
+        {
+            whereClauses.Add("LOWER(Category) = LOWER(@Category)");
+            parameters.Add("Category", criteria.Category);
+        }
+
+        if (!string.IsNullOrWhiteSpace(criteria.Cursor))
+        {
+            var cursor = ProductDiscoveryCursor.Decode(criteria.Cursor, criteria.Sort);
+            parameters.Add("CursorId", cursor.Id);
+
+            switch (criteria.Sort)
+            {
+                case ProductDiscoverySort.NameAscending:
+                    whereClauses.Add("(Name > @CursorName OR (Name = @CursorName AND Id > @CursorId))");
+                    parameters.Add("CursorName", cursor.Name);
+                    break;
+                case ProductDiscoverySort.NameDescending:
+                    whereClauses.Add("(Name < @CursorName OR (Name = @CursorName AND Id < @CursorId))");
+                    parameters.Add("CursorName", cursor.Name);
+                    break;
+                case ProductDiscoverySort.PriceAscending:
+                    whereClauses.Add("(Price > @CursorPrice OR (Price = @CursorPrice AND Id > @CursorId))");
+                    parameters.Add("CursorPrice", cursor.Price);
+                    break;
+                case ProductDiscoverySort.PriceDescending:
+                    whereClauses.Add("(Price < @CursorPrice OR (Price = @CursorPrice AND Id < @CursorId))");
+                    parameters.Add("CursorPrice", cursor.Price);
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(criteria.Sort), criteria.Sort, "Unsupported product discovery sort.");
+            }
+        }
+
+        var orderBySql = criteria.Sort switch
+        {
+            ProductDiscoverySort.NameAscending => "ORDER BY Name ASC, Id ASC",
+            ProductDiscoverySort.NameDescending => "ORDER BY Name DESC, Id DESC",
+            ProductDiscoverySort.PriceAscending => "ORDER BY Price ASC, Id ASC",
+            ProductDiscoverySort.PriceDescending => "ORDER BY Price DESC, Id DESC",
+            _ => throw new ArgumentOutOfRangeException(nameof(criteria.Sort), criteria.Sort, "Unsupported product discovery sort.")
+        };
+
+        parameters.Add("Limit", criteria.PageSize + 1);
+        var sql = $"""
+            SELECT Id, Name, Description, Price, StockQuantity, IsActive, Category, ImageUrl, Sku, Brand
+            FROM Products
+            WHERE {string.Join(" AND ", whereClauses)}
+            {orderBySql}
+            LIMIT @Limit;
+            """;
+
+        var rows = (await connection.QueryAsync<ProductRow>(
+            new CommandDefinition(sql, parameters, cancellationToken: cancellationToken)))
+            .Select(ToDomain)
+            .ToList();
+
+        var hasNextPage = rows.Count > criteria.PageSize;
+        var products = hasNextPage ? rows.Take(criteria.PageSize).ToList() : rows;
+        var nextCursor = hasNextPage ? ProductDiscoveryCursor.Encode(products[^1], criteria.Sort) : null;
+
+        return new ProductDiscoveryResult(products, nextCursor);
+    }
     public async Task<List<Product>> SearchAsync(string? keyword, CancellationToken cancellationToken = default)
     {
         return await SearchAsync(
@@ -191,7 +287,7 @@ public sealed class DapperProductRepository : IProductRepository
             : "ORDER BY Name";
 
         var sql = $"""
-            SELECT Id, Name, Description, Price, StockQuantity, IsActive
+            SELECT Id, Name, Description, Price, StockQuantity, IsActive, Category, ImageUrl, Sku, Brand
             FROM Products
             {whereSql}
             {orderBySql};
@@ -226,8 +322,28 @@ public sealed class DapperProductRepository : IProductRepository
 
     private static Product ToDomain(ProductRow row)
     {
-        return new Product(row.Id, row.Name, row.Description, Convert.ToDecimal(row.Price), row.StockQuantity, row.IsActive);
+        return new Product(
+            row.Id,
+            row.Name,
+            row.Description,
+            Convert.ToDecimal(row.Price),
+            row.StockQuantity,
+            row.IsActive,
+            row.Category,
+            row.ImageUrl,
+            row.Sku,
+            row.Brand);
     }
 
-    private sealed record ProductRow(string Id, string Name, string Description, decimal Price, int StockQuantity, bool IsActive);
+    private sealed record ProductRow(
+        string Id,
+        string Name,
+        string Description,
+        decimal Price,
+        int StockQuantity,
+        bool IsActive,
+        string? Category,
+        string? ImageUrl,
+        string Sku,
+        string? Brand);
 }

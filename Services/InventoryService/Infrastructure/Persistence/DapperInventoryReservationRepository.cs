@@ -230,7 +230,9 @@ public sealed class DapperInventoryReservationRepository : IInventoryReservation
             Id = outcome.EventId,
             OccurredAtUtc = outcome.OccurredAtUtc,
             Type = outcome.GetType().FullName!,
-            Content = JsonSerializer.Serialize(outcome, new JsonSerializerOptions(JsonSerializerDefaults.Web)),
+            // Serialize the concrete event. Serializing through IntegrationEvent would discard
+            // event-specific fields such as OrderId before the outbox publisher sees them.
+            Content = JsonSerializer.Serialize(outcome, outcome.GetType(), new JsonSerializerOptions(JsonSerializerDefaults.Web)),
             CorrelationId = outcome.CorrelationId,
             CausationId = outcome.CausationId,
             NextAttemptAtUtc = outcome.OccurredAtUtc

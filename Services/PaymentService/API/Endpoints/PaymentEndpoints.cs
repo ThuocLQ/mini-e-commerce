@@ -2,6 +2,7 @@ using MediatR;
 using PaymentService.API.Contracts;
 using PaymentService.Application.Payments.CreatePayment;
 using PaymentService.Application.Payments.GetPaymentById;
+using PaymentService.Application.Payments.GetPaymentByOrderId;
 using PaymentService.Application.Payments.GetPayments;
 using PaymentService.Application.Payments.Providers;
 using PaymentService.Application.Payments.Webhooks;
@@ -40,6 +41,12 @@ public static class PaymentEndpoints
             return Results.Ok(result);
         }).RequireAuthorization("administrator");
 
+        group.MapGet("/orders/{orderId:guid}", async (Guid orderId, ClaimsPrincipal user, ISender sender, CancellationToken cancellationToken) =>
+        {
+            var result = await sender.Send(new GetPaymentByOrderIdQuery(orderId), cancellationToken);
+            if (result is null || !TryGetCustomerId(user, out var customerId) || result.CustomerId != customerId) return Results.NotFound();
+            return Results.Ok(result);
+        });
         group.MapGet("/{id:guid}", async (Guid id, ClaimsPrincipal user, ISender sender, CancellationToken cancellationToken) =>
         {
             var result = await sender.Send(new GetPaymentByIdQuery(id), cancellationToken);

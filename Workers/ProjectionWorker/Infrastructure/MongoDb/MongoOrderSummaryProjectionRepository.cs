@@ -40,6 +40,9 @@ public sealed class MongoOrderSummaryProjectionRepository : IOrderSummaryProject
         {
             OrderProjectionEventTypes.OrderCreated => ApplyOrderCreated(orderEvent, existing),
             OrderProjectionEventTypes.OrderPaid => ApplyOrderPaid(orderEvent, existing),
+            OrderProjectionEventTypes.OrderConfirmed => ApplyOrderFulfillmentStatus(orderEvent, existing, "Confirmed"),
+            OrderProjectionEventTypes.OrderShipped => ApplyOrderFulfillmentStatus(orderEvent, existing, "Shipped"),
+            OrderProjectionEventTypes.OrderDelivered => ApplyOrderFulfillmentStatus(orderEvent, existing, "Delivered"),
             OrderProjectionEventTypes.OrderRefunded => ApplyOrderRefunded(orderEvent, existing),
             OrderProjectionEventTypes.OrderPaymentFailed => ApplyOrderPaymentFailed(orderEvent, existing),
             OrderProjectionEventTypes.OrderCancelled => ApplyOrderCancelled(orderEvent, existing),
@@ -100,6 +103,19 @@ public sealed class MongoOrderSummaryProjectionRepository : IOrderSummaryProject
             existing,
             status: "Paid",
             paidAtUtc: orderEvent.OccurredAtUtc,
+            cancelledAtUtc: existing?.CancelledAtUtc);
+    }
+
+    private static OrderSummaryProjectionDocument ApplyOrderFulfillmentStatus(
+        OrderProjectionEvent orderEvent,
+        OrderSummaryProjectionDocument? existing,
+        string status)
+    {
+        return BuildDocument(
+            orderEvent,
+            existing,
+            status,
+            paidAtUtc: existing?.PaidAtUtc ?? orderEvent.OccurredAtUtc,
             cancelledAtUtc: existing?.CancelledAtUtc);
     }
 
@@ -181,7 +197,7 @@ public sealed class MongoOrderSummaryProjectionRepository : IOrderSummaryProject
 
     private static string PreserveTerminalStatus(string status)
     {
-        return status is "Paid" or "Refunded" or "Cancelled"
+        return status is "Paid" or "Confirmed" or "Shipped" or "Delivered" or "Refunded" or "Cancelled"
             ? status
             : "Created";
     }
