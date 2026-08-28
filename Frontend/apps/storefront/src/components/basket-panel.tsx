@@ -72,6 +72,26 @@ export function BasketPanel({
 }: BasketPanelProps) {
   const items = basket?.items ?? [];
   const [couponCode, setCouponCode] = useState("");
+  const quoteExpiresAt = quote ? Date.parse(quote.expiresAtUtc) : Number.NaN;
+  const quoteIsExpired = quote !== null && (!Number.isFinite(quoteExpiresAt) || quoteExpiresAt <= Date.now());
+  const canCreateOrder = Boolean(
+    quote?.canCheckout
+    && quote.quoteToken
+    && !quoteIsExpired
+    && selectedAddressId
+    && !isCheckingOut
+    && !isReviewingCheckout,
+  );
+  const checkoutHint = !selectedAddressId
+    ? "Select a delivery address before reviewing the order."
+    : !quote
+      ? "Review the order to confirm current price and availability before creating it."
+      : quoteIsExpired
+        ? "The review expired. Review the order again before creating it."
+        : !quote.canCheckout
+          ? "Resolve the review issues above before creating the order."
+          : null;
+  const checkoutHintTone = !selectedAddressId || quoteIsExpired || quote?.canCheckout === false ? "text-[var(--danger)]" : "text-[var(--muted)]";
 
   return (
     <div className="fixed inset-0 z-40 flex justify-end bg-black/35" role="presentation">
@@ -143,7 +163,10 @@ export function BasketPanel({
           </div>
           <label className="mt-5 block text-sm font-medium">Promotion code<input className="mt-2 h-10 w-full border border-[var(--line)] bg-white px-3 font-normal outline-none focus:border-[var(--accent)]" disabled={isCheckingOut || isReviewingCheckout} onChange={(event) => { setCouponCode(event.target.value); onInvalidateQuote(); }} placeholder="Optional" value={couponCode} /></label>
           {quote ? <section aria-live="polite" className="mt-4 border border-[var(--line)] bg-[#f7faf8] p-3 text-sm"><div className="flex items-center justify-between gap-3 font-semibold"><span>Reviewed total</span><span>{money.format(quote.totalAmount)}</span></div><p className="mt-1 text-xs leading-5 text-[var(--muted)]">{quote.coupon.message}</p>{quote.items.some((item) => item.priceChanged) ? <p className="mt-2 text-xs font-medium text-[#9a5b11]">Current catalog pricing changed from the basket snapshot.</p> : null}{quote.issues.length > 0 ? <ul className="mt-2 space-y-1 text-xs text-[var(--danger)]">{quote.issues.map((issue) => <li key={`${issue.code}:${issue.productId ?? "order"}`}>{issue.message}</li>)}</ul> : null}{quote.finalRevalidationRequired ? <p className="mt-2 text-xs text-[var(--muted)]">Pricing and availability are checked again when the order is created.</p> : null}</section> : null}
-          <p className="mt-3 text-xs leading-5 text-[var(--muted)]">Review uses current catalog, promotion, and inventory data. It does not reserve stock or a promotion.</p>{addressLoadState === "ready" && !selectedAddressId ? <p className="mt-2 text-xs font-medium text-[var(--danger)]" role="status">Select or add a delivery address before reviewing the order.</p> : null}<button className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 border border-[var(--accent)] px-4 text-sm font-semibold text-[var(--accent)] hover:bg-[#e9f2ed] disabled:cursor-not-allowed disabled:border-[#b5beb6] disabled:text-[#8b948d]" disabled={items.length === 0 || isCheckingOut || isReviewingCheckout || addressLoadState !== "ready" || !selectedAddressId} onClick={() => selectedAddressId && onReview(couponCode, selectedAddressId)} type="button">{isReviewingCheckout ? <span className="animate-pulse">Reviewing order</span> : "Review order"}</button><button className="mt-2 inline-flex h-11 w-full items-center justify-center gap-2 bg-[var(--accent)] px-4 text-sm font-semibold text-white hover:bg-[var(--accent-strong)] disabled:cursor-not-allowed disabled:bg-[#8ba89b]" disabled={items.length === 0 || isCheckingOut || isReviewingCheckout || !quote?.canCheckout || !quote.quoteToken || Date.parse(quote.expiresAtUtc) <= Date.now()} onClick={() => selectedAddressId && onCheckout(couponCode, selectedAddressId)} type="button">{isCheckingOut ? <span className="animate-pulse">Creating order</span> : "Create order"}</button>
+          <p className="mt-3 text-xs leading-5 text-[var(--muted)]">Review uses current catalog, promotion, and inventory data. It does not reserve stock or a promotion.</p>
+          {checkoutHint ? <p className={`mt-2 text-xs font-medium ${checkoutHintTone}`} id="create-order-hint" role="status">{checkoutHint}</p> : null}
+          <button className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 border border-[var(--accent)] px-4 text-sm font-semibold text-[var(--accent)] hover:bg-[#e9f2ed] disabled:cursor-not-allowed disabled:border-[#b5beb6] disabled:text-[#8b948d]" disabled={items.length === 0 || isCheckingOut || isReviewingCheckout || addressLoadState !== "ready" || !selectedAddressId} onClick={() => selectedAddressId && onReview(couponCode, selectedAddressId)} type="button">{isReviewingCheckout ? <span className="animate-pulse">Reviewing order</span> : quote ? "Review order again" : "Review order"}</button>
+          <button aria-describedby={checkoutHint ? "create-order-hint" : undefined} className="mt-2 inline-flex h-11 w-full items-center justify-center gap-2 bg-[var(--accent)] px-4 text-sm font-semibold text-white hover:bg-[var(--accent-strong)] disabled:cursor-not-allowed disabled:bg-[#8ba89b]" disabled={items.length === 0 || !canCreateOrder} onClick={() => selectedAddressId && onCheckout(couponCode, selectedAddressId)} title={checkoutHint ?? undefined} type="button">{isCheckingOut ? <span className="animate-pulse">Creating order</span> : "Create order"}</button>
         </footer> : null}
       </aside>
     </div>
