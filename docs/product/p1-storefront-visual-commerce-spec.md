@@ -124,3 +124,5 @@ explicit link to the dedicated checkout route; it is not the sole checkout exper
 - `scripts/portfolio-catalog-discovery-real-data-smoke.ps1` verifies persisted Catalog metadata,
   category filtering, cursor paging, and Gateway/Storefront BFF agreement against the portfolio runtime.
 - Desktop and narrow viewport screenshots were captured against the public Storefront with real Catalog data.
+- scripts/test-portfolio-catalog-media.ps1 verifies seed completeness, category diversity and reachable product media before deployment.
+- docs/qa/storefront-browser-qa-test-cases.md records repeatable browser cases and screenshot evidence.

@@ -2,8 +2,9 @@
 
 import { AlertTriangle, LoaderCircle, Minus, Plus, RefreshCw, ShoppingBag, Trash2, X } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { AddressSelection, type AddressLoadState } from "@/components/address-selection";
+import { useDialogFocus } from "@/hooks/use-dialog-focus";
 import type { AddressInput, Basket, CheckoutQuote, CustomerAddress, OrderSummary } from "@/lib/storefront/types";
 
 type BasketLoadState = "idle" | "loading" | "ready" | "unavailable";
@@ -73,6 +74,8 @@ export function BasketPanel({
 }: BasketPanelProps) {
   const items = basket?.items ?? [];
   const [couponCode, setCouponCode] = useState("");
+  const dialogRef = useRef<HTMLElement>(null);
+  useDialogFocus({ dialogRef, isOpen: true, onClose });
   const canCreateOrder = Boolean(
     quote?.canCheckout
     && quote.quoteToken
@@ -91,11 +94,11 @@ export function BasketPanel({
 
   return (
     <div className="fixed inset-0 z-40 flex justify-end bg-black/35" role="presentation">
-      <aside aria-label="Cart and checkout" className="flex h-full w-full max-w-md flex-col bg-[var(--surface)] shadow-xl">
+      <aside aria-labelledby="cart-panel-title" aria-modal="true" className="flex h-full w-full max-w-md flex-col bg-[var(--surface)] shadow-xl" ref={dialogRef} role="dialog" tabIndex={-1}>
         <header className="flex min-h-16 items-center justify-between border-b border-[var(--line)] px-5">
           <div className="flex items-center gap-3">
             <ShoppingBag aria-hidden="true" size={19} />
-            <h2 className="font-semibold">Cart &amp; checkout</h2>
+            <h2 className="font-semibold" id="cart-panel-title">Cart &amp; checkout</h2>
           </div>
           <button aria-label="Close cart" className="grid size-9 place-items-center border border-[var(--line)] text-[var(--muted)] hover:bg-[#f3f5f2]" onClick={onClose} type="button">
             <X aria-hidden="true" size={18} />

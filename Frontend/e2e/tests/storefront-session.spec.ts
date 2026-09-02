@@ -37,7 +37,7 @@ test("customer can inspect a product, add it to the cart, and enter checkout", a
   await expect(page.getByRole("button", { name: "Open cart and checkout, 1 items" })).toBeVisible();
   await page.getByRole("button", { name: "Open cart and checkout, 1 items" }).click();
   await expect(page.getByRole("heading", { name: "Cart & checkout" })).toBeVisible();
-  await expect(page.getByLabel("Cart and checkout", { exact: true }).getByRole("heading", { name: productName })).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "Cart & checkout" }).getByRole("heading", { name: productName })).toBeVisible();
   await page.getByRole("link", { name: "Open full checkout" }).click();
   await expect(page.getByRole("heading", { name: "Review your order" })).toBeVisible();
   await expect(page.getByRole("complementary").getByText(productName, { exact: false })).toBeVisible();

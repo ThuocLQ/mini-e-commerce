@@ -1,7 +1,8 @@
 "use client";
 
 import { LoaderCircle, X } from "lucide-react";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useRef, useState } from "react";
+import { useDialogFocus } from "@/hooks/use-dialog-focus";
 import type { CurrentUser } from "@/lib/storefront/types";
 
 type Feedback = { tone: "error" | "success"; text: string };
@@ -23,16 +24,8 @@ export function AuthDialog({ open, notice, onClose, onSignedIn }: AuthDialogProp
 
   const isRegistering = mode === "register";
 
-  useEffect(() => {
-    if (!open) return;
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") onClose();
-    }
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onClose, open]);
+  const dialogRef = useRef<HTMLElement>(null);
+  useDialogFocus({ dialogRef, isOpen: open, onClose });
 
   if (!open) return null;
 
@@ -73,7 +66,7 @@ export function AuthDialog({ open, notice, onClose, onSignedIn }: AuthDialogProp
 
   return (
     <div className="fixed inset-0 z-50 grid overflow-y-auto bg-black/35 px-4 py-4 sm:place-items-center sm:py-8" role="presentation">
-      <section aria-labelledby="account-title" aria-modal="true" className="my-auto w-full max-w-md border border-[var(--line)] bg-[var(--surface)] p-6 shadow-xl" role="dialog">
+      <section aria-labelledby="account-title" aria-modal="true" className="my-auto w-full max-w-md border border-[var(--line)] bg-[var(--surface)] p-6 shadow-xl" ref={dialogRef} role="dialog" tabIndex={-1}>
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-sm font-medium text-[var(--accent)]">Account</p>
@@ -86,7 +79,7 @@ export function AuthDialog({ open, notice, onClose, onSignedIn }: AuthDialogProp
 
         <form className="mt-6 space-y-4" onSubmit={submit}>
           {notice ? <p className="border-l-2 border-[#d8d6c5] bg-[#fbfaf2] px-3 py-2 text-sm text-[#6f6317]" role="status">{notice}</p> : null}
-          <label className="block text-sm font-medium">Username<input autoFocus autoComplete="username" className="mt-2 h-11 w-full border border-[var(--line)] bg-white px-3 text-base outline-none focus:border-[var(--accent)]" onChange={(event) => setUserName(event.target.value)} required value={userName} /></label>
+          <label className="block text-sm font-medium">Username<input autoComplete="username" data-dialog-initial-focus="true" className="mt-2 h-11 w-full border border-[var(--line)] bg-white px-3 text-base outline-none focus:border-[var(--accent)]" onChange={(event) => setUserName(event.target.value)} required value={userName} /></label>
           {isRegistering ? <label className="block text-sm font-medium">Email<input autoComplete="email" className="mt-2 h-11 w-full border border-[var(--line)] bg-white px-3 text-base outline-none focus:border-[var(--accent)]" onChange={(event) => setEmail(event.target.value)} required type="email" value={email} /></label> : null}
           <label className="block text-sm font-medium">Password{isRegistering ? <span className="ml-2 text-xs font-normal text-[var(--muted)]">At least 14 characters</span> : null}<input autoComplete={isRegistering ? "new-password" : "current-password"} className="mt-2 h-11 w-full border border-[var(--line)] bg-white px-3 text-base outline-none focus:border-[var(--accent)]" minLength={isRegistering ? 14 : 1} onChange={(event) => setPassword(event.target.value)} required type="password" value={password} /></label>
           {feedback ? <p aria-live="polite" className={feedback.tone === "success" ? "border-l-2 border-[var(--accent)] bg-[#f4fbf6] px-3 py-2 text-sm text-[var(--accent-strong)]" : "border-l-2 border-[var(--danger)] bg-[#fff7f6] px-3 py-2 text-sm text-[var(--danger)]"} role={feedback.tone === "success" ? "status" : "alert"}>{feedback.text}</p> : null}

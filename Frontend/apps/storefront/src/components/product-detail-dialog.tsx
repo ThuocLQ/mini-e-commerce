@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect } from "react";
+import { useRef } from "react";
 import Link from "next/link";
-import { Box, LoaderCircle, ShoppingBag, X } from "lucide-react";
+import { LoaderCircle, ShoppingBag, X } from "lucide-react";
 import type { CatalogProduct } from "@/lib/gateway/catalog";
-import { productImageSource } from "@/lib/storefront/product-media";
+import { ProductImage } from "@/components/product-image";
+import { useDialogFocus } from "@/hooks/use-dialog-focus";
 
 type ProductDetailDialogProps = {
   product: CatalogProduct | null;
@@ -16,25 +17,17 @@ type ProductDetailDialogProps = {
 const money = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
 
 export function ProductDetailDialog({ product, busyProductId, onAdd, onClose }: ProductDetailDialogProps) {
-  useEffect(() => {
-    if (!product) return;
+  const dialogRef = useRef<HTMLElement>(null);
+  useDialogFocus({ dialogRef, isOpen: product !== null, onClose });
 
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") onClose();
-    }
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onClose, product]);
   if (!product) return null;
 
   const soldOut = product.stockQuantity <= 0;
   const isBusy = busyProductId === product.id;
-  const source = productImageSource(product.imageUrl);
 
   return (
     <div className="fixed inset-0 z-50 grid overflow-y-auto bg-black/35 px-4 py-4 sm:place-items-center sm:py-8" role="presentation">
-      <section aria-describedby="product-detail-description" aria-labelledby="product-detail-title" aria-modal="true" className="my-auto w-full max-w-2xl border border-[var(--line)] bg-[var(--surface)] shadow-xl" role="dialog">
+      <section aria-describedby="product-detail-description" aria-labelledby="product-detail-title" aria-modal="true" className="my-auto w-full max-w-2xl border border-[var(--line)] bg-[var(--surface)] shadow-xl" ref={dialogRef} role="dialog" tabIndex={-1}>
         <header className="flex min-h-16 items-center justify-between border-b border-[var(--line)] px-5">
           <p className="text-sm font-medium text-[var(--accent)]">Product details</p>
           <button aria-label="Close product details" className="grid size-9 place-items-center border border-[var(--line)] text-[var(--muted)] hover:bg-[#f3f5f2]" onClick={onClose} type="button">
@@ -43,7 +36,7 @@ export function ProductDetailDialog({ product, busyProductId, onAdd, onClose }: 
         </header>
 
         <div className="grid gap-6 p-5 sm:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] sm:p-7">
-          {source ? <div className="min-h-52 overflow-hidden bg-[#edf1ee]"><img alt={product.name} className="h-full min-h-52 w-full object-contain p-6" referrerPolicy="no-referrer" src={source} /></div> : <div aria-hidden="true" className="grid min-h-52 place-items-center bg-[#eef2ef] text-[var(--muted)]"><Box size={56} strokeWidth={1.25} /></div>}
+          <div className="min-h-52 overflow-hidden bg-[#edf1ee]"><ProductImage alt={product.name} className="h-full min-h-52 w-full object-contain p-6" fallbackClassName="grid min-h-52 h-full w-full place-items-center text-[var(--muted)]" imageUrl={product.imageUrl} /></div>
           <div>
             {product.category ? <p className="text-sm font-medium text-[var(--accent)]">{product.category}</p> : null}
             <h2 className="text-2xl font-semibold" id="product-detail-title">{product.name}</h2>
