@@ -12,6 +12,7 @@ public interface IPaymentRepository
         IDbTransaction transaction,
         CancellationToken cancellationToken = default);
     Task<Payment?> GetByOrderIdAsync(Guid orderId, CancellationToken cancellationToken = default);
+    Task<Payment?> GetByProviderSessionIdAsync(string provider, string providerSessionId, CancellationToken cancellationToken = default);
     Task<Payment?> GetByCustomerAndActionIdempotencyKeyAsync(
         Guid customerId,
         string idempotencyKey,

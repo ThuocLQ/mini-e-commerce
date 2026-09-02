@@ -1,4 +1,5 @@
 namespace PaymentService.API.Contracts;
 
 public sealed record CreatePaymentRequest(
-    Guid OrderId);
+    Guid OrderId,
+    string? Provider = null);

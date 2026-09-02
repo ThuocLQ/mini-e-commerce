@@ -145,3 +145,18 @@ Use:
 /order-summaries
 /order-summaries/{orderId}
 ```
+
+## Verified Development OpenAPI
+
+All ASP.NET Core HTTP services call `AddServiceDefaults()` and `MapDefaultEndpoints()`. In `Development`, this registers and serves `GET /openapi/v1.json`; the endpoint is intentionally not mapped in Docker/local-prod/Kubernetes. Swagger UI is not required: consumers use the generated document in development tooling.
+
+Authentication documentation baseline:
+
+- Public: catalog discovery, discount lookup, `/auth/login`, `/auth/register`, `/health`, `/alive`.
+- Bearer token: cart, orders, order summaries, payments, `/me/*`, inventory admin, supplier and procurement operations.
+- Provider callback only: `/webhooks/*`; signature validation is owned by PaymentService.
+- Internal contracts are never exposed through Gateway; service-to-service callers require `X-MicroShop-Internal-Key` and private network access.
+
+## Internal Contract Boundary Review
+
+Internal routes use the `/_internal/*` convention, are not routed by ApiGateway, and return `404` when the configured `X-MicroShop-Internal-Key` is absent or invalid. Catalog/Ordering/Payment callers attach the key through a delegating handler; NotificationWorker sends it explicitly to Identity. Internal callers remain on the private service network and must not trust a browser-supplied identity header.

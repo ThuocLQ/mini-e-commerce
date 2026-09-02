@@ -196,7 +196,7 @@ public sealed class DapperPaymentWebhookRepository : IPaymentWebhookRepository
             SELECT Id, OrderId, CustomerId, Amount, Currency, Status, ProviderTransactionId, FailureReason, CreatedAtUtc, CompletedAtUtc,
                    AuthorizedAtUtc, CaptureRequestedAtUtc, CapturedAtUtc, VoidRequestedAtUtc, VoidedAtUtc,
                    RefundRequestedAtUtc, RefundedAtUtc, Provider, ProviderSessionId, PaymentActionIdempotencyKey,
-                   PaymentActionRequestHash, PaymentActionExpiresAtUtc
+                   PaymentActionRequestHash, PaymentActionExpiresAtUtc, ProviderCheckoutUrl
             FROM Payments
             WHERE Id = @PaymentId;
             """, new { PaymentId = paymentId }, cancellationToken: cancellationToken));
@@ -282,7 +282,7 @@ public sealed class DapperPaymentWebhookRepository : IPaymentWebhookRepository
             SELECT Id, OrderId, CustomerId, Amount, Currency, Status, ProviderTransactionId, FailureReason, CreatedAtUtc, CompletedAtUtc,
                    AuthorizedAtUtc, CaptureRequestedAtUtc, CapturedAtUtc, VoidRequestedAtUtc, VoidedAtUtc,
                    RefundRequestedAtUtc, RefundedAtUtc, Provider, ProviderSessionId, PaymentActionIdempotencyKey,
-                   PaymentActionRequestHash, PaymentActionExpiresAtUtc
+                   PaymentActionRequestHash, PaymentActionExpiresAtUtc, ProviderCheckoutUrl
             FROM Payments
             WHERE Id = @PaymentId
             FOR UPDATE;
@@ -496,7 +496,8 @@ public sealed class DapperPaymentWebhookRepository : IPaymentWebhookRepository
             row.ProviderSessionId,
             row.PaymentActionIdempotencyKey,
             row.PaymentActionRequestHash,
-            row.PaymentActionExpiresAtUtc);
+            row.PaymentActionExpiresAtUtc,
+            row.ProviderCheckoutUrl);
     }
 
     private static string Truncate(string value, int maxLength)
@@ -526,7 +527,8 @@ public sealed class DapperPaymentWebhookRepository : IPaymentWebhookRepository
         string? ProviderSessionId,
         string? PaymentActionIdempotencyKey,
         string? PaymentActionRequestHash,
-        DateTime? PaymentActionExpiresAtUtc);
+        DateTime? PaymentActionExpiresAtUtc,
+        string? ProviderCheckoutUrl);
 
     private static void ApplyWebhookStatus(
         Payment payment,

@@ -50,7 +50,7 @@ public sealed class PaymentWebhookProcessor : IPaymentWebhookProcessor
             ComputeSha256Hash(rawBody),
             signatureStatus), cancellationToken);
 
-        return new PaymentWebhookProcessingResult(result, IsDuplicate: false);
+        return new PaymentWebhookProcessingResult(result.Payment is null ? null : PaymentMapper.ToDto(result.Payment), result.IsDuplicate);
     }
 
     private static bool VerifySignature(string? signature, PaymentWebhookOptions options, string rawBody)

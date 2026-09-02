@@ -15,19 +15,22 @@ public sealed class RequestPaymentVoidHandler
     private readonly IPaymentInboxRepository _inboxRepository;
     private readonly IPaymentProvider? _paymentProvider;
     private readonly IPaymentWebhookProcessor? _webhookProcessor;
+    private readonly IPaymentOperationalActionRepository? _operationalActionRepository;
 
     public RequestPaymentVoidHandler(
         IPaymentUnitOfWork unitOfWork,
         IPaymentRepository paymentRepository,
         IPaymentInboxRepository inboxRepository,
         IPaymentProvider? paymentProvider = null,
-        IPaymentWebhookProcessor? webhookProcessor = null)
+        IPaymentWebhookProcessor? webhookProcessor = null,
+        IPaymentOperationalActionRepository? operationalActionRepository = null)
     {
         _unitOfWork = unitOfWork;
         _paymentRepository = paymentRepository;
         _inboxRepository = inboxRepository;
         _paymentProvider = paymentProvider;
         _webhookProcessor = webhookProcessor;
+        _operationalActionRepository = operationalActionRepository;
     }
 
     public async Task<PaymentVoidRequestApplyResult> Handle(
@@ -52,6 +55,18 @@ public sealed class RequestPaymentVoidHandler
             payment.RequestVoid(request.RequestedAtUtc);
             var voidWasRequested = payment.Status != statusBeforeRequest;
 
+            if (voidWasRequested && _operationalActionRepository is not null)
+            {
+                await _operationalActionRepository.CreateAsync(
+                    Domain.Payments.PaymentOperationalAction.Create(
+                        payment.Id,
+                        "Void",
+                        "OrderingSaga",
+                        request.Reason,
+                        request.RequestedAtUtc),
+                    transaction,
+                    cancellationToken);
+            }
             if (voidWasRequested && !await _paymentRepository.UpdateAsync(payment, transaction, cancellationToken))
             {
                 throw new InvalidOperationException($"Payment '{payment.Id}' disappeared while requesting void.");

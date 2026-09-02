@@ -40,3 +40,7 @@ Services/*/*.db-wal
 Desktop.ini
 .DS_Store
 target/
+# Frontend test dependencies and reports
+**/node_modules/
+playwright-report/
+test-results/

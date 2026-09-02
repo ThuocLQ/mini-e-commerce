@@ -11,6 +11,7 @@ Some older decision documents live outside this folder. They are kept and cross-
 | [ADR-001-service-communication.md](ADR-001-service-communication.md) | Service communication strategy |
 | [ADR-002-rabbitmq-vs-kafka.md](ADR-002-rabbitmq-vs-kafka.md) | RabbitMQ vs Kafka roles |
 | [ADR-003-order-read-model-projection.md](ADR-003-order-read-model-projection.md) | Order read model projection |
+| [ADR-004-commerce-boundaries-and-release-gates.md](ADR-004-commerce-boundaries-and-release-gates.md) | Commerce boundaries and release gates |
 
 ## Related Existing Docs
 

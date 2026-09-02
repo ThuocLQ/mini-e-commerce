@@ -25,7 +25,7 @@ It tracks production-minded improvements that should be implemented as separate 
 [x] Metrics for Kafka lag.
 [x] Metrics for failed projections.
 [x] Metrics for consumer health.
-[ ] RabbitMQ queue depth/error queue monitoring.
+[x] RabbitMQ queue depth/error queue monitoring.
 [x] Grafana dashboard.
 [x] Local-prod observability smoke script.
 [x] Alerting intro.
@@ -34,13 +34,13 @@ It tracks production-minded improvements that should be implemented as separate 
 ## API And Architecture
 
 ```text
-[ ] Standard error response across services.
-[ ] API versioning policy.
-[ ] Swagger/OpenAPI enablement for Development if still not enabled.
-[ ] OpenAPI auth documentation.
+[x] Standard error response across services.
+[x] API versioning policy.
+[x] Swagger/OpenAPI enablement for Development if still not enabled.
+[x] OpenAPI auth documentation.
 [x] Development OpenAPI JSON endpoint baseline.
 [x] Gateway route review started.
-[ ] Internal service contract review.
+[x] Internal service contract review.
 [x] Production configuration fail-fast baseline.
 [x] Public gateway internal route guard baseline.
 [x] Gateway JWT validation baseline for K3s protected routes.
@@ -49,23 +49,23 @@ It tracks production-minded improvements that should be implemented as separate 
 ## Data And Persistence
 
 ```text
-[ ] PostgreSQL migration review.
+[x] PostgreSQL migration review.
 [x] Local-prod PostgreSQL backup/restore scripts.
 [x] Local-prod MongoDB backup/restore scripts.
 [x] K3s PostgreSQL/MongoDB backup and restore scripts.
-[ ] Read model rebuild strategy.
-[ ] Database index review.
-[ ] Connection pool and timeout review.
-[ ] Seed data policy for demos.
+[x] Read model rebuild strategy.
+[x] Database index review.
+[x] Connection pool and timeout review.
+[x] Seed data policy for demos.
 ```
 
 ## Security
 
 ```text
-[ ] JWT/Identity review.
-[ ] SSO/OIDC decision note.
-[ ] Internal service security.
-[ ] Audit log policy.
+[x] JWT/Identity review.
+[x] SSO/OIDC decision note.
+[x] Internal service security.
+[x] Audit log policy.
 [x] Local-prod secrets moved out of committed compose file.
 [x] Payment webhook HMAC verification.
 [x] Gateway edge rate-limit/CORS/security-header baseline.
@@ -78,7 +78,7 @@ It tracks production-minded improvements that should be implemented as separate 
 [x] Integration tests with Testcontainers.
 [x] Contract tests for order projection integration events.
 [x] Failure/replay scenario tests for ProjectionWorker.
-[ ] Gateway route tests.
+[x] Gateway route tests.
 [x] Smoke test script for Docker Compose.
 [x] Production failure drill Postman collection.
 ```
@@ -93,7 +93,7 @@ It tracks production-minded improvements that should be implemented as separate 
 [x] GHCR image build/push workflow.
 [x] K3s Helm chart validation in CI.
 [x] Docker image tagging strategy.
-[ ] Release tag policy.
+[x] Release tag policy.
 [x] Environment-specific deployment notes.
 [x] Day 50 production failure drill runbook.
 [x] Local-prod Docker Compose runtime.
@@ -119,3 +119,18 @@ It tracks production-minded improvements that should be implemented as separate 
 [x] K3s deploy script with smoke and rollback.
 [x] GHCR image pull secret helper script.
 ```
+
+## Latest Execution Evidence
+
+Verified on 2026-09-02 against the local portfolio stack:
+
+- `scripts/procurement-smoke.ps1` passed: customer RBAC denial, paginated supplier/PO contracts, receipt idempotency under concurrency, Inventory application once, and procurement audit actor.
+- `scripts/session-revocation-smoke.ps1` passed: Storefront logout revokes the previously issued Gateway token.
+
+These checks verify the implemented P1 business-hardening slices. Unchecked backlog entries remain intentionally open and are not implied complete by this evidence.
+P1 platform evidence added on 2026-09-02:
+
+- RabbitMQ exposes Prometheus metrics at the private broker endpoint; Prometheus scrapes queue depth and evaluates broker-down, error-queue and backlog alerts.
+- `scripts/local-prod-observability-smoke.ps1` verifies the RabbitMQ scrape target is healthy.
+- `scripts/gateway-route-security-smoke.ps1` verifies protected routes, debug/internal route concealment, ProblemDetails, and correlation response headers at the Gateway origin.
+- The remaining unchecked item is the service-wide migration of legacy business-error bodies to the ProblemDetails contract. It remains open to avoid a breaking public-contract change without compatibility coverage.

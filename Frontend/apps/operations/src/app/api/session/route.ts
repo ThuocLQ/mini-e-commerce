@@ -45,8 +45,23 @@ export async function POST(request: Request) {
   }
 }
 
-export function DELETE(request: Request) {
+export async function DELETE(request: Request) {
   if (!hasSameOrigin(request)) return message("Cross-site requests are not accepted.", 403);
+
+  const session = await getAdminSession(request);
+  if (session) {
+    try {
+      const upstream = await fetch(gatewayUrl("/auth/logout"), {
+        method: "POST",
+        headers: { Authorization: `Bearer ${session.token}`, Accept: "application/json" },
+        cache: "no-store",
+      });
+      if (!upstream.ok) return message("Sign-out could not be completed. Please try again.", 503);
+    } catch {
+      return message("Sign-out is temporarily unavailable. Please try again.", 503);
+    }
+  }
+
   const response = NextResponse.json({ success: true });
   response.cookies.set({ name: cookieName, value: "", httpOnly: true, sameSite: "lax", secure: shouldUseSecureCookies(), path: "/", expires: new Date(0) });
   return response;

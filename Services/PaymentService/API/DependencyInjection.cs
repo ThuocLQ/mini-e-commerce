@@ -4,6 +4,7 @@ using PaymentService.Application.Payments.CreatePayment;
 using PaymentService.Application.Payments.Webhooks;
 using PaymentService.Application.Payments.Providers;
 using PaymentService.Infrastructure.Clients;
+using MicroShop.ServiceDefaults.Diagnostics;
 
 namespace PaymentService.API;
 
@@ -39,51 +40,43 @@ public static class DependencyInjection
 
                 if (exception is PaymentWebhookIntegrityException)
                 {
-                    await Results.Conflict(new
-                    {
-                        error = exception.Message
-                    }).ExecuteAsync(context);
+                    await ApiProblemResults.Conflict(exception.Message, "PAYMENT_WEBHOOK_INTEGRITY_CONFLICT").ExecuteAsync(context);
                     return;
                 }
 
                 if (exception is PaymentActionIdempotencyConflictException)
                 {
-                    await Results.Conflict(new { error = exception.Message }).ExecuteAsync(context);
+                    await ApiProblemResults.Conflict(exception.Message, "PAYMENT_ACTION_IDEMPOTENCY_CONFLICT").ExecuteAsync(context);
                     return;
                 }
 
                 if (exception is PaymentOrderNotAccessibleException)
                 {
-                    await Results.NotFound(new { error = "Order was not found." }).ExecuteAsync(context);
+                    await ApiProblemResults.NotFound("Order was not found.", "ORDER_NOT_FOUND").ExecuteAsync(context);
                     return;
                 }
 
                 if (exception is ArgumentException or InvalidOperationException)
                 {
-                    await Results.BadRequest(new
-                    {
-                        error = exception.Message
-                    }).ExecuteAsync(context);
+                    await ApiProblemResults.BadRequest(exception.Message).ExecuteAsync(context);
                     return;
                 }
 
                 if (exception is UnauthorizedAccessException)
                 {
-                    await Results.Unauthorized().ExecuteAsync(context);
+                    await ApiProblemResults.Unauthorized().ExecuteAsync(context);
                     return;
                 }
 
                 if (exception is KeyNotFoundException)
                 {
-                    await Results.NotFound(new { error = exception.Message }).ExecuteAsync(context);
+                    await ApiProblemResults.NotFound(exception.Message).ExecuteAsync(context);
                     return;
                 }
 
                 if (exception is OrderServiceUnavailableException)
                 {
-                    await Results.Json(
-                        new { errorCode = "ORDERING_UNAVAILABLE", message = exception.Message },
-                        statusCode: StatusCodes.Status503ServiceUnavailable).ExecuteAsync(context);
+                    await ApiProblemResults.ServiceUnavailable(exception.Message, "ORDERING_UNAVAILABLE").ExecuteAsync(context);
                     return;
                 }
 

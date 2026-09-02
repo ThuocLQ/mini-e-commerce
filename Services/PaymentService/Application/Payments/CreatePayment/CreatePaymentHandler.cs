@@ -11,16 +11,16 @@ public sealed class CreatePaymentHandler : IRequestHandler<CreatePaymentCommand,
 {
     private readonly IPaymentRepository _repository;
     private readonly IOrderPaymentClient _orderClient;
-    private readonly IPaymentProvider _paymentProvider;
+    private readonly IPaymentProviderResolver _providers;
 
     public CreatePaymentHandler(
         IPaymentRepository repository,
         IOrderPaymentClient orderClient,
-        IPaymentProvider paymentProvider)
+        IPaymentProviderResolver providers)
     {
         _repository = repository;
         _orderClient = orderClient;
-        _paymentProvider = paymentProvider;
+        _providers = providers;
     }
 
     public async Task<CreatePaymentResult> Handle(CreatePaymentCommand request, CancellationToken cancellationToken)
@@ -35,8 +35,8 @@ public sealed class CreatePaymentHandler : IRequestHandler<CreatePaymentCommand,
             throw new UnauthorizedAccessException("Authenticated customer id is required.");
         }
 
+        var paymentProvider = _providers.Resolve(request.Provider);
         var idempotencyKey = NormalizeIdempotencyKey(request.IdempotencyKey);
-
         var order = await _orderClient.GetOrderAsync(request.OrderId, cancellationToken)
             ?? throw new PaymentOrderNotAccessibleException(request.OrderId);
 
@@ -45,21 +45,21 @@ public sealed class CreatePaymentHandler : IRequestHandler<CreatePaymentCommand,
             throw new PaymentOrderNotAccessibleException(request.OrderId);
         }
 
-        var requestHash = ComputeIntentHash(order.OrderId, order.CustomerId, order.TotalAmount, order.Currency);
+        var requestHash = ComputeIntentHash(order.OrderId, order.CustomerId, order.TotalAmount, order.Currency, paymentProvider.Name);
         var replay = await _repository.GetByCustomerAndActionIdempotencyKeyAsync(
             request.CustomerId,
             idempotencyKey,
             cancellationToken);
         if (replay is not null)
         {
-            EnsureSameIntent(replay, request.OrderId, requestHash, idempotencyKey);
+            EnsureSameIntent(replay, request.OrderId, requestHash, paymentProvider.Name, idempotencyKey);
             return ToResult(replay, isReplay: true);
         }
 
         var existingPayment = await _repository.GetByOrderIdAsync(request.OrderId, cancellationToken);
         if (existingPayment is not null)
         {
-            EnsureSameIntent(existingPayment, request.OrderId, requestHash, idempotencyKey);
+            EnsureSameIntent(existingPayment, request.OrderId, requestHash, paymentProvider.Name, idempotencyKey);
             return ToResult(existingPayment, isReplay: true);
         }
 
@@ -69,7 +69,7 @@ public sealed class CreatePaymentHandler : IRequestHandler<CreatePaymentCommand,
         }
 
         var paymentId = Guid.NewGuid();
-        var action = await _paymentProvider.CreateActionAsync(new PaymentProviderActionRequest(
+        var action = await paymentProvider.CreateActionAsync(new PaymentProviderActionRequest(
             paymentId,
             order.OrderId,
             order.TotalAmount,
@@ -81,17 +81,18 @@ public sealed class CreatePaymentHandler : IRequestHandler<CreatePaymentCommand,
             order.CustomerId,
             order.TotalAmount,
             order.Currency,
-            PaymentStatus.Pending,
+            PaymentStatus.PendingAuthorization,
             DateTime.UtcNow,
             provider: action.Provider,
             providerSessionId: action.SessionId,
             paymentActionIdempotencyKey: idempotencyKey,
             paymentActionRequestHash: requestHash,
-            paymentActionExpiresAtUtc: action.ExpiresAtUtc);
+            paymentActionExpiresAtUtc: action.ExpiresAtUtc,
+            providerCheckoutUrl: action.CheckoutUrl);
 
         var createdPayment = await _repository.CreateAsync(payment, cancellationToken);
 
-        EnsureSameIntent(createdPayment, request.OrderId, requestHash, idempotencyKey);
+        EnsureSameIntent(createdPayment, request.OrderId, requestHash, paymentProvider.Name, idempotencyKey);
         return ToResult(createdPayment, isReplay: createdPayment.Id != payment.Id);
     }
 
@@ -109,15 +110,17 @@ public sealed class CreatePaymentHandler : IRequestHandler<CreatePaymentCommand,
             new PaymentActionDto(
                 payment.Provider,
                 payment.ProviderSessionId,
+                payment.ProviderCheckoutUrl,
                 payment.Status.ToString(),
                 payment.PaymentActionExpiresAtUtc.Value,
                 string.Equals(payment.Provider, "Sandbox", StringComparison.OrdinalIgnoreCase)),
             isReplay);
     }
 
-    private static void EnsureSameIntent(Payment payment, Guid orderId, string requestHash, string idempotencyKey)
+    private static void EnsureSameIntent(Payment payment, Guid orderId, string requestHash, string providerName, string idempotencyKey)
     {
         if (payment.OrderId != orderId ||
+            !string.Equals(payment.Provider, providerName, StringComparison.OrdinalIgnoreCase) ||
             !string.Equals(payment.PaymentActionIdempotencyKey, idempotencyKey, StringComparison.Ordinal) ||
             !string.Equals(payment.PaymentActionRequestHash, requestHash, StringComparison.Ordinal))
         {
@@ -142,9 +145,9 @@ public sealed class CreatePaymentHandler : IRequestHandler<CreatePaymentCommand,
         return normalized;
     }
 
-    private static string ComputeIntentHash(Guid orderId, Guid customerId, decimal amount, string currency)
+    private static string ComputeIntentHash(Guid orderId, Guid customerId, decimal amount, string currency, string providerName)
     {
-        var intent = $"{orderId:N}|{customerId:N}|{amount:0.00}|{currency.Trim().ToUpperInvariant()}";
+        var intent = $"{orderId:N}|{customerId:N}|{amount:0.00}|{currency.Trim().ToUpperInvariant()}|{providerName.Trim().ToUpperInvariant()}";
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(intent))).ToLowerInvariant();
     }
 }

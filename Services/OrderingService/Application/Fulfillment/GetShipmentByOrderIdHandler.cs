@@ -1,0 +1,4 @@
+using MediatR; using OrderingService.Application.Abstractions;
+namespace OrderingService.Application.Fulfillment;
+public sealed class GetShipmentByOrderIdHandler(IShipmentRepository shipments):IRequestHandler<GetShipmentByOrderIdQuery,ShipmentDetailDto?>
+{ public async Task<ShipmentDetailDto?> Handle(GetShipmentByOrderIdQuery r,CancellationToken ct){var shipment=await shipments.GetByOrderIdAsync(r.OrderId,ct);if(shipment is null)return null;var history=await shipments.GetHistoryAsync(shipment.Id,ct);return new(ShipmentMapper.ToDto(shipment),history.Select(x=>new ShipmentHistoryDto(x.Id,x.PreviousStatus?.ToString(),x.CurrentStatus.ToString(),x.ActorId,x.Reason,x.OccurredAtUtc)).ToList());} }

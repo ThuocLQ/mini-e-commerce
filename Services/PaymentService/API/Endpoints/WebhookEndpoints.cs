@@ -1,5 +1,6 @@
 using System.Text;
 using Microsoft.Extensions.Options;
+using MicroShop.ServiceDefaults.Diagnostics;
 using PaymentService.Application.Payments.Webhooks;
 
 namespace PaymentService.API.Endpoints;
@@ -12,9 +13,14 @@ public static class WebhookEndpoints
             .WithTags("Webhooks");
 
         group.MapPost("/payment", HandlePaymentWebhookAsync);
-
         app.MapPost("/payments/webhooks/payment", HandlePaymentWebhookAsync)
             .WithTags("Webhooks");
+
+        if (string.Equals(app.ServiceProvider.GetRequiredService<IConfiguration>()["PaymentProvider:Provider"], "PayPal", StringComparison.OrdinalIgnoreCase))
+        {
+            group.MapPost("/paypal", HandlePayPalWebhookAsync)
+                .WithSummary("Receive verified PayPal payment lifecycle events");
+        }
 
         return app;
     }
@@ -34,12 +40,22 @@ public static class WebhookEndpoints
         }
         catch (ArgumentException exception)
         {
-            return Results.BadRequest(new { Error = exception.Message });
+            return ApiProblemResults.BadRequest(exception.Message, "PAYMENT_WEBHOOK_INVALID");
         }
 
         return result.Payment is null
-            ? Results.NotFound(new { Error = "Payment was not found." })
+            ? ApiProblemResults.NotFound("Payment was not found.", "PAYMENT_NOT_FOUND")
             : Results.Ok(result.Payment);
+    }
+
+    private static async Task<IResult> HandlePayPalWebhookAsync(
+        HttpRequest httpRequest,
+        IPayPalWebhookProcessor processor,
+        CancellationToken cancellationToken)
+    {
+        var rawBody = await ReadRawBodyAsync(httpRequest, cancellationToken);
+        var result = await processor.ProcessAsync(httpRequest.Headers, rawBody, cancellationToken);
+        return result.Payment is null ? Results.NoContent() : Results.Ok(result.Payment);
     }
 
     private static async Task<string> ReadRawBodyAsync(
@@ -54,5 +70,4 @@ public static class WebhookEndpoints
 
         return await reader.ReadToEndAsync(cancellationToken);
     }
-
 }

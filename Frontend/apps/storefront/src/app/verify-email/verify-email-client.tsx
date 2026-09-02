@@ -11,14 +11,18 @@ export function VerifyEmailClient() {
   const [state, setState] = useState<State>("verifying");
 
   useEffect(() => {
-    const token = searchParams.get("token");
-    if (!token) { setState("invalid"); return; }
+    const task = window.setTimeout(() => {
+      const token = searchParams.get("token");
+      if (!token) { setState("invalid"); return; }
 
-    void fetch("/api/email-verification", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({ token }),
-    }).then(response => setState(response.ok ? "verified" : "invalid")).catch(() => setState("invalid"));
+      void fetch("/api/email-verification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ token }),
+      }).then(response => setState(response.ok ? "verified" : "invalid")).catch(() => setState("invalid"));
+    }, 0);
+
+    return () => window.clearTimeout(task);
   }, [searchParams]);
 
   const content = state === "verifying"

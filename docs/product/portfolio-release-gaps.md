@@ -9,6 +9,23 @@
 - **PR-01 implemented, pending an end-to-end public-script run:** BFF origin checks are now fail-closed for an absent `Origin` and accept only normalized exact values from `MICROSHOP_ALLOWED_ORIGINS` or the backward-compatible `MICROSHOP_PUBLIC_ORIGIN`. The portfolio override no longer enables the Quick Tunnel wildcard. `portfolio-public-up.ps1` receives each generated URL, recreates only the two BFF containers with that exact HTTPS origin, then asserts that the configured origin reaches authentication while an untrusted origin receives 403.
 - **PR-02 implemented, pending a fresh Compose rollout:** the host proxy binding is now loopback-only. Docker-run cloudflared joins the private `microshop-local-prod_microshop-network` and sends traffic to `reverse-proxy:8080`, so it does not depend on a LAN-reachable host port. Public tunnel reconfiguration sets the two BFF cookie settings to `Secure=true`; ordinary local portfolio startup retains its explicit HTTP/`Secure=false` developer setting.
 
+## Controlled portfolio release evidence (2026-09-02)
+
+The Storefront portfolio was verified through the existing Cloudflare Quick Tunnel at
+`https://choice-thus-host-meant.trycloudflare.com`. It is a temporary demo URL, not a
+stable production hostname.
+
+- The Full Compose profile was rebuilt and recreated from the current Release images.
+- Storefront was recreated with that exact HTTPS origin and `MICROSHOP_COOKIE_SECURE=true`.
+- A synthetic user was registered and signed in through the public BFF; the session cookie
+  was verified as `Secure` and `HttpOnly`, and the public `/api/session` read succeeded.
+- An unsafe request from `https://untrusted.example` was rejected with HTTP 403.
+- Local full-flow evidence passed: customer cancellation, paid-to-delivered fulfillment with
+  Kafka-to-Mongo projection, procurement RBAC/idempotency, session revocation, gateway
+  security, observability targets, and the Storefront browser E2E baseline.
+
+Operations remains private in this release. Do not publish the Operations Portal without a
+separate exact origin and an explicit edge-access decision.
 ## Public topology observed
 
 ```text

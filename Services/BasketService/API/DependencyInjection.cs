@@ -2,6 +2,7 @@ using BasketService.API.Endpoints;
 using BasketService.Application.Catalog;
 using BasketService.Application.Baskets;
 using Microsoft.AspNetCore.Diagnostics;
+using MicroShop.ServiceDefaults.Diagnostics;
 
 namespace BasketService.API;
 
@@ -36,25 +37,19 @@ public static class DependencyInjection
 
                 if (exception is CatalogUnavailableException)
                 {
-                    await Results.Json(
-                        new
-                        {
-                            ErrorCode = "DOWNSTREAM_UNAVAILABLE",
-                            Message = "CatalogService is unavailable. Please try again later."
-                        },
-                        statusCode: StatusCodes.Status503ServiceUnavailable).ExecuteAsync(context);
+                    await ApiProblemResults.ServiceUnavailable("CatalogService is unavailable. Please try again later.", "DOWNSTREAM_UNAVAILABLE").ExecuteAsync(context);
                     return;
                 }
 
                 if (exception is BasketConcurrencyException)
                 {
-                    await Results.Conflict(new { exception.Message }).ExecuteAsync(context);
+                    await ApiProblemResults.Conflict(exception.Message, "BASKET_CONCURRENCY_CONFLICT").ExecuteAsync(context);
                     return;
                 }
 
                 if (exception is ArgumentException or InvalidOperationException)
                 {
-                    await Results.BadRequest(exception.Message).ExecuteAsync(context);
+                    await ApiProblemResults.BadRequest(exception.Message).ExecuteAsync(context);
                     return;
                 }
 

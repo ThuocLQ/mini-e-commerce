@@ -8,7 +8,7 @@ public interface ICustomerContactClient
     Task<CustomerContact?> GetAsync(Guid customerId, CancellationToken cancellationToken);
 }
 
-public sealed record CustomerContact(Guid CustomerId, string Email, bool IsEmailVerified);
+public sealed record CustomerContact(Guid CustomerId, string Email, bool IsEmailVerified, bool ReceivesOrderUpdates);
 
 public sealed class IdentityCustomerContactClient : ICustomerContactClient
 {

@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using IdentityService.Application.Addresses;
+using MicroShop.ServiceDefaults.Diagnostics;
 
 namespace IdentityService.API.Endpoints;
 public static class AddressEndpoints
@@ -8,7 +9,8 @@ public static class AddressEndpoints
     {
         var group = app.MapGroup("/me/addresses").WithTags("Addresses").RequireAuthorization();
         group.MapGet("", async (ClaimsPrincipal user, AddressService service, CancellationToken ct) => TryCustomer(user, out var id) ? Results.Ok((await service.GetAsync(id, ct)).Select(ToDto)) : Results.Forbid());
-        group.MapPost("", async (AddressRequest request, HttpRequest http, ClaimsPrincipal user, AddressService service, CancellationToken ct) => { if (!TryCustomer(user,out var id)) return Results.Forbid(); try { var address=await service.CreateAsync(id, ToInput(request), http.Headers["Idempotency-Key"].ToString(), ct); return Results.Created($"/me/addresses/{address.Id:D}", ToDto(address)); } catch (ArgumentException ex) { return Results.ValidationProblem(new Dictionary<string,string[]> { [ex.ParamName ?? "request"]=[ex.Message] }); } catch (InvalidOperationException ex) { return Results.Conflict(new { Message=ex.Message }); }});
+        group.MapPost("", async (AddressRequest request, HttpRequest http, ClaimsPrincipal user, AddressService service, CancellationToken ct) => { if (!TryCustomer(user,out var id)) return Results.Forbid(); try { var address=await service.CreateAsync(id, ToInput(request), http.Headers["Idempotency-Key"].ToString(), ct); return Results.Created($"/me/addresses/{address.Id:D}", ToDto(address)); } catch (ArgumentException ex) { return Results.ValidationProblem(new Dictionary<string,string[]> { [ex.ParamName ?? "request"]=[ex.Message] }); } catch (InvalidOperationException ex) { return ApiProblemResults.Conflict(ex.Message, "ADDRESS_CONFLICT"); }});
+        group.MapGet("/{addressId:guid}", async (Guid addressId, ClaimsPrincipal user, AddressService service, CancellationToken ct) => { if (!TryCustomer(user, out var id)) return Results.Forbid(); var address = await service.GetAsync(id, addressId, ct); return address is null || address.IsArchived ? Results.NotFound() : Results.Ok(ToDto(address)); });
         group.MapPatch("/{addressId:guid}", async (Guid addressId, AddressRequest request, ClaimsPrincipal user, AddressService service, CancellationToken ct) => { if (!TryCustomer(user,out var id)) return Results.Forbid(); try { var address=await service.UpdateAsync(id,addressId,ToInput(request),ct); return address is null ? Results.NotFound() : Results.Ok(ToDto(address)); } catch (ArgumentException ex) { return Results.ValidationProblem(new Dictionary<string,string[]> { [ex.ParamName ?? "request"]=[ex.Message] }); }});
         group.MapDelete("/{addressId:guid}", async (Guid addressId, ClaimsPrincipal user, AddressService service, CancellationToken ct) => !TryCustomer(user,out var id) ? Results.Forbid() : await service.ArchiveAsync(id,addressId,ct) ? Results.NoContent() : Results.NotFound());
         group.MapPut("/{addressId:guid}/default", async (Guid addressId, ClaimsPrincipal user, AddressService service, CancellationToken ct) => !TryCustomer(user,out var id) ? Results.Forbid() : await service.SetDefaultAsync(id,addressId,ct) ? Results.NoContent() : Results.NotFound());

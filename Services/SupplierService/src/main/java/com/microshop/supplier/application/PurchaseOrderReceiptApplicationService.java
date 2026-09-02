@@ -1,7 +1,9 @@
 package com.microshop.supplier.application;
 
 import com.microshop.supplier.application.port.InventoryReceiptClient;
+import com.microshop.supplier.application.port.ProcurementAuditRepository;
 import com.microshop.supplier.application.port.PurchaseOrderRepository;
+import com.microshop.supplier.domain.ProcurementAuditEvent;
 import com.microshop.supplier.domain.PurchaseOrder;
 import com.microshop.supplier.domain.PurchaseOrderStatus;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,6 +19,7 @@ import java.util.UUID;
 @Service
 public class PurchaseOrderReceiptApplicationService {
     private final PurchaseOrderRepository purchaseOrders;
+    private final ProcurementAuditRepository auditEvents;
     private final InventoryReceiptClient inventoryReceipts;
     private final Clock clock;
     private final TransactionTemplate transactions;
@@ -24,26 +27,30 @@ public class PurchaseOrderReceiptApplicationService {
     @Autowired
     public PurchaseOrderReceiptApplicationService(
             PurchaseOrderRepository purchaseOrders,
+            ProcurementAuditRepository auditEvents,
             InventoryReceiptClient inventoryReceipts,
             PlatformTransactionManager transactionManager) {
-        this(purchaseOrders, inventoryReceipts, Clock.systemUTC(), new TransactionTemplate(transactionManager));
+        this(purchaseOrders, auditEvents, inventoryReceipts, Clock.systemUTC(), new TransactionTemplate(transactionManager));
     }
 
     PurchaseOrderReceiptApplicationService(
             PurchaseOrderRepository purchaseOrders,
+            ProcurementAuditRepository auditEvents,
             InventoryReceiptClient inventoryReceipts,
             Clock clock,
             TransactionTemplate transactions) {
         this.purchaseOrders = purchaseOrders;
+        this.auditEvents = auditEvents;
         this.inventoryReceipts = inventoryReceipts;
         this.clock = clock;
         this.transactions = transactions;
     }
 
-    public PurchaseOrder receivePurchaseOrder(UUID purchaseOrderId) {
-        var pendingReceipt = requestReceipt(purchaseOrderId);
-        if (pendingReceipt.status() == PurchaseOrderStatus.RECEIVED) return pendingReceipt;
+    public PurchaseOrder receivePurchaseOrder(UUID purchaseOrderId, OperationContext context) {
+        var request = requestReceipt(purchaseOrderId, context);
+        if (request.purchaseOrder().status() == PurchaseOrderStatus.RECEIVED) return request.purchaseOrder();
 
+        var pendingReceipt = request.purchaseOrder();
         var response = inventoryReceipts.receive(new InventoryReceiptClient.InventoryStockReceipt(
                 pendingReceipt.receiptId(),
                 pendingReceipt.id(),
@@ -55,30 +62,44 @@ public class PurchaseOrderReceiptApplicationService {
             throw new IllegalStateException("Inventory confirmed a different receipt.");
         }
 
-        return completeReceipt(purchaseOrderId, pendingReceipt.receiptId());
+        return completeReceipt(purchaseOrderId, pendingReceipt.receiptId(), context).purchaseOrder();
     }
 
-    private PurchaseOrder requestReceipt(UUID purchaseOrderId) {
+    private ReceiptRequest requestReceipt(UUID purchaseOrderId, OperationContext context) {
         return transactions.execute(status -> {
-            var purchaseOrder = purchaseOrders.findById(purchaseOrderId)
+            var purchaseOrder = purchaseOrders.findByIdForUpdate(purchaseOrderId)
                     .orElseThrow(() -> new NoSuchElementException("Purchase order was not found."));
+            if (purchaseOrder.status() == PurchaseOrderStatus.RECEIVED || purchaseOrder.status() == PurchaseOrderStatus.RECEIPT_PENDING) {
+                return new ReceiptRequest(purchaseOrder, false);
+            }
 
-            if (purchaseOrder.status() == PurchaseOrderStatus.RECEIVED) return purchaseOrder;
-            return purchaseOrders.save(purchaseOrder.requestReceipt(Instant.now(clock)));
+            var now = Instant.now(clock);
+            var pending = purchaseOrders.save(purchaseOrder.requestReceipt(now));
+            auditEvents.save(ProcurementAuditEvent.create(
+                    pending.supplierId(), pending.id(), pending.receiptId(), "purchase-order.receipt-requested", context.actor(), context.correlationId(), now));
+            return new ReceiptRequest(pending, true);
         });
     }
 
-    private PurchaseOrder completeReceipt(UUID purchaseOrderId, UUID receiptId) {
+    private ReceiptCompletion completeReceipt(UUID purchaseOrderId, UUID receiptId, OperationContext context) {
         return transactions.execute(status -> {
-            var purchaseOrder = purchaseOrders.findById(purchaseOrderId)
+            var purchaseOrder = purchaseOrders.findByIdForUpdate(purchaseOrderId)
                     .orElseThrow(() -> new NoSuchElementException("Purchase order was not found."));
-
-            if (purchaseOrder.status() == PurchaseOrderStatus.RECEIVED) return purchaseOrder;
+            if (purchaseOrder.status() == PurchaseOrderStatus.RECEIVED) {
+                return new ReceiptCompletion(purchaseOrder, false);
+            }
             if (!receiptId.equals(purchaseOrder.receiptId())) {
                 throw new IllegalStateException("Receipt does not match the purchase order.");
             }
 
-            return purchaseOrders.save(purchaseOrder.markReceived(Instant.now(clock)));
+            var now = Instant.now(clock);
+            var received = purchaseOrders.save(purchaseOrder.markReceived(now));
+            auditEvents.save(ProcurementAuditEvent.create(
+                    received.supplierId(), received.id(), received.receiptId(), "purchase-order.received", context.actor(), context.correlationId(), now));
+            return new ReceiptCompletion(received, true);
         });
     }
+
+    private record ReceiptRequest(PurchaseOrder purchaseOrder, boolean requestedNow) { }
+    private record ReceiptCompletion(PurchaseOrder purchaseOrder, boolean completedNow) { }
 }

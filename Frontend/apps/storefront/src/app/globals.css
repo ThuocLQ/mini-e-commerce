@@ -29,3 +29,91 @@ button:focus-visible, input:focus-visible {
   outline: 3px solid color-mix(in srgb, var(--accent) 45%, white);
   outline-offset: 2px;
 }
+
+html { scroll-behavior: smooth; }
+
+.store-nav-link {
+  display: inline-flex;
+  height: 2.25rem;
+  align-items: center;
+  padding: 0 0.75rem;
+  color: var(--muted);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+.store-nav-link:hover { color: var(--foreground); }
+.store-icon-button {
+  display: grid;
+  height: 2.25rem;
+  width: 2.25rem;
+  place-items: center;
+  color: var(--foreground);
+}
+.store-icon-button:hover { background: #f1f3f0; }
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  color: var(--accent);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.store-primary-button, .store-secondary-button, .store-add-button, .store-text-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  font-size: 0.875rem;
+  font-weight: 650;
+  transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease;
+}
+.store-primary-button { background: var(--foreground); color: white; padding: 0 1.125rem; }
+.store-primary-button:hover { background: #303b31; }
+.store-secondary-button { border: 1px solid var(--foreground); color: var(--foreground); padding: 0 1.125rem; }
+.store-secondary-button:hover { background: #f1f3f0; }
+.store-add-button { width: 100%; background: var(--accent); color: white; padding: 0 1rem; }
+.store-add-button:hover { background: var(--accent-strong); }
+.store-add-button:disabled { cursor: not-allowed; background: #9aafa2; }
+.store-text-action { color: var(--accent); }
+.store-text-action:hover { text-decoration: underline; }
+.store-category-chip {
+  flex: 0 0 auto;
+  min-height: 2.5rem;
+  border: 1px solid var(--line);
+  padding: 0 1rem;
+  color: var(--foreground);
+  font-size: 0.875rem;
+  font-weight: 600;
+  background: white;
+}
+.store-category-chip:hover, .store-category-chip.is-active { border-color: var(--foreground); background: var(--foreground); color: white; }
+.store-search {
+  display: flex;
+  height: 2.875rem;
+  width: 100%;
+  max-width: 25rem;
+  align-items: center;
+  gap: 0.625rem;
+  border-bottom: 1px solid var(--foreground);
+  color: var(--muted);
+}
+.store-search input { width: 100%; background: transparent; color: var(--foreground); font-size: 0.9375rem; outline: none; }
+.store-search input::placeholder { color: #7b857d; }
+.store-product-card { min-width: 0; background: transparent; }
+.store-product-media {
+  display: grid;
+  aspect-ratio: 4 / 4.4;
+  place-items: center;
+  overflow: hidden;
+  background: #edf1ee;
+  padding: 1.5rem;
+}
+.store-product-media img { transition: transform 250ms ease; }
+.store-product-card:hover .store-product-media img { transform: scale(1.025); }
+@media (max-width: 640px) {
+  .store-search { max-width: none; }
+  .store-product-media { padding: 1rem; }
+}

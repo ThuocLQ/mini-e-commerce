@@ -63,7 +63,7 @@ export function ProductPurchaseActions({ product }: { product: CatalogProduct })
   }
 
   return <div className="space-y-3">
-    <button className="inline-flex h-11 w-full items-center justify-center gap-2 bg-[var(--accent)] px-4 text-sm font-semibold text-white hover:bg-[var(--accent-strong)] disabled:cursor-not-allowed disabled:bg-[#8ba89b] sm:w-auto" disabled={isWorking} onClick={() => void addToCart()} type="button">
+    <button className="store-primary-button w-full disabled:cursor-not-allowed disabled:bg-[#8ba89b] sm:w-auto" disabled={isWorking} onClick={() => void addToCart()} type="button">
       {isWorking ? <LoaderCircle aria-hidden="true" className="animate-spin" size={17} /> : <ShoppingBag aria-hidden="true" size={17} />}
       {isWorking ? "Adding to cart" : "Add to cart"}
     </button>

@@ -11,6 +11,7 @@ public sealed class Payment
     public string? ProviderTransactionId { get; private set; }
     public string? Provider { get; }
     public string? ProviderSessionId { get; }
+    public string? ProviderCheckoutUrl { get; }
     public string? PaymentActionIdempotencyKey { get; }
     public string? PaymentActionRequestHash { get; }
     public DateTime? PaymentActionExpiresAtUtc { get; }
@@ -47,7 +48,8 @@ public sealed class Payment
         string? providerSessionId = null,
         string? paymentActionIdempotencyKey = null,
         string? paymentActionRequestHash = null,
-        DateTime? paymentActionExpiresAtUtc = null)
+        DateTime? paymentActionExpiresAtUtc = null,
+        string? providerCheckoutUrl = null)
     {
         if (id == Guid.Empty) throw new ArgumentException("Payment id cannot be empty.", nameof(id));
         if (orderId == Guid.Empty) throw new ArgumentException("Order id cannot be empty.", nameof(orderId));
@@ -67,6 +69,7 @@ public sealed class Payment
         PaymentActionIdempotencyKey = string.IsNullOrWhiteSpace(paymentActionIdempotencyKey) ? null : paymentActionIdempotencyKey.Trim();
         PaymentActionRequestHash = string.IsNullOrWhiteSpace(paymentActionRequestHash) ? null : paymentActionRequestHash.Trim().ToLowerInvariant();
         PaymentActionExpiresAtUtc = paymentActionExpiresAtUtc;
+        ProviderCheckoutUrl = NormalizeCheckoutUrl(providerCheckoutUrl);
 
         if (PaymentActionIdempotencyKey?.Length > 128)
         {
@@ -77,6 +80,11 @@ public sealed class Payment
             (PaymentActionRequestHash.Length != 64 || PaymentActionRequestHash.Any(character => !Uri.IsHexDigit(character))))
         {
             throw new ArgumentException("Payment action request hash must be a SHA-256 hexadecimal value.", nameof(paymentActionRequestHash));
+        }
+
+        if (ProviderCheckoutUrl is not null && ProviderSessionId is null)
+        {
+            throw new ArgumentException("A hosted checkout URL requires a provider session.", nameof(providerCheckoutUrl));
         }
 
         if (ProviderSessionId is not null && PaymentActionExpiresAtUtc is null)
@@ -261,6 +269,21 @@ public sealed class Payment
         CompletedAtUtc = completedAtUtc;
     }
 
+    private static string? NormalizeCheckoutUrl(string? providerCheckoutUrl)
+    {
+        if (string.IsNullOrWhiteSpace(providerCheckoutUrl))
+        {
+            return null;
+        }
+
+        if (!Uri.TryCreate(providerCheckoutUrl.Trim(), UriKind.Absolute, out var checkoutUri) ||
+            !string.Equals(checkoutUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ArgumentException("Provider checkout URL must be an absolute HTTPS URL.", nameof(providerCheckoutUrl));
+        }
+
+        return checkoutUri.ToString();
+    }
     private void SetProviderTransactionId(string providerTransactionId)
     {
         if (string.IsNullOrWhiteSpace(providerTransactionId))

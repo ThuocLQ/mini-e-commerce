@@ -29,6 +29,7 @@ public class JwtTokenGenerator : IJwtTokenGenerator
         {
             new(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
             new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString("N")),
+            new("microshop_session_version", user.SessionVersion.ToString(System.Globalization.CultureInfo.InvariantCulture)),
             new(JwtRegisteredClaimNames.Name, user.UserName),
             new(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new(ClaimTypes.Name, user.UserName),

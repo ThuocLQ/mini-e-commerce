@@ -1,6 +1,7 @@
 "use client";
 
 import { AlertTriangle, LoaderCircle, Minus, Plus, RefreshCw, ShoppingBag, Trash2, X } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 import { AddressSelection, type AddressLoadState } from "@/components/address-selection";
 import type { AddressInput, Basket, CheckoutQuote, CustomerAddress, OrderSummary } from "@/lib/storefront/types";
@@ -72,12 +73,9 @@ export function BasketPanel({
 }: BasketPanelProps) {
   const items = basket?.items ?? [];
   const [couponCode, setCouponCode] = useState("");
-  const quoteExpiresAt = quote ? Date.parse(quote.expiresAtUtc) : Number.NaN;
-  const quoteIsExpired = quote !== null && (!Number.isFinite(quoteExpiresAt) || quoteExpiresAt <= Date.now());
   const canCreateOrder = Boolean(
     quote?.canCheckout
     && quote.quoteToken
-    && !quoteIsExpired
     && selectedAddressId
     && !isCheckingOut
     && !isReviewingCheckout,
@@ -86,12 +84,10 @@ export function BasketPanel({
     ? "Select a delivery address before reviewing the order."
     : !quote
       ? "Review the order to confirm current price and availability before creating it."
-      : quoteIsExpired
-        ? "The review expired. Review the order again before creating it."
         : !quote.canCheckout
           ? "Resolve the review issues above before creating the order."
           : null;
-  const checkoutHintTone = !selectedAddressId || quoteIsExpired || quote?.canCheckout === false ? "text-[var(--danger)]" : "text-[var(--muted)]";
+  const checkoutHintTone = !selectedAddressId || quote?.canCheckout === false ? "text-[var(--danger)]" : "text-[var(--muted)]";
 
   return (
     <div className="fixed inset-0 z-40 flex justify-end bg-black/35" role="presentation">
@@ -110,7 +106,7 @@ export function BasketPanel({
 
         {loadState === "loading" ? (
           <div aria-live="polite" className="grid flex-1 place-items-center px-8 text-center text-[var(--muted)]">
-            <div><LoaderCircle aria-hidden="true" className="mx-auto animate-spin" size={26} /><p className="mt-3 text-sm">Loading your cart…</p></div>
+            <div><LoaderCircle aria-hidden="true" className="mx-auto animate-spin" size={26} /><p className="mt-3 text-sm">Loading your cartâ€¦</p></div>
           </div>
         ) : loadState === "unavailable" ? (
           <div className="grid flex-1 place-items-center px-8 text-center">
@@ -165,7 +161,8 @@ export function BasketPanel({
           {quote ? <section aria-live="polite" className="mt-4 border border-[var(--line)] bg-[#f7faf8] p-3 text-sm"><div className="flex items-center justify-between gap-3 font-semibold"><span>Reviewed total</span><span>{money.format(quote.totalAmount)}</span></div><p className="mt-1 text-xs leading-5 text-[var(--muted)]">{quote.coupon.message}</p>{quote.items.some((item) => item.priceChanged) ? <p className="mt-2 text-xs font-medium text-[#9a5b11]">Current catalog pricing changed from the basket snapshot.</p> : null}{quote.issues.length > 0 ? <ul className="mt-2 space-y-1 text-xs text-[var(--danger)]">{quote.issues.map((issue) => <li key={`${issue.code}:${issue.productId ?? "order"}`}>{issue.message}</li>)}</ul> : null}{quote.finalRevalidationRequired ? <p className="mt-2 text-xs text-[var(--muted)]">Pricing and availability are checked again when the order is created.</p> : null}</section> : null}
           <p className="mt-3 text-xs leading-5 text-[var(--muted)]">Review uses current catalog, promotion, and inventory data. It does not reserve stock or a promotion.</p>
           {checkoutHint ? <p className={`mt-2 text-xs font-medium ${checkoutHintTone}`} id="create-order-hint" role="status">{checkoutHint}</p> : null}
-          <button className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 border border-[var(--accent)] px-4 text-sm font-semibold text-[var(--accent)] hover:bg-[#e9f2ed] disabled:cursor-not-allowed disabled:border-[#b5beb6] disabled:text-[#8b948d]" disabled={items.length === 0 || isCheckingOut || isReviewingCheckout || addressLoadState !== "ready" || !selectedAddressId} onClick={() => selectedAddressId && onReview(couponCode, selectedAddressId)} type="button">{isReviewingCheckout ? <span className="animate-pulse">Reviewing order</span> : quote ? "Review order again" : "Review order"}</button>
+          <Link className="mt-4 inline-flex h-11 w-full items-center justify-center border border-[var(--line)] px-4 text-sm font-semibold text-[var(--accent)] hover:bg-[#f3f5f2]" href="/checkout">Open full checkout</Link>
+          <button className="mt-2 inline-flex h-11 w-full items-center justify-center gap-2 border border-[var(--accent)] px-4 text-sm font-semibold text-[var(--accent)] hover:bg-[#e9f2ed] disabled:cursor-not-allowed disabled:border-[#b5beb6] disabled:text-[#8b948d]" disabled={items.length === 0 || isCheckingOut || isReviewingCheckout || addressLoadState !== "ready" || !selectedAddressId} onClick={() => selectedAddressId && onReview(couponCode, selectedAddressId)} type="button">{isReviewingCheckout ? <span className="animate-pulse">Reviewing order</span> : quote ? "Review order again" : "Review order"}</button>
           <button aria-describedby={checkoutHint ? "create-order-hint" : undefined} className="mt-2 inline-flex h-11 w-full items-center justify-center gap-2 bg-[var(--accent)] px-4 text-sm font-semibold text-white hover:bg-[var(--accent-strong)] disabled:cursor-not-allowed disabled:bg-[#8ba89b]" disabled={items.length === 0 || !canCreateOrder} onClick={() => selectedAddressId && onCheckout(couponCode, selectedAddressId)} title={checkoutHint ?? undefined} type="button">{isCheckingOut ? <span className="animate-pulse">Creating order</span> : "Create order"}</button>
         </footer> : null}
       </aside>

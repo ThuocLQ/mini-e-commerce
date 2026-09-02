@@ -64,3 +64,9 @@ Auth and authorization error consistency.
 Gateway-level normalization if needed.
 OpenAPI examples if OpenAPI is enabled later.
 ```
+
+## P1 Completion
+
+All ASP.NET Core services register ProblemDetails. `ApiProblemResults` is the compatibility adapter for structured public business errors: it returns RFC ProblemDetails fields plus temporary `code`, `message`, and `error` extensions for unversioned BFF consumers. `MicroShop.ServiceDefaults` converts bare 401/403/404 responses without a body into ProblemDetails. Gateway also writes a ProblemDetails response for JWT challenge, rate limit, and blocked debug/internal routes.
+
+The compatibility extensions may be removed only through a versioned API migration after Storefront and Operations consumers no longer read them.

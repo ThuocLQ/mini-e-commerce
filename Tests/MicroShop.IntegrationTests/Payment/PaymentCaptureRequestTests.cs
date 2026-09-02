@@ -39,6 +39,33 @@ public sealed class PaymentCaptureRequestTests
     }
 
     [Fact]
+    public async Task CaptureRequest_RecordsOneOperationalAuditAction_WhenEventIsReplayed()
+    {
+        var payment = CreateAuthorizedPayment();
+        var actions = new RecordingOperationalActionRepository();
+        var handler = new RequestPaymentCaptureHandler(
+            new InlineUnitOfWork(),
+            new StubPaymentRepository(payment),
+            new RecordingInboxRepository(),
+            operationalActionRepository: actions);
+        var command = new RequestPaymentCaptureCommand(
+            Guid.NewGuid(),
+            payment.Id,
+            payment.OrderId,
+            payment.CustomerId,
+            payment.Amount,
+            payment.Currency,
+            DateTime.UtcNow);
+
+        await handler.Handle(command, TestContext.Current.CancellationToken);
+        await handler.Handle(command, TestContext.Current.CancellationToken);
+
+        var action = Assert.Single(actions.Actions);
+        Assert.Equal(payment.Id, action.PaymentId);
+        Assert.Equal("Capture", action.ActionType);
+        Assert.Equal("OrderingSaga", action.RequestedBy);
+    }
+    [Fact]
     public async Task CaptureRequest_WithDifferentAmount_IsRejectedBeforeInboxWrite()
     {
         var payment = CreateAuthorizedPayment();
@@ -133,6 +160,9 @@ public sealed class PaymentCaptureRequestTests
         public Task<PaymentService.Domain.Payments.Payment?> GetByOrderIdAsync(Guid orderId, CancellationToken cancellationToken = default) =>
             Task.FromResult<PaymentService.Domain.Payments.Payment?>(orderId == payment.OrderId ? payment : null);
 
+        public Task<PaymentService.Domain.Payments.Payment?> GetByProviderSessionIdAsync(string provider, string providerSessionId, CancellationToken cancellationToken = default) =>
+            Task.FromResult<PaymentService.Domain.Payments.Payment?>(string.Equals(provider, payment.Provider, StringComparison.OrdinalIgnoreCase) && providerSessionId == payment.ProviderSessionId ? payment : null);
+
         public Task<PaymentService.Domain.Payments.Payment?> GetByCustomerAndActionIdempotencyKeyAsync(
             Guid customerId,
             string idempotencyKey,
@@ -160,6 +190,47 @@ public sealed class PaymentCaptureRequestTests
             Task.FromResult(EventIds.Add(eventId));
     }
 
+    private sealed class RecordingOperationalActionRepository : IPaymentOperationalActionRepository
+    {
+        public List<PaymentOperationalAction> Actions { get; } = [];
+
+        public Task CreateAsync(
+            PaymentOperationalAction action,
+            IDbTransaction transaction,
+            CancellationToken cancellationToken = default)
+        {
+            Actions.Add(action);
+            return Task.CompletedTask;
+        }
+
+        public Task CompleteLatestPendingAsync(
+            Guid paymentId,
+            string actionType,
+            DateTime completedAtUtc,
+            CancellationToken cancellationToken = default)
+        {
+            var action = Actions
+                .Where(candidate => candidate.PaymentId == paymentId &&
+                                    string.Equals(candidate.ActionType, actionType, StringComparison.OrdinalIgnoreCase) &&
+                                    candidate.CompletedAtUtc is null)
+                .OrderByDescending(candidate => candidate.RequestedAtUtc)
+                .FirstOrDefault();
+
+            if (action is not null)
+            {
+                var index = Actions.IndexOf(action);
+                Actions[index] = action with { CompletedAtUtc = completedAtUtc, FailureReason = null };
+            }
+
+            return Task.CompletedTask;
+        }
+
+        public Task<IReadOnlyList<PaymentOperationalAction>> GetByPaymentIdAsync(
+            Guid paymentId,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<PaymentOperationalAction>>(
+                Actions.Where(action => action.PaymentId == paymentId).ToList());
+    }
     private sealed class StubTransaction : IDbTransaction
     {
         public IDbConnection? Connection => null;

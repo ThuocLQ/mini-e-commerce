@@ -28,6 +28,7 @@ public static class DependencyInjection
         services.AddSingleton<IDatabaseInitializer, PostgresDatabaseInitializer>();
         services.AddScoped<IOrderingUnitOfWork, DapperOrderingUnitOfWork>();
         services.AddScoped<IOrderRepository, DapperOrderRepository>();
+        services.AddScoped<IShipmentRepository, DapperShipmentRepository>();
         services.AddScoped<IOrderPaymentSagaRepository, DapperOrderPaymentSagaRepository>();
         services.AddScoped<IInboxRepository, DapperInboxRepository>();
         services.AddScoped<IOutboxRepository, DapperOutboxRepository>();

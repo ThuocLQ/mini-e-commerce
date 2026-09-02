@@ -1,6 +1,7 @@
 using MediatR;
 using OrderingService.API.Contracts;
 using OrderingService.Application.OrderPaymentSagas.ApplyPaymentEvent;
+using MicroShop.ServiceDefaults.Diagnostics;
 
 namespace OrderingService.API.Endpoints;
 
@@ -21,10 +22,7 @@ public static class PaymentSagaEndpoints
         {
             if (!TryParseEventType(request.EventType, out var eventType))
             {
-                return Results.BadRequest(new
-                {
-                    Error = "EventType must be 'PaymentAuthorized', 'PaymentCaptured', 'PaymentVoided', 'PaymentRefunded', 'PaymentSucceeded', 'PaymentFailed', or 'PaymentTimedOut'."
-                });
+                return ApiProblemResults.BadRequest("EventType must be 'PaymentAuthorized', 'PaymentCaptured', 'PaymentVoided', 'PaymentRefunded', 'PaymentSucceeded', 'PaymentFailed', or 'PaymentTimedOut'.", "PAYMENT_EVENT_TYPE_INVALID");
             }
 
             var result = await sender.Send(new ApplyPaymentSagaEventCommand(

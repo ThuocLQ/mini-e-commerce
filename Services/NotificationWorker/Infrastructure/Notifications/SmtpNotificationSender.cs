@@ -36,9 +36,9 @@ public sealed class SmtpNotificationSender : INotificationSender
     private async Task SendLifecycleAsync(Guid customerId, string subject, string body, Guid eventId, Guid orderId, CancellationToken cancellationToken)
     {
         var contact = await _contacts.GetAsync(customerId, cancellationToken);
-        if (contact is null || !contact.IsEmailVerified)
+        if (contact is null || !contact.IsEmailVerified || !contact.ReceivesOrderUpdates)
         {
-            _logger.LogInformation("Skipping lifecycle email notification because customer contact is unavailable or unverified. EventId={EventId}, OrderId={OrderId}, CustomerId={CustomerId}", eventId, orderId, customerId);
+            _logger.LogInformation("Skipping lifecycle email notification because customer contact is unavailable, unverified, or opted out. EventId={EventId}, OrderId={OrderId}, CustomerId={CustomerId}", eventId, orderId, customerId);
             return;
         }
         await SendMessageAsync(contact.Email, subject, body, eventId, customerId, orderId, cancellationToken);

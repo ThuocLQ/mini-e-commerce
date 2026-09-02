@@ -1,73 +1,31 @@
 using NotificationWorker.Application.Abstractions;
+using NotificationWorker.Application.Notifications;
 
 namespace NotificationWorker.Application.Notifications.HandleOrderCreated;
 
 public sealed class OrderCreatedNotificationHandler
 {
-    private readonly IProcessedEventStore _processedEventStore;
-    private readonly INotificationSender _notificationSender;
-    private readonly ILogger<OrderCreatedNotificationHandler> _logger;
+    private readonly NotificationDeliveryProcessor _processor;
+    private readonly INotificationSender _sender;
 
     public OrderCreatedNotificationHandler(
-        IProcessedEventStore processedEventStore,
-        INotificationSender notificationSender,
-        ILogger<OrderCreatedNotificationHandler> logger)
+        NotificationDeliveryProcessor processor,
+        INotificationSender sender)
     {
-        _processedEventStore = processedEventStore;
-        _notificationSender = notificationSender;
-        _logger = logger;
+        _processor = processor;
+        _sender = sender;
     }
 
-    public async Task HandleAsync(OrderCreatedNotification notification, CancellationToken cancellationToken)
-    {
-        var acquisition = await _processedEventStore.TryStartProcessingAsync(
-            notification.EventId,
+    public Task HandleAsync(OrderCreatedNotification notification, CancellationToken cancellationToken) =>
+        _processor.ProcessAsync(
+            new NotificationDelivery(
+                notification.EventId,
+                "microshop.order.created",
+                "order-created",
+                "email",
+                notification.CustomerId,
+                notification.OrderId,
+                notification.CorrelationId),
+            token => _sender.SendOrderCreatedAsync(notification, token),
             cancellationToken);
-
-        if (acquisition.Result == ProcessedEventStartResult.AlreadyProcessed)
-        {
-            _logger.LogInformation(
-                "Skipping duplicate OrderCreatedIntegrationEvent. EventId={EventId}, OrderId={OrderId}",
-                notification.EventId,
-                notification.OrderId);
-
-            return;
-        }
-
-        if (acquisition.Result == ProcessedEventStartResult.AlreadyProcessing)
-        {
-            _logger.LogWarning(
-                "Deferring concurrent OrderCreatedIntegrationEvent delivery until its processing lease is released. EventId={EventId}, OrderId={OrderId}",
-                notification.EventId,
-                notification.OrderId);
-
-            throw new NotificationProcessingInProgressException(notification.EventId);
-        }
-
-        var leaseToken = acquisition.LeaseToken
-            ?? throw new InvalidOperationException("A started notification event must include a processing lease token.");
-
-        try
-        {
-            await _notificationSender.SendOrderCreatedAsync(notification, cancellationToken);
-            var markedProcessed = await _processedEventStore.MarkAsProcessedAsync(
-                notification.EventId,
-                leaseToken,
-                cancellationToken);
-
-            if (!markedProcessed)
-            {
-                throw new InvalidOperationException(
-                    $"Notification processing lease was lost before event {notification.EventId:D} could be completed.");
-            }
-        }
-        catch
-        {
-            await _processedEventStore.MarkAsFailedAsync(
-                notification.EventId,
-                leaseToken,
-                cancellationToken);
-            throw;
-        }
-    }
 }

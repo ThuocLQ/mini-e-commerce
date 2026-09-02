@@ -42,3 +42,12 @@ Secret rotation.
 ## Production Direction
 
 Keep the local JWT foundation for learning, then move authentication to an external Identity Provider when the project reaches a deeper production-hardening stage.
+
+## P1 Verification
+
+Verified for the current local-JWT boundary:
+
+- Passwords are only passed to the hashing abstraction and are not logged by Identity endpoints.
+- Signing key, issuer, audience and expiration are configuration-driven; non-development starts fail when required secrets are absent or placeholders are used.
+- `/auth/me` requires a valid bearer token; Storefront logout increments the session version and invalidates the prior token.
+- Claims are limited to subject, username, role and session version. Fine-grained permissions, refresh tokens, lockout and external OIDC remain later capabilities.

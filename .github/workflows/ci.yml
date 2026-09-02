@@ -94,6 +94,52 @@ jobs:
         working-directory: Frontend/apps/${{ matrix.app }}
         run: pnpm build
 
+  frontend-browser-e2e:
+    name: Storefront browser E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs:
+      - frontend-build-test
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Setup pnpm
+        run: corepack enable && corepack prepare pnpm@11.19.0 --activate
+
+      - name: Install Storefront dependencies
+        working-directory: Frontend/apps/storefront
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Storefront
+        working-directory: Frontend/apps/storefront
+        run: pnpm build
+
+      - name: Install browser E2E dependencies
+        working-directory: Frontend/e2e
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Chromium
+        working-directory: Frontend/e2e
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run Storefront browser E2E
+        working-directory: Frontend/e2e
+        run: pnpm test
+
+      - name: Upload browser test report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: storefront-browser-e2e-report
+          path: Frontend/e2e/playwright-report
+          if-no-files-found: ignore
   runtime-validation:
     name: Runtime validation
     runs-on: ubuntu-latest
@@ -128,8 +174,14 @@ jobs:
             "scripts/local-prod-observability-up.ps1",
             "scripts/local-prod-rc-verify.ps1",
             "scripts/local-prod-smoke.ps1",
+            "scripts/gateway-route-security-smoke.ps1",
+            "scripts/notification-delivery-smoke.ps1",
+            "scripts/notification-dead-letter-smoke.ps1",
+            "scripts/notification-preference-smoke.ps1",
+            "scripts/procurement-smoke.ps1",
             "scripts/local-prod-up.ps1",
             "scripts/portfolio-customer-smoke.ps1",
+            "scripts/session-revocation-smoke.ps1",
             "scripts/portfolio-seed.ps1",
             "scripts/portfolio-up.ps1",
             "scripts/portfolio-public-up.ps1",

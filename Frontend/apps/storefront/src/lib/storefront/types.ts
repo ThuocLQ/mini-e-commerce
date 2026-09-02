@@ -3,6 +3,7 @@ export type CurrentUser = {
   userName: string;
   role: string;
   isEmailVerified: boolean;
+  receiveOrderUpdates: boolean;
 };
 
 export type BasketItem = {
@@ -83,6 +84,7 @@ export type PaymentSummary = {
   createdAtUtc: string;
   completedAtUtc: string | null;
   provider: string | null;
+  providerCheckoutUrl: string | null;
   paymentActionExpiresAtUtc: string | null;
 };
 export type CheckoutQuote = {

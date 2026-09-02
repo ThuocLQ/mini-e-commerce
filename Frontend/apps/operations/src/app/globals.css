@@ -57,3 +57,11 @@ nav { display:grid; gap:4px; margin-top:36px; } nav a, .nav-disabled { min-heigh
 
 .workspace-shell .workspace { padding:30px clamp(20px,4vw,56px); }.workspace-shell .orders-page { min-height:auto; max-width:1400px; margin:0; padding:0; }.workspace-nav a { white-space:nowrap; }
 @media (max-width:760px) { .sidebar { position:sticky; top:0; z-index:5; display:grid; grid-template-columns:minmax(0,1fr) auto; gap:10px; box-shadow:0 1px 0 rgb(0 0 0 / .15); }.sidebar .workspace-nav { display:flex; grid-column:1 / -1; order:3; gap:6px; margin:0; overflow-x:auto; padding-bottom:2px; }.sidebar .workspace-nav a { flex:0 0 auto; min-height:36px; padding:0 8px; }.sidebar .operator { margin:0; padding:0; align-self:center; }.sidebar .operator span { max-width:96px; }.workspace-shell .workspace { padding:22px 16px; } }
+
+.audit-reason { white-space:normal; overflow:visible; text-overflow:clip; }
+
+.fulfillment-cell { display:grid; gap:8px; min-width:220px; }.fulfillment-cell .history-button { width:max-content; }.fulfillment-cell input { min-height:36px; max-width:160px; border:1px solid var(--line); padding:0 8px; }.shipment-history { display:grid; gap:7px; margin:0; padding:8px 0 0; list-style:none; border-top:1px solid var(--line); }.shipment-history li { display:grid; gap:3px; font-size:12px; }.shipment-history span { white-space:normal; color:var(--muted); }
+
+.payment-queue-heading { margin-top: 1.5rem; }
+.button-group { display: flex; flex-wrap: wrap; gap: .5rem; }
+.command.active { border-color: var(--accent); background: var(--accent); color: #fff; }

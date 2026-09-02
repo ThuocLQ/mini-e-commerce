@@ -1,5 +1,3 @@
-using System.Net.Mime;
-
 namespace ApiGateway;
 
 public static class SecurityMiddlewareExtensions
@@ -34,12 +32,12 @@ public static class SecurityMiddlewareExtensions
                 !context.RequestServices.GetRequiredService<IHostEnvironment>().IsDevelopment() &&
                 context.Request.Path.StartsWithSegments("/debug"))
             {
-                context.Response.StatusCode = StatusCodes.Status404NotFound;
-                context.Response.ContentType = MediaTypeNames.Application.Json;
-                await context.Response.WriteAsJsonAsync(new
-                {
-                    error = "Debug routes are not available in this environment."
-                });
+                await Results.Problem(
+                        statusCode: StatusCodes.Status404NotFound,
+                        title: "Not found",
+                        type: "https://microshop.dev/problems/debug-route-not-available",
+                        detail: "Debug routes are not available in this environment.")
+                    .ExecuteAsync(context);
                 return;
             }
 
@@ -47,12 +45,12 @@ public static class SecurityMiddlewareExtensions
                 !context.RequestServices.GetRequiredService<IHostEnvironment>().IsDevelopment() &&
                 IsInternalRoute(context.Request.Path))
             {
-                context.Response.StatusCode = StatusCodes.Status404NotFound;
-                context.Response.ContentType = MediaTypeNames.Application.Json;
-                await context.Response.WriteAsJsonAsync(new
-                {
-                    error = "Internal routes are not available through the public gateway in this environment."
-                });
+                await Results.Problem(
+                        statusCode: StatusCodes.Status404NotFound,
+                        title: "Not found",
+                        type: "https://microshop.dev/problems/internal-route-not-available",
+                        detail: "Internal routes are not available through the public gateway in this environment.")
+                    .ExecuteAsync(context);
                 return;
             }
 

@@ -1,5 +1,6 @@
 using DiscountService.API.Endpoints;
 using Microsoft.AspNetCore.Diagnostics;
+using MicroShop.ServiceDefaults.Diagnostics;
 
 namespace DiscountService.API;
 
@@ -30,10 +31,7 @@ public static class DependencyInjection
 
                 if (exception is ArgumentException or InvalidOperationException)
                 {
-                    await Results.BadRequest(new
-                    {
-                        error = exception.Message
-                    }).ExecuteAsync(context);
+                    await ApiProblemResults.BadRequest(exception.Message).ExecuteAsync(context);
                     return;
                 }
 

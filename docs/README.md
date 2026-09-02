@@ -4,6 +4,8 @@ This page is the entrypoint for MicroShop documentation.
 
 Use it when you are new to the codebase and do not know which document to read first.
 
+> Before proposing or implementing a feature, read [product/canonical-system-design.md](product/canonical-system-design.md) for product scope and [governance/README.md](governance/README.md) for roles, delivery process, and mandatory quality gates.
+
 ## Start Here
 
 Read these in order:
@@ -22,6 +24,10 @@ Read these in order:
 | 10 | [database/migration-policy.md](database/migration-policy.md) | Database migration and schema evolution policy |
 
 ## Read By Goal
+
+| Commerce P0 delivery | [product/p0-customer-commerce-experience-spec.md](product/p0-customer-commerce-experience-spec.md), [product/p0-commerce-delivery-board.md](product/p0-commerce-delivery-board.md) |
+
+| Plan, review, or implement a material feature | [product/canonical-system-design.md](product/canonical-system-design.md), [governance/README.md](governance/README.md), [governance/feature-spec-template.md](governance/feature-spec-template.md) |
 
 | Goal | Read |
 | --- | --- |

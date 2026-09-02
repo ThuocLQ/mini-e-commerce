@@ -12,6 +12,7 @@ using BasketService.Application.Baskets.UpdateBasketItemQuantity;
 using BasketService.Application.Baskets.ValidateCatalogProduct;
 using BasketService.Application.Catalog;
 using MediatR;
+using MicroShop.ServiceDefaults.Diagnostics;
 using System.Security.Claims;
 
 namespace BasketService.API.Endpoints;
@@ -95,7 +96,7 @@ public static class BasketEndpoints
             }
             catch (ArgumentException ex)
             {
-                return Results.BadRequest(ex.Message);
+                return ApiProblemResults.BadRequest(ex.Message);
             }
         });
 
@@ -140,10 +141,7 @@ public static class BasketEndpoints
                 new CheckoutBasketCommand(userId, expectedVersion),
                 cancellationToken);
 
-            return cleared ? Results.NoContent() : Results.Conflict(new
-            {
-                Message = "Basket changed after checkout started and was not cleared."
-            });
+            return cleared ? Results.NoContent() : ApiProblemResults.Conflict("Basket changed after checkout started and was not cleared.", "BASKET_CHECKOUT_CONFLICT");
         });
 
         group.MapGet("/basket/products/{productId}/validate", async (
@@ -207,7 +205,7 @@ public static class BasketEndpoints
             }
             catch (ArgumentException ex)
             {
-                return Results.BadRequest(ex.Message);
+                return ApiProblemResults.BadRequest(ex.Message);
             }
         });
 
@@ -231,11 +229,11 @@ public static class BasketEndpoints
         }
         catch (ArgumentException ex)
         {
-            return Results.BadRequest(ex.Message);
+            return ApiProblemResults.BadRequest(ex.Message);
         }
         catch (ProductNotFoundException ex)
         {
-            return Results.NotFound(ex.Message);
+            return ApiProblemResults.NotFound(ex.Message, "PRODUCT_NOT_FOUND");
         }
         catch (CatalogUnavailableException)
         {
@@ -251,10 +249,7 @@ public static class BasketEndpoints
     {
         if (string.IsNullOrWhiteSpace(productId))
         {
-            return Results.BadRequest(new CatalogProductValidateErrors
-            {
-                Message = "ProductId is required."
-            });
+            return ApiProblemResults.BadRequest("ProductId is required.", "PRODUCT_ID_REQUIRED");
         }
 
         try
@@ -296,7 +291,7 @@ public static class BasketEndpoints
         }
         catch (ArgumentException ex)
         {
-            return Results.BadRequest(ex.Message);
+            return ApiProblemResults.BadRequest(ex.Message);
         }
         catch (CatalogUnavailableException)
         {
@@ -325,12 +320,6 @@ public static class BasketEndpoints
 
     private static IResult DownstreamUnavailable()
     {
-        return Results.Json(
-            new
-            {
-                ErrorCode = "DOWNSTREAM_UNAVAILABLE",
-                Message = "CatalogService is unavailable. Please try again later."
-            },
-            statusCode: StatusCodes.Status503ServiceUnavailable);
+        return ApiProblemResults.ServiceUnavailable("CatalogService is unavailable. Please try again later.", "DOWNSTREAM_UNAVAILABLE");
     }
 }

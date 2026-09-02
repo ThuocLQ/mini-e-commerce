@@ -16,7 +16,9 @@ $databases = @(
     "orderingdb",
     "discountdb",
     "identitydb",
-    "paymentdb"
+    "paymentdb",
+    "notificationdb",
+    "supplierdb"
 )
 
 $applicationServices = @(
@@ -31,7 +33,8 @@ $applicationServices = @(
     "paymentservice",
     "orderqueryservice",
     "projectionworker",
-    "notificationworker"
+    "notificationworker",
+    "supplierservice"
 )
 
 function Invoke-Compose {

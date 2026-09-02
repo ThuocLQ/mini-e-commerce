@@ -9,4 +9,4 @@ public sealed record PaymentWebhookCommand(
     string Status,
     string? FailureReason,
     string PayloadHash,
-    string SignatureStatus) : IRequest<PaymentDto?>;
+    string SignatureStatus) : IRequest<PaymentWebhookApplyResult>;

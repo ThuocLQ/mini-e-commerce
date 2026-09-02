@@ -4,3 +4,4 @@ CREATE DATABASE orderingdb OWNER microshop;
 CREATE DATABASE discountdb OWNER microshop;
 CREATE DATABASE identitydb OWNER microshop;
 CREATE DATABASE paymentdb OWNER microshop;
+CREATE DATABASE notificationdb OWNER microshop;

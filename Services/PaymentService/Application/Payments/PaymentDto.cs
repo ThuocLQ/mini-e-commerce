@@ -13,4 +13,5 @@ public sealed record PaymentDto(
     DateTime? CompletedAtUtc,
     string? Provider,
     string? ProviderSessionId,
+    string? ProviderCheckoutUrl,
     DateTime? PaymentActionExpiresAtUtc);

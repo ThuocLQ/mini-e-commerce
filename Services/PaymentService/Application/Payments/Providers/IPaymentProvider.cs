@@ -2,8 +2,6 @@ using PaymentService.Domain.Payments;
 
 namespace PaymentService.Application.Payments.Providers;
 
-// Provider implementations never receive or persist card data. They create hosted/action sessions
-// and report provider-signed lifecycle callbacks back through the webhook processor.
 public interface IPaymentProvider
 {
     string Name { get; }
@@ -25,6 +23,12 @@ public interface IPaymentProvider
         CancellationToken cancellationToken = default);
 }
 
+public interface IPaymentProviderResolver
+{
+    IPaymentProvider Resolve(string? providerName);
+    IReadOnlyList<PaymentProviderDescriptor> GetAvailableProviders();
+}
+
 public interface ISandboxPaymentProvider : IPaymentProvider
 {
     Task<PaymentProviderWebhook> CompleteAsync(
@@ -36,7 +40,13 @@ public interface ISandboxPaymentProvider : IPaymentProvider
 public sealed record PaymentProviderAction(
     string Provider,
     string SessionId,
+    string? CheckoutUrl,
     DateTime ExpiresAtUtc);
+
+public sealed record PaymentProviderDescriptor(
+    string Name,
+    bool IsSandbox,
+    bool RequiresRedirect);
 
 public sealed record PaymentProviderActionRequest(
     Guid PaymentId,

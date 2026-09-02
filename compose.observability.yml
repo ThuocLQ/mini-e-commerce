@@ -8,9 +8,9 @@ services:
     volumes:
       - ./docker/observability/otel-collector.yml:/etc/otelcol-contrib/config.yaml:ro
     ports:
-      - "13133:13133"
-      - "4317:4317"
-      - "4318:4318"
+      - "127.0.0.1:13133:13133"
+      - "127.0.0.1:4317:4317"
+      - "127.0.0.1:4318:4318"
     networks:
       - microshop-network
 
@@ -23,11 +23,13 @@ services:
       - "--config.file=/etc/prometheus/prometheus.yml"
       - "--storage.tsdb.path=/prometheus"
       - "--web.enable-lifecycle"
+      - "--storage.tsdb.retention.time=15d"
     volumes:
       - ./docker/observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./docker/observability/prometheus-rules.yml:/etc/prometheus/rules/microshop.yml:ro
       - prometheus_data:/prometheus
     ports:
-      - "9090:9090"
+      - "127.0.0.1:9090:9090"
     depends_on:
       otel-collector:
         condition: service_started
@@ -36,6 +38,25 @@ services:
     networks:
       - microshop-network
 
+  alertmanager:
+    image: prom/alertmanager:v0.28.1
+    container_name: microshop-alertmanager
+    restart: unless-stopped
+    stop_grace_period: 20s
+    command:
+      - "--config.file=/etc/alertmanager/alertmanager.yml"
+      - "--storage.path=/alertmanager"
+      - "--data.retention=120h"
+    volumes:
+      - ./docker/observability/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager_data:/alertmanager
+    ports:
+      - "127.0.0.1:9093:9093"
+    depends_on:
+      mailpit:
+        condition: service_healthy
+    networks:
+      - microshop-network
   grafana:
     image: grafana/grafana:12.0.2
     container_name: microshop-grafana
@@ -50,7 +71,7 @@ services:
       - ./docker/observability/grafana/provisioning:/etc/grafana/provisioning:ro
       - ./docker/observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     depends_on:
       prometheus:
         condition: service_started
@@ -104,3 +125,4 @@ services:
 volumes:
   prometheus_data:
   grafana_data:
+  alertmanager_data:

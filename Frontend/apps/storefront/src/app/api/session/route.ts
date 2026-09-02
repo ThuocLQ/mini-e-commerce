@@ -104,8 +104,23 @@ export async function GET() {
   return response;
 }
 
-export function DELETE(request: Request) {
+export async function DELETE(request: Request) {
   if (!hasSameOrigin(request)) return message("Cross-site requests are not accepted.", 403);
+
+  const session = await getSessionFromRequest(request);
+  if (session) {
+    try {
+      const upstream = await fetch(gatewayUrl("/auth/logout"), {
+        method: "POST",
+        headers: { Authorization: `Bearer ${session.accessToken}`, Accept: "application/json" },
+        cache: "no-store",
+      });
+      if (!upstream.ok) return message("Sign-out could not be completed. Please try again.", 503);
+    } catch {
+      return message("Sign-out is temporarily unavailable. Please try again.", 503);
+    }
+  }
+
   const response = NextResponse.json({ success: true });
   response.cookies.set({
     name: cookieName,
@@ -205,7 +220,8 @@ function isCurrentUser(value: unknown): value is CurrentUser {
     && typeof value.userId === "string"
     && typeof value.userName === "string"
     && typeof value.role === "string"
-    && typeof value.isEmailVerified === "boolean";
+    && typeof value.isEmailVerified === "boolean"
+    && typeof value.receiveOrderUpdates === "boolean";
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

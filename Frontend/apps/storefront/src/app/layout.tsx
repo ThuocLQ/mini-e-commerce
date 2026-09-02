@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "MicroShop Storefront",
-  description: "Browse the MicroShop catalog.",
+  title: "MicroShop | Everyday tools, thoughtfully chosen",
+  description: "Discover current MicroShop products, then review and order with server-confirmed pricing and availability.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

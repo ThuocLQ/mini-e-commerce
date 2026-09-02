@@ -19,6 +19,7 @@ public static class PaymentMapper
             payment.CompletedAtUtc,
             payment.Provider,
             payment.ProviderSessionId,
+            payment.ProviderCheckoutUrl,
             payment.PaymentActionExpiresAtUtc);
     }
 }

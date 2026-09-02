@@ -12,4 +12,6 @@ public interface IUserRepository
     Task<bool> CreateWithEmailVerificationAsync(AppUser user, byte[] tokenHash, DateTime expiresAtUtc, string eventContent, string? correlationId, CancellationToken cancellationToken = default);
     Task<EmailVerificationIssueResult> IssueEmailVerificationAsync(Guid userId, byte[] tokenHash, DateTime expiresAtUtc, string eventContent, string? correlationId, DateTime nowUtc, CancellationToken cancellationToken = default);
     Task<bool> VerifyEmailAsync(byte[] tokenHash, DateTime nowUtc, CancellationToken cancellationToken = default);
+    Task<bool> RevokeSessionsAsync(Guid userId, CancellationToken cancellationToken = default);
+    Task<bool> UpdateOrderNotificationPreferenceAsync(Guid userId, bool receivesOrderUpdates, CancellationToken cancellationToken = default);
 }

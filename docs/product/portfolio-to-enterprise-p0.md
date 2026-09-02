@@ -1,3 +1,4 @@
+> **Historical roadmap - not a source of truth.** This file records earlier P0 analysis and contains stale capability statements. Use [canonical-system-design.md](canonical-system-design.md) for product/system decisions and [../governance/README.md](../governance/README.md) for delivery gates. Do not implement from this document without reconciling it with the canonical design.
 # Portfolio -> ecommerce enterprise: P0 executable backlog
 
 ## Mục tiêu và phạm vi

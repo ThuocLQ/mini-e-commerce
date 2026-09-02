@@ -149,24 +149,47 @@ public sealed class DapperUserRepository : IUserRepository
         return true;
     }
 
+    public async Task<bool> UpdateOrderNotificationPreferenceAsync(
+        Guid userId,
+        bool receivesOrderUpdates,
+        CancellationToken cancellationToken = default)
+    {
+        using var connection = _connectionFactory.CreateConnection();
+        var affected = await connection.ExecuteAsync(new CommandDefinition("""
+            UPDATE Users
+            SET ReceiveOrderUpdates = @ReceivesOrderUpdates
+            WHERE Id = @UserId AND IsActive = TRUE;
+            """, new { UserId = userId, ReceivesOrderUpdates = receivesOrderUpdates }, cancellationToken: cancellationToken));
+        return affected == 1;
+    }
+    public async Task<bool> RevokeSessionsAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        using var connection = _connectionFactory.CreateConnection();
+        var affected = await connection.ExecuteAsync(new CommandDefinition("""
+            UPDATE Users
+            SET SessionVersion = SessionVersion + 1
+            WHERE Id = @UserId AND IsActive = TRUE;
+            """, new { UserId = userId }, cancellationToken: cancellationToken));
+        return affected == 1;
+    }
     private static Task<int> InsertUserAsync(IDbConnection connection, IDbTransaction? transaction, AppUser user, CancellationToken cancellationToken) =>
         connection.ExecuteAsync(new CommandDefinition("""
-            INSERT INTO Users (Id, UserName, NormalizedUserName, PasswordHash, Role, IsActive, Email, NormalizedEmail, IsEmailVerified)
-            VALUES (@Id, @UserName, @NormalizedUserName, @PasswordHash, @Role, @IsActive, @Email, @NormalizedEmail, @IsEmailVerified)
+            INSERT INTO Users (Id, UserName, NormalizedUserName, PasswordHash, Role, IsActive, Email, NormalizedEmail, IsEmailVerified, ReceiveOrderUpdates)
+            VALUES (@Id, @UserName, @NormalizedUserName, @PasswordHash, @Role, @IsActive, @Email, @NormalizedEmail, @IsEmailVerified, @ReceivesOrderUpdates)
             ON CONFLICT DO NOTHING;
-            """, new { user.Id, user.UserName, NormalizedUserName = user.UserName.ToUpperInvariant(), user.PasswordHash, user.Role, user.IsActive, user.Email, NormalizedEmail = user.Email?.ToUpperInvariant(), user.IsEmailVerified }, transaction, cancellationToken: cancellationToken));
+            """, new { user.Id, user.UserName, NormalizedUserName = user.UserName.ToUpperInvariant(), user.PasswordHash, user.Role, user.IsActive, user.Email, NormalizedEmail = user.Email?.ToUpperInvariant(), user.IsEmailVerified, user.ReceivesOrderUpdates, user.SessionVersion }, transaction, cancellationToken: cancellationToken));
 
     private async Task<AppUser?> GetSingleAsync(string predicate, object parameters, CancellationToken cancellationToken)
     {
         using var connection = _connectionFactory.CreateConnection();
         var row = await connection.QuerySingleOrDefaultAsync<UserRow>(new CommandDefinition($"""
-            SELECT Id, UserName, PasswordHash, Role, IsActive, Email, IsEmailVerified
+            SELECT Id, UserName, PasswordHash, Role, IsActive, Email, IsEmailVerified, SessionVersion, ReceiveOrderUpdates
             FROM Users WHERE {predicate};
             """, parameters, cancellationToken: cancellationToken));
-        return row is null ? null : new AppUser(row.Id, row.UserName, row.PasswordHash, row.Role, row.IsActive, row.Email, row.IsEmailVerified);
+        return row is null ? null : new AppUser(row.Id, row.UserName, row.PasswordHash, row.Role, row.IsActive, row.Email, row.IsEmailVerified, row.SessionVersion, row.ReceiveOrderUpdates);
     }
 
-    private sealed record UserRow(Guid Id, string UserName, string PasswordHash, string Role, bool IsActive, string? Email, bool IsEmailVerified);
+    private sealed record UserRow(Guid Id, string UserName, string PasswordHash, string Role, bool IsActive, string? Email, bool IsEmailVerified, int SessionVersion, bool ReceiveOrderUpdates);
     private sealed record VerificationTokenRow(Guid Id, Guid UserId);
     private sealed record VerificationAccountRow(bool IsActive, bool IsEmailVerified);
 }

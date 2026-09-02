@@ -14,7 +14,9 @@ $databases = @(
     "orderingdb",
     "discountdb",
     "identitydb",
-    "paymentdb"
+    "paymentdb",
+    "notificationdb",
+    "supplierdb"
 )
 
 function Invoke-Compose {

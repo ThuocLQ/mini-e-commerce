@@ -55,3 +55,11 @@ Add Testcontainers integration tests.
 Review indexes per service.
 Document seed data lifecycle.
 ```
+
+## P1 Review Outcome
+
+- DbUp migrations are forward-only and versioned for Catalog, Inventory, Ordering, Discount, Identity, Payment and Notification. SupplierService uses Flyway migrations; Basket remains Redis and OrderQuery remains MongoDB.
+- Query-path indexes cover checkout idempotency, order/customer lookup, payment/webhook deduplication, reservation expiry, outbox dispatch, shipment timeline, notification delivery lease and procurement receipt/audit paths. New query endpoints require an index review before release.
+- Npgsql uses its provider-managed connection pool. Connection strings are service-local and private; outbound HTTP clients have explicit bounded timeouts plus standard resilience. Any production pool-size override must be capacity-tested and supplied by environment, not hard-coded.
+- `scripts/portfolio-seed.ps1` imports the versioned catalog CSV idempotently through the admin API. It is demo data only, never production bootstrap data. Production seed data must be migration-owned reference data or an audited import.
+- Rebuild mode runs ProjectionWorker with a dedicated consumer group and writes to `order_summaries_rebuild`; it never overwrites the live collection. Promotion/swap and replay remain a runbook operation.

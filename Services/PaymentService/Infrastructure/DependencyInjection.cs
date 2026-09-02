@@ -23,6 +23,7 @@ public static class DependencyInjection
         services.AddSingleton<IDatabaseInitializer, PostgresDatabaseInitializer>();
         services.AddScoped<IPaymentUnitOfWork, DapperPaymentUnitOfWork>();
         services.AddScoped<IPaymentRepository, DapperPaymentRepository>();
+        services.AddScoped<IPaymentOperationalActionRepository, DapperPaymentOperationalActionRepository>();
         services.AddScoped<IPaymentInboxRepository, DapperPaymentInboxRepository>();
         services.AddScoped<IPaymentWebhookRepository, DapperPaymentWebhookRepository>();
         services.AddScoped<IPaymentOutboxRepository, DapperPaymentOutboxRepository>();
@@ -31,26 +32,52 @@ public static class DependencyInjection
         services.AddRabbitMqReadinessCheck(configuration);
 
         var providerKind = configuration[$"{PaymentProviderOptions.SectionName}:Provider"]?.Trim();
-        if (IsSandboxEnvironment(environment))
+        if (string.Equals(providerKind, "Sandbox", StringComparison.OrdinalIgnoreCase))
         {
-            if (!string.Equals(providerKind, "Sandbox", StringComparison.OrdinalIgnoreCase))
+            if (!IsSandboxEnvironment(environment))
             {
-                throw new InvalidOperationException(
-                    "Development/Portfolio payment runs must explicitly configure PaymentProvider:Provider=Sandbox. " +
-                    "No commercial provider adapter is bundled with this service.");
+                throw new InvalidOperationException("The sandbox payment provider is available only to Development and Portfolio hosts.");
             }
 
             services.AddSingleton<SandboxPaymentProvider>();
             services.AddSingleton<IPaymentProvider>(serviceProvider => serviceProvider.GetRequiredService<SandboxPaymentProvider>());
             services.AddSingleton<ISandboxPaymentProvider>(serviceProvider => serviceProvider.GetRequiredService<SandboxPaymentProvider>());
         }
+        else if (string.Equals(providerKind, "PayPal", StringComparison.OrdinalIgnoreCase))
+        {
+            services
+                .AddOptions<PayPalOptions>()
+                .Bind(configuration.GetSection(PayPalOptions.SectionName))
+                .Validate(options => options.Enabled, "PaymentProvider:PayPal:Enabled must be true when PayPal is selected.")
+                .Validate(options => IsConfiguredSecret(options.ClientId), "PaymentProvider:PayPal:ClientId must be configured through a secret source.")
+                .Validate(options => IsConfiguredSecret(options.ClientSecret), "PaymentProvider:PayPal:ClientSecret must be configured through a secret source.")
+                .Validate(options => IsConfiguredSecret(options.WebhookId), "PaymentProvider:PayPal:WebhookId must be configured through a secret source.")
+                .Validate(options => IsHttpsUrl(options.ReturnUrl), "PaymentProvider:PayPal:ReturnUrl must be an absolute HTTPS URL.")
+                .Validate(options => IsHttpsUrl(options.CancelUrl), "PaymentProvider:PayPal:CancelUrl must be an absolute HTTPS URL.")
+                .Validate(options => options.ActionExpiryMinutes is > 0 and <= 24 * 60,
+                    "PaymentProvider:PayPal:ActionExpiryMinutes must be between 1 and 1440.")
+                .ValidateOnStart();
+
+            var payPalOptions = configuration.GetSection(PayPalOptions.SectionName).Get<PayPalOptions>()
+                ?? throw new InvalidOperationException("PaymentProvider:PayPal is missing.");
+            services.AddHttpClient(PayPalApiClient.HttpClientName, client =>
+            {
+                client.BaseAddress = new Uri(payPalOptions.UseSandbox
+                    ? "https://api-m.sandbox.paypal.com/"
+                    : "https://api-m.paypal.com/");
+                client.Timeout = TimeSpan.FromSeconds(15);
+            });
+            services.AddSingleton<PayPalApiClient>();
+            services.AddSingleton<IPaymentProvider, PayPalPaymentProvider>();
+            services.AddScoped<IPayPalWebhookProcessor, PayPalWebhookProcessor>();
+        }
         else
         {
             throw new InvalidOperationException(
-                "A commercial payment provider adapter must be configured outside Development/Portfolio. " +
-                "The sandbox provider is intentionally unavailable in this environment.");
+                "PaymentProvider:Provider must select a configured provider. Supported values are Sandbox and PayPal.");
         }
 
+        services.AddSingleton<IPaymentProviderResolver, PaymentProviderResolver>();
         var orderingBaseUrl = configuration["ServiceUrls:OrderingHttp"]
                               ?? throw new InvalidOperationException("ServiceUrls:OrderingHttp is missing.");
 
@@ -169,6 +196,14 @@ public static class DependencyInjection
         return services;
     }
 
+    private static bool IsConfiguredSecret(string? value) =>
+        !string.IsNullOrWhiteSpace(value) &&
+        !value.StartsWith("SET_BY_", StringComparison.OrdinalIgnoreCase) &&
+        !value.Contains("CHANGEME", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsHttpsUrl(string? value) =>
+        Uri.TryCreate(value, UriKind.Absolute, out var uri) &&
+        string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase);
     private static bool IsProductionWebhookSecret(string? secret)
     {
         if (string.IsNullOrWhiteSpace(secret) || secret.Length < 32)

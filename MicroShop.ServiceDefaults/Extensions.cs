@@ -1,5 +1,8 @@
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
@@ -30,6 +33,12 @@ public static class Extensions
         builder.AddDefaultHealthChecks();
 
         builder.Services.AddServiceDiscovery();
+        var dataProtectionKeysDirectory = builder.Configuration["DataProtection:KeysDirectory"];
+        if (!string.IsNullOrWhiteSpace(dataProtectionKeysDirectory))
+        {
+            builder.Services.AddDataProtection()
+                .PersistKeysToFileSystem(new DirectoryInfo(dataProtectionKeysDirectory));
+        }
         builder.Services.AddHttpContextAccessor();
         builder.Services.AddTransient<CorrelationIdDelegatingHandler>();
 
@@ -253,10 +262,49 @@ public static class Extensions
         return builder;
     }
 
+    public static WebApplication UseStandardStatusCodeProblemDetails(this WebApplication app)
+    {
+        app.UseStatusCodePages(async statusCodeContext =>
+        {
+            var response = statusCodeContext.HttpContext.Response;
+            if (response.StatusCode < StatusCodes.Status400BadRequest || response.HasStarted)
+            {
+                return;
+            }
+
+            var statusCode = response.StatusCode;
+            var detail = statusCode switch
+            {
+                StatusCodes.Status401Unauthorized => "Authentication is required.",
+                StatusCodes.Status403Forbidden => "You are not allowed to perform this action.",
+                StatusCodes.Status404NotFound => "The requested resource was not found.",
+                _ => "The request could not be completed."
+            };
+
+            await Results.Problem(
+                    statusCode: statusCode,
+                    title: ReasonPhrases.GetReasonPhrase(statusCode),
+                    type: $"https://microshop.dev/problems/http-{statusCode}",
+                    detail: detail,
+                    extensions: new Dictionary<string, object?>
+                    {
+                        ["code"] = $"HTTP_{statusCode}",
+                        ["message"] = detail,
+                        ["error"] = detail,
+                        ["correlationId"] = statusCodeContext.HttpContext.Request.Headers["X-Correlation-ID"].FirstOrDefault()
+                            ?? statusCodeContext.HttpContext.TraceIdentifier
+                    })
+                .ExecuteAsync(statusCodeContext.HttpContext);
+        });
+
+        return app;
+    }
     public static WebApplication MapDefaultEndpoints(this WebApplication app)
     {
         // Exposing health endpoints outside local/dev should be a conscious deployment choice.
         // Docker local-prod keeps service health endpoints on the private Compose network.
+        app.UseStandardStatusCodeProblemDetails();
+
         if (ShouldMapHealthEndpoints(app))
         {
             // All health checks must pass for app to be considered ready to accept traffic after starting

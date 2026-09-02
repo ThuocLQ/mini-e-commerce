@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Diagnostics;
+using MicroShop.ServiceDefaults.Diagnostics;
 using OrderingService.Application.Baskets;
 using OrderingService.Application.Catalog;
 using OrderingService.Application.Discounts;
@@ -50,80 +51,55 @@ public static class DependencyInjection
 
                 if (exception is BasketUnavailableException)
                 {
-                    await Results.Json(
-                        new
-                        {
-                            ErrorCode = "DOWNSTREAM_UNAVAILABLE",
-                            exception.Message
-                        },
-                        statusCode: StatusCodes.Status503ServiceUnavailable).ExecuteAsync(context);
+                    await ApiProblemResults.ServiceUnavailable(exception.Message, "DOWNSTREAM_UNAVAILABLE").ExecuteAsync(context);
                     return;
                 }
 
                 if (exception is CatalogUnavailableException)
                 {
-                    await Results.Json(
-                        new
-                        {
-                            ErrorCode = "DOWNSTREAM_UNAVAILABLE",
-                            exception.Message
-                        },
-                        statusCode: StatusCodes.Status503ServiceUnavailable).ExecuteAsync(context);
+                    await ApiProblemResults.ServiceUnavailable(exception.Message, "DOWNSTREAM_UNAVAILABLE").ExecuteAsync(context);
                     return;
                 }
 
                 if (exception is DiscountUnavailableException)
                 {
-                    await Results.Json(
-                        new
-                        {
-                            ErrorCode = "DOWNSTREAM_UNAVAILABLE",
-                            exception.Message
-                        },
-                        statusCode: StatusCodes.Status503ServiceUnavailable).ExecuteAsync(context);
+                    await ApiProblemResults.ServiceUnavailable(exception.Message, "DOWNSTREAM_UNAVAILABLE").ExecuteAsync(context);
                     return;
                 }
 
                 if (exception is InventoryUnavailableException)
                 {
-                    await Results.Json(new { ErrorCode = "DOWNSTREAM_UNAVAILABLE", exception.Message }, statusCode: StatusCodes.Status503ServiceUnavailable).ExecuteAsync(context);
+                    await ApiProblemResults.ServiceUnavailable(exception.Message, "DOWNSTREAM_UNAVAILABLE").ExecuteAsync(context);
                     return;
                 }
 
                 if (exception is AddressUnavailableException)
                 {
-                    await Results.Json(new { ErrorCode = "DOWNSTREAM_UNAVAILABLE", exception.Message }, statusCode: StatusCodes.Status503ServiceUnavailable).ExecuteAsync(context);
+                    await ApiProblemResults.ServiceUnavailable(exception.Message, "DOWNSTREAM_UNAVAILABLE").ExecuteAsync(context);
                     return;
                 }
 
                 if (exception is InsufficientInventoryException)
                 {
-                    await Results.Conflict(new { exception.Message }).ExecuteAsync(context);
+                    await ApiProblemResults.Conflict(exception.Message, "CHECKOUT_CONFLICT").ExecuteAsync(context);
                     return;
                 }
 
                 if (exception is CheckoutIdempotencyConflictException)
                 {
-                    await Results.Conflict(new { exception.Message }).ExecuteAsync(context);
+                    await ApiProblemResults.Conflict(exception.Message, "CHECKOUT_CONFLICT").ExecuteAsync(context);
                     return;
                 }
 
                 if (exception is CheckoutQuoteConflictException quoteConflict)
                 {
-                    await Results.Conflict(new
-                    {
-                        ErrorCode = quoteConflict.ErrorCode,
-                        quoteConflict.Message
-                    }).ExecuteAsync(context);
+                    await ApiProblemResults.Conflict(quoteConflict.Message, quoteConflict.ErrorCode).ExecuteAsync(context);
                     return;
                 }
 
                 if (exception is ArgumentException or InvalidOperationException)
                 {
-                    await Results.BadRequest(new
-                    {
-                        error = exception.Message
-                    }).ExecuteAsync(context);
+                    await ApiProblemResults.BadRequest(exception.Message).ExecuteAsync(context);
                     return;
                 }
 

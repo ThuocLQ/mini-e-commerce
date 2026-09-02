@@ -65,6 +65,31 @@ function Assert-Status {
         throw "$Operation returned HTTP $Actual; expected HTTP $Expected."
     }
 }
+function Assert-RequestStatus {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Uri,
+
+        [Parameter(Mandatory = $true)]
+        [Microsoft.PowerShell.Commands.WebRequestSession]$WebSession,
+
+        [Parameter(Mandatory = $true)]
+        [int]$Expected,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Operation
+    )
+
+    try {
+        $response = Invoke-WebRequest -Uri $Uri -Method Get -WebSession $WebSession -UseBasicParsing
+        Assert-Status -Actual $response.StatusCode -Expected $Expected -Operation $Operation
+    }
+    catch {
+        $httpResponse = $_.Exception.Response
+        if ($null -eq $httpResponse) { throw }
+        Assert-Status -Actual ([int]$httpResponse.StatusCode) -Expected $Expected -Operation $Operation
+    }
+}
 
 Write-Host "Running Storefront customer journey smoke against $StorefrontBaseUrl"
 
@@ -142,6 +167,16 @@ if ($null -eq $snapshotOrder -or $null -eq $snapshotOrder.shippingAddress -or $s
 }
 Write-Host "[ok] customer order history and immutable address snapshot"
 
+$otherUserName = "portfolio-isolation-" + [Guid]::NewGuid().ToString("N").Substring(0, 10)
+$otherCredentials = @{ userName = $otherUserName; email = "$otherUserName@example.test"; password = $Password } | ConvertTo-Json
+$otherRegistration = Invoke-WebRequest -Uri "$StorefrontBaseUrl/api/session" -Method Put -Headers $headers -ContentType "application/json" -Body $otherCredentials -UseBasicParsing
+Assert-Status -Actual $otherRegistration.StatusCode -Expected 201 -Operation "Second customer registration"
+$otherLogin = Invoke-WebRequest -Uri "$StorefrontBaseUrl/api/session" -Method Post -Headers $headers -ContentType "application/json" -Body $otherCredentials -SessionVariable otherStorefrontSession -UseBasicParsing
+Assert-Status -Actual $otherLogin.StatusCode -Expected 200 -Operation "Second customer sign-in"
+Assert-RequestStatus -Uri "$StorefrontBaseUrl/api/orders/$($order.id)" -WebSession $otherStorefrontSession -Expected 404 -Operation "Cross-account order lookup"
+Assert-RequestStatus -Uri "$StorefrontBaseUrl/api/addresses/$($address.id)" -WebSession $otherStorefrontSession -Expected 404 -Operation "Cross-account address lookup"
+Write-Host "[ok] customer data isolation through Storefront BFF"
+
 $paymentAction = Invoke-RestMethod -Uri "$StorefrontBaseUrl/api/payments" -Method Post -Headers $headers -ContentType "application/json" -Body (@{ orderId = $order.id } | ConvertTo-Json) -WebSession $storefrontSession
 if ($null -eq $paymentAction.payment -or [string]::IsNullOrWhiteSpace($paymentAction.payment.id) -or $paymentAction.payment.status -ne "PendingAuthorization") {
     throw "Payment initiation did not return a PendingAuthorization payment action."
@@ -214,18 +249,35 @@ else {
         throw "Administrator sign-in did not return an access token."
     }
     $adminHeaders = @{ Authorization = "Bearer $($adminLogin.accessToken)"; Accept = "application/json" }
-    foreach ($targetStatus in @("Confirmed", "Shipped", "Delivered")) {
-        $transition = Invoke-RestMethod -Uri "$GatewayBaseUrl/orders/admin/$($order.id)/fulfillment" -Method Post -Headers $adminHeaders -ContentType "application/json" -Body (@{ targetStatus = $targetStatus } | ConvertTo-Json) -TimeoutSec 15
-        if ($transition.status -ne $targetStatus) {
-            throw "Fulfillment transition did not reach $targetStatus."
-        }
+    $adminPayments = Invoke-RestMethod -Uri "$GatewayBaseUrl/payments/admin?limit=20" -Method Get -Headers $adminHeaders -TimeoutSec 15
+    $adminPayment = @($adminPayments | Where-Object { $_.id -eq $paymentAction.payment.id })[0]
+    if ($null -eq $adminPayment -or $adminPayment.PSObject.Properties.Name -contains "providerCheckoutUrl") {
+        throw "Payment operations list did not return the expected redacted payment contract."
     }
+    $adminPaymentDetail = Invoke-RestMethod -Uri "$GatewayBaseUrl/payments/admin/$($paymentAction.payment.id)" -Method Get -Headers $adminHeaders -TimeoutSec 15
+    if ($adminPaymentDetail.id -ne $paymentAction.payment.id -or $adminPaymentDetail.PSObject.Properties.Name -contains "providerCheckoutUrl") {
+        throw "Payment operations detail did not return the expected redacted payment contract."
+    }
+    Write-Host "[ok] payment operations redacted read contract"
+    $shipment = Invoke-RestMethod -Uri "$GatewayBaseUrl/orders/admin/$($order.id)/shipment" -Method Post -Headers $adminHeaders -TimeoutSec 15
+    if ($shipment.status -ne "ReadyToShip") { throw "Shipment was not created in ReadyToShip." }
+    $shipment = Invoke-RestMethod -Uri "$GatewayBaseUrl/orders/admin/$($order.id)/shipment/dispatch" -Method Post -Headers $adminHeaders -ContentType "application/json" -Body (@{ carrier = "DHL"; trackingNumber = "PORTFOLIO-$($order.id.ToString().Substring(0,8))" } | ConvertTo-Json) -TimeoutSec 15
+    if ($shipment.status -ne "Shipped") { throw "Shipment was not dispatched." }
+    $shipment = Invoke-RestMethod -Uri "$GatewayBaseUrl/orders/admin/$($order.id)/shipment/deliver" -Method Post -Headers $adminHeaders -TimeoutSec 15
+    if ($shipment.status -ne "Delivered") { throw "Shipment was not delivered." }
+    $shipmentDetail = Invoke-RestMethod -Uri "$GatewayBaseUrl/orders/admin/$($order.id)/shipment" -Method Get -Headers $adminHeaders -TimeoutSec 15
+    if (@($shipmentDetail.history.currentStatus) -notcontains "ReadyToShip" -or @($shipmentDetail.history.currentStatus) -notcontains "Shipped" -or @($shipmentDetail.history.currentStatus) -notcontains "Delivered") { throw "Shipment audit history is incomplete." }
+    $customerShipment = Invoke-RestMethod -Uri "$StorefrontBaseUrl/api/orders/$($order.id)/shipment" -Method Get -WebSession $storefrontSession
+    if ($customerShipment.shipment.status -ne "Delivered" -or @($customerShipment.history.currentStatus) -notcontains "Delivered") {
+        throw "Customer shipment tracking did not show delivered state."
+    }
+    Write-Host "[ok] customer shipment tracking"
     $customerOrdersAfterFulfillment = Invoke-RestMethod -Uri "$StorefrontBaseUrl/api/orders" -Method Get -WebSession $storefrontSession
     $finalOrder = @($customerOrdersAfterFulfillment | Where-Object { $_.id -eq $order.id })[0]
     if ($null -eq $finalOrder -or $finalOrder.status -ne "Delivered") {
         throw "Delivered order was not visible in the customer order detail."
     }
-    Write-Host "[ok] administrator fulfillment transitions"
+    Write-Host "[ok] administrator shipment lifecycle and audit history"
 
     for ($attempt = 1; $attempt -le 30; $attempt++) {
         Start-Sleep -Seconds 1
@@ -256,6 +308,7 @@ else {
     FinalPaymentStatus = if ($null -ne $completedPaymentStatus) { $completedPaymentStatus.status } else { $initialPaymentStatus.status }
     ShippingAddressId = $address.id
     ShippingAddressSnapshotImmutable = $true
+    CustomerDataIsolationVerified = $true
     QuoteTotal = $quote.totalAmount
     QuoteFinalRevalidationRequired = $quote.finalRevalidationRequired
     Scenario = $Scenario

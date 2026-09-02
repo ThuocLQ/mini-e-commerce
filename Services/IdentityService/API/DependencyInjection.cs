@@ -19,6 +19,7 @@ public static class DependencyInjection
         app.MapAuthEndpoints();
         app.MapEmailVerificationEndpoints();
         app.MapAddressEndpoints();
+        app.MapNotificationPreferenceEndpoints();
         app.MapInternalAddressEndpoints();
         app.MapInternalCustomerContactEndpoints();
 

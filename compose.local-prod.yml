@@ -87,7 +87,7 @@ services:
     environment:
       PGPASSWORD: ${MICROSHOP_POSTGRES_PASSWORD:?Set MICROSHOP_POSTGRES_PASSWORD in .env.local-prod}
     command: >
-      sh -ec 'for database in catalogdb inventorydb orderingdb discountdb identitydb paymentdb supplierdb;
+      sh -ec 'for database in catalogdb inventorydb orderingdb discountdb identitydb paymentdb notificationdb supplierdb;
       do psql -h postgres -U microshop -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname = '\''$$database'\''" |
       grep -q 1 || psql -h postgres -U microshop -d postgres -c "CREATE DATABASE $$database OWNER microshop";
       done'
@@ -143,6 +143,7 @@ services:
       RABBITMQ_DEFAULT_PASS: ${MICROSHOP_RABBITMQ_PASSWORD:?Set MICROSHOP_RABBITMQ_PASSWORD in .env.local-prod}
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
+      - ./docker/rabbitmq/enabled_plugins:/etc/rabbitmq/enabled_plugins:ro
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "ping"]
       interval: 10s
@@ -343,6 +344,7 @@ services:
       RabbitMq__Password: ${MICROSHOP_RABBITMQ_PASSWORD:?Set MICROSHOP_RABBITMQ_PASSWORD in .env.local-prod}
       KafkaOutbox__BootstrapServers: kafka:29092
       KafkaOutbox__Topic: microshop.order-events
+      DataProtection__KeysDirectory: /home/app/.aspnet/DataProtection-Keys
     depends_on:
       postgres:
         condition: service_healthy
@@ -383,6 +385,17 @@ services:
       rabbitmq:
         condition: service_healthy
 
+  identity-data-protection-init:
+    image: mcr.microsoft.com/dotnet/aspnet:10.0
+    user: "0:0"
+    restart: "no"
+    command: >
+      sh -ec 'mkdir -p /home/app/.aspnet/DataProtection-Keys &&
+      chown -R 1654:1654 /home/app/.aspnet/DataProtection-Keys'
+    volumes:
+      - identity_data_protection_keys:/home/app/.aspnet/DataProtection-Keys
+    networks:
+      - microshop-network
   identityservice:
     <<: *web-service-runtime
     image: microshop/identityservice:local-prod
@@ -408,7 +421,11 @@ services:
       RabbitMq__VirtualHost: /
       RabbitMq__UserName: microshop
       RabbitMq__Password: ${MICROSHOP_RABBITMQ_PASSWORD:?Set MICROSHOP_RABBITMQ_PASSWORD in .env.local-prod}
+    volumes:
+      - identity_data_protection_keys:/home/app/.aspnet/DataProtection-Keys
     depends_on:
+      identity-data-protection-init:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
 
@@ -437,6 +454,14 @@ services:
       PaymentWebhooks__SignatureHeaderName: X-MicroShop-Signature
       PaymentWebhooks__SharedSecret: ${MICROSHOP_PAYMENT_WEBHOOK_SECRET:?Set MICROSHOP_PAYMENT_WEBHOOK_SECRET in .env.local-prod}
       PaymentWebhooks__RequireSignature: "true"
+      PaymentProvider__Provider: PayPal
+      PaymentProvider__PayPal__Enabled: "true"
+      PaymentProvider__PayPal__UseSandbox: "true"
+      PaymentProvider__PayPal__ClientId: ${MICROSHOP_PAYPAL_CLIENT_ID:-SET_BY_ENVIRONMENT}
+      PaymentProvider__PayPal__ClientSecret: ${MICROSHOP_PAYPAL_CLIENT_SECRET:-SET_BY_ENVIRONMENT}
+      PaymentProvider__PayPal__WebhookId: ${MICROSHOP_PAYPAL_WEBHOOK_ID:-SET_BY_ENVIRONMENT}
+      PaymentProvider__PayPal__ReturnUrl: ${MICROSHOP_PUBLIC_ORIGIN:-https://shop.invalid}/payment/return
+      PaymentProvider__PayPal__CancelUrl: ${MICROSHOP_PUBLIC_ORIGIN:-https://shop.invalid}/payment/cancel
     depends_on:
       postgres:
         condition: service_healthy
@@ -520,7 +545,7 @@ services:
       RabbitMq__VirtualHost: /
       RabbitMq__UserName: microshop
       RabbitMq__Password: ${MICROSHOP_RABBITMQ_PASSWORD:?Set MICROSHOP_RABBITMQ_PASSWORD in .env.local-prod}
-      ConnectionStrings__Redis: redis:6379
+      ConnectionStrings__NotificationDb: Host=postgres;Port=5432;Database=notificationdb;Username=microshop;Password=${MICROSHOP_POSTGRES_PASSWORD:?Set MICROSHOP_POSTGRES_PASSWORD in .env.local-prod}
       NotificationDelivery__Mode: Smtp
       NotificationDelivery__Smtp__Host: mailpit
       NotificationDelivery__Smtp__Port: "1025"
@@ -531,9 +556,9 @@ services:
       ServiceUrls__IdentityHttp: http://identityservice:8080
       InternalApi__Key: ${MICROSHOP_INTERNAL_API_KEY:?Set MICROSHOP_INTERNAL_API_KEY in .env.local-prod}
     depends_on:
+      postgres-init:
+        condition: service_completed_successfully
       rabbitmq:
-        condition: service_healthy
-      redis:
         condition: service_healthy
       identityservice:
         condition: service_healthy
@@ -655,6 +680,7 @@ volumes:
   rabbitmq_data:
   kafka_data:
   mongodb_data:
+  identity_data_protection_keys:
 
 networks:
   microshop-network:

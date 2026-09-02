@@ -1,5 +1,6 @@
 using NotificationWorker.Application;
 using NotificationWorker.Infrastructure;
+using NotificationWorker.Infrastructure.Persistence;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -10,4 +11,5 @@ builder.Services
     .AddInfrastructure(builder.Configuration);
 
 var host = builder.Build();
-host.Run();
+await host.InitializeDatabaseAsync();
+await host.RunAsync();

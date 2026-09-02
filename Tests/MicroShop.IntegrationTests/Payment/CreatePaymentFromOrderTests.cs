@@ -19,7 +19,7 @@ public sealed class CreatePaymentFromOrderTests
             new StubOrderPaymentClient(new OrderPaymentSnapshot(orderId, customerId, 125_000m, "vnd", "PendingPayment")),
             new StubPaymentProvider());
 
-        var result = await handler.Handle(new CreatePaymentCommand(orderId, customerId, "payment-action-001"), TestContext.Current.CancellationToken);
+        var result = await handler.Handle(new CreatePaymentCommand(orderId, customerId, "payment-action-001", null), TestContext.Current.CancellationToken);
 
         Assert.Equal(orderId, result.Payment.OrderId);
         Assert.Equal(customerId, result.Payment.CustomerId);
@@ -41,8 +41,8 @@ public sealed class CreatePaymentFromOrderTests
             new StubOrderPaymentClient(new OrderPaymentSnapshot(orderId, customerId, 75_000m, "USD", "PendingPayment")),
             new StubPaymentProvider());
 
-        var first = await handler.Handle(new CreatePaymentCommand(orderId, customerId, "payment-action-002"), TestContext.Current.CancellationToken);
-        var replay = await handler.Handle(new CreatePaymentCommand(orderId, customerId, "payment-action-002"), TestContext.Current.CancellationToken);
+        var first = await handler.Handle(new CreatePaymentCommand(orderId, customerId, "payment-action-002", null), TestContext.Current.CancellationToken);
+        var replay = await handler.Handle(new CreatePaymentCommand(orderId, customerId, "payment-action-002", null), TestContext.Current.CancellationToken);
 
         Assert.Equal(first.Payment.Id, replay.Payment.Id);
         Assert.Equal(first.Action.SessionId, replay.Action.SessionId);
@@ -60,9 +60,9 @@ public sealed class CreatePaymentFromOrderTests
             new StubOrderPaymentClient(new OrderPaymentSnapshot(orderId, customerId, 75_000m, "USD", "PendingPayment")),
             new StubPaymentProvider());
 
-        await handler.Handle(new CreatePaymentCommand(orderId, customerId, "payment-action-003a"), TestContext.Current.CancellationToken);
+        await handler.Handle(new CreatePaymentCommand(orderId, customerId, "payment-action-003a", null), TestContext.Current.CancellationToken);
         await Assert.ThrowsAsync<PaymentActionIdempotencyConflictException>(() =>
-            handler.Handle(new CreatePaymentCommand(orderId, customerId, "payment-action-003b"), TestContext.Current.CancellationToken));
+            handler.Handle(new CreatePaymentCommand(orderId, customerId, "payment-action-003b", null), TestContext.Current.CancellationToken));
         Assert.Equal(1, repository.CreateCalls);
     }
 
@@ -76,7 +76,7 @@ public sealed class CreatePaymentFromOrderTests
             new StubPaymentProvider());
 
         await Assert.ThrowsAsync<PaymentOrderNotAccessibleException>(() => handler.Handle(
-            new CreatePaymentCommand(orderId, Guid.NewGuid(), "payment-action-004"), TestContext.Current.CancellationToken));
+            new CreatePaymentCommand(orderId, Guid.NewGuid(), "payment-action-004", null), TestContext.Current.CancellationToken));
         Assert.Equal(0, repository.CreateCalls);
     }
 
@@ -85,11 +85,19 @@ public sealed class CreatePaymentFromOrderTests
         public Task<OrderPaymentSnapshot?> GetOrderAsync(Guid orderId, CancellationToken cancellationToken = default) => Task.FromResult(order);
     }
 
-    private sealed class StubPaymentProvider : IPaymentProvider
+    private sealed class StubPaymentProvider : IPaymentProvider, IPaymentProviderResolver
     {
         public string Name => "Sandbox";
+        public IPaymentProvider Resolve(string? providerName)
+        {
+            if (string.IsNullOrWhiteSpace(providerName) || string.Equals(providerName, Name, StringComparison.OrdinalIgnoreCase)) return this;
+            throw new ArgumentException("Provider is unavailable.", nameof(providerName));
+        }
+
+        public IReadOnlyList<PaymentProviderDescriptor> GetAvailableProviders() =>
+            [new PaymentProviderDescriptor(Name, true, false)];
         public Task<PaymentProviderAction> CreateActionAsync(PaymentProviderActionRequest request, CancellationToken cancellationToken = default) =>
-            Task.FromResult(new PaymentProviderAction(Name, $"sandbox-session-{request.PaymentId:N}", DateTime.UtcNow.AddMinutes(30)));
+            Task.FromResult(new PaymentProviderAction(Name, $"sandbox-session-{request.PaymentId:N}", null, DateTime.UtcNow.AddMinutes(30)));
         public Task<PaymentProviderWebhook?> RequestCaptureAsync(DomainPayment payment, CancellationToken cancellationToken = default) => Task.FromResult<PaymentProviderWebhook?>(null);
         public Task<PaymentProviderWebhook?> RequestVoidAsync(DomainPayment payment, CancellationToken cancellationToken = default) => Task.FromResult<PaymentProviderWebhook?>(null);
         public Task<PaymentProviderWebhook?> RequestRefundAsync(DomainPayment payment, CancellationToken cancellationToken = default) => Task.FromResult<PaymentProviderWebhook?>(null);
@@ -103,6 +111,7 @@ public sealed class CreatePaymentFromOrderTests
         public Task<DomainPayment?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) => Task.FromResult(_payment?.Id == id ? _payment : null);
         public Task<DomainPayment?> GetByIdAsync(Guid id, IDbTransaction transaction, CancellationToken cancellationToken = default) => Task.FromResult(_payment?.Id == id ? _payment : null);
         public Task<DomainPayment?> GetByOrderIdAsync(Guid orderId, CancellationToken cancellationToken = default) => Task.FromResult(_payment?.OrderId == orderId ? _payment : null);
+        public Task<DomainPayment?> GetByProviderSessionIdAsync(string provider, string providerSessionId, CancellationToken cancellationToken = default) => Task.FromResult(_payment?.Provider == provider && _payment.ProviderSessionId == providerSessionId ? _payment : null);
         public Task<DomainPayment?> GetByCustomerAndActionIdempotencyKeyAsync(Guid customerId, string idempotencyKey, CancellationToken cancellationToken = default) =>
             Task.FromResult(_payment?.CustomerId == customerId && _payment.PaymentActionIdempotencyKey == idempotencyKey ? _payment : null);
         public Task<IReadOnlyList<DomainPayment>> GetRecentAsync(int limit, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<DomainPayment>>(_payment is null ? [] : [_payment]);

@@ -39,6 +39,7 @@ public sealed class SandboxPaymentProvider : ISandboxPaymentProvider
         return Task.FromResult(new PaymentProviderAction(
             Name,
             $"sandbox-session-{request.PaymentId:N}",
+            null,
             DateTime.UtcNow.AddMinutes(_providerOptions.SandboxActionExpiryMinutes)));
     }
 

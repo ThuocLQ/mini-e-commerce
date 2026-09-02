@@ -1,17 +1,46 @@
 [CmdletBinding()]
 param(
-    [int]$TimeoutSeconds = 120
+    [int]$TimeoutSeconds = 120,
+
+    [string]$ComposeFile = "compose.local-prod.yml",
+    [string]$EnvFile = ".env.local-prod",
+    [switch]$Build
 )
 
 $ErrorActionPreference = "Stop"
 
-function Invoke-Docker {
+function Invoke-Compose {
     param([Parameter(Mandatory = $true)][string[]]$Arguments)
 
-    & docker @Arguments
+    & docker compose --env-file $EnvFile -f $ComposeFile --profile read-model @Arguments
     if ($LASTEXITCODE -ne 0) {
-        throw "Docker command failed: docker $($Arguments -join ' ')"
+        throw "docker compose $($Arguments -join ' ') failed with exit code $LASTEXITCODE."
     }
+}
+
+function Get-EnvFileValue {
+    param([Parameter(Mandatory = $true)][string]$Key)
+
+    foreach ($line in Get-Content -LiteralPath $EnvFile) {
+        $trimmed = $line.Trim()
+        if ([string]::IsNullOrWhiteSpace($trimmed) -or $trimmed.StartsWith("#")) { continue }
+        $separator = $trimmed.IndexOf("=")
+        if ($separator -gt 0 -and $trimmed.Substring(0, $separator).Trim() -eq $Key) {
+            return $trimmed.Substring($separator + 1).Trim()
+        }
+    }
+
+    return $null
+}
+function Get-ServiceContainerId {
+    param([Parameter(Mandatory = $true)][string]$ServiceName)
+
+    $containerId = & docker compose --env-file $EnvFile -f $ComposeFile --profile read-model ps -q $ServiceName
+    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($containerId)) {
+        throw "Container for service '$ServiceName' was not found."
+    }
+
+    return $containerId.Trim()
 }
 
 function Send-Event {
@@ -20,14 +49,17 @@ function Send-Event {
         [Parameter(Mandatory = $true)][string]$Json
     )
 
-    "$Key`:$Json" | docker exec -i microshop-kafka kafka-console-producer `
-        --bootstrap-server localhost:9092 `
-        --topic microshop.order-events `
-        --property parse.key=true `
-        --property key.separator=:
+    $payloadFile = Join-Path $env:TEMP ("microshop-projection-event-" + [Guid]::NewGuid().ToString("N") + ".txt")
+    [System.IO.File]::WriteAllText($payloadFile, "$Key`:$Json", (New-Object System.Text.UTF8Encoding($false)))
 
-    if ($LASTEXITCODE -ne 0) {
-        throw "Failed to publish projection test event."
+    try {
+        & cmd.exe /d /c "type `"$payloadFile`" | docker exec -i $script:KafkaContainer kafka-console-producer --bootstrap-server localhost:9092 --topic microshop.order-events --property parse.key=true --property key.separator=:"
+        if ($LASTEXITCODE -ne 0) {
+            throw "Failed to publish projection test event."
+        }
+    }
+    finally {
+        Remove-Item -LiteralPath $payloadFile -Force -ErrorAction SilentlyContinue
     }
 }
 
@@ -43,9 +75,9 @@ function Wait-MongoCount {
     $expression = "db.getSiblingDB('MicroShop_OrderReadDb').getCollection('$Collection').countDocuments({${Field}:'$Value'})"
 
     while ((Get-Date) -lt $deadline) {
-        $output = & docker exec microshop-mongodb mongosh --quiet `
+        $output = & docker exec $script:MongoContainer mongosh --quiet `
             --username microshop `
-            --password microshop `
+            --password $script:MongoPassword `
             --authenticationDatabase admin `
             --eval $expression
 
@@ -73,7 +105,7 @@ function Wait-DeadLetter {
         $previousErrorActionPreference = $ErrorActionPreference
         $ErrorActionPreference = "Continue"
         try {
-            $output = & docker exec microshop-kafka kafka-console-consumer `
+            $output = & docker exec $script:KafkaContainer kafka-console-consumer `
                 --bootstrap-server localhost:9092 `
                 --topic microshop.order-events.dlt `
                 --group $group `
@@ -92,11 +124,19 @@ function Wait-DeadLetter {
     throw "DLT did not receive the invalid projection event marker '$Marker'."
 }
 
+if (-not (Test-Path -LiteralPath $EnvFile)) {
+    throw "Env file '$EnvFile' was not found."
+}
+
 Write-Host "Starting Kafka, MongoDB, topic initializer, and ProjectionWorker..."
-Invoke-Docker -Arguments @(
-    "compose", "up", "-d", "--build",
-    "zookeeper", "kafka", "kafka-init", "mongodb", "projectionworker"
-)
+$composeArguments = @("up", "-d")
+if ($Build) { $composeArguments += "--build" }
+$composeArguments += @("zookeeper", "kafka", "kafka-init", "mongodb", "projectionworker")
+Invoke-Compose -Arguments $composeArguments
+$script:KafkaContainer = Get-ServiceContainerId -ServiceName "kafka"
+$script:MongoContainer = Get-ServiceContainerId -ServiceName "mongodb"
+$script:MongoPassword = Get-EnvFileValue -Key "MICROSHOP_MONGO_PASSWORD"
+if ([string]::IsNullOrWhiteSpace($script:MongoPassword)) { throw "MICROSHOP_MONGO_PASSWORD is required in $EnvFile." }
 
 $eventId = [Guid]::NewGuid()
 $orderId = [Guid]::NewGuid()
@@ -123,7 +163,7 @@ $validEvent = @{
             unitPrice = 125000
         }
     )
-    occurredAtUtc = $occurredAtUtc
+    occurredAtUtc = $occurredAtUtc.ToString("O")
 } | ConvertTo-Json -Depth 8 -Compress
 
 Write-Host "Publishing the same EventId twice..."
@@ -146,7 +186,7 @@ $invalidEvent = @{
     currency = "VND"
     itemCount = 0
     items = @()
-    occurredAtUtc = [DateTime]::UtcNow
+    occurredAtUtc = [DateTime]::UtcNow.ToString("O")
 } | ConvertTo-Json -Depth 8 -Compress
 
 Write-Host "Publishing a permanent invalid event..."

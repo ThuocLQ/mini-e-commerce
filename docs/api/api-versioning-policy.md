@@ -71,3 +71,7 @@ Document deprecated routes.
 Add OpenAPI version docs if OpenAPI is enabled later.
 Add compatibility tests for public endpoints.
 ```
+
+## P1 Verification
+
+The current unversioned public contract is an intentional compatibility decision, not missing versioning. Gateway routes remain the sole public boundary. A breaking change requires a new `/api/vN` route, an OpenAPI compatibility review, deprecation notice, and a migration window; internal routes are versioned through their explicit contract/event schema rather than public URL aliases.

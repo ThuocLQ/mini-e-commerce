@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using NotificationWorker.Application.Abstractions;
+using NotificationWorker.Application.Notifications;
 using NotificationWorker.Application.Notifications.HandleOrderStatusChanged;
-using NotificationWorker.Infrastructure.Idempotency;
 
 namespace MicroShop.IntegrationTests.Notifications;
 
@@ -37,11 +37,14 @@ public sealed class OrderStatusChangedNotificationHandlerTests
         Assert.Single(sender.StatusChangedNotifications);
     }
 
-    private static OrderStatusChangedNotificationHandler CreateHandler(CapturingNotificationSender sender) =>
-        new(
-            new InMemoryProcessedEventStore(),
-            sender,
-            NullLogger<OrderStatusChangedNotificationHandler>.Instance);
+    private static OrderStatusChangedNotificationHandler CreateHandler(CapturingNotificationSender sender)
+    {
+        var processor = new NotificationDeliveryProcessor(
+            new InMemoryNotificationDeliveryStore(),
+            NullLogger<NotificationDeliveryProcessor>.Instance);
+
+        return new OrderStatusChangedNotificationHandler(processor, sender);
+    }
 
     private static OrderStatusChangedNotification CreateNotification() => new(
         Guid.NewGuid(),
@@ -73,6 +76,82 @@ public sealed class OrderStatusChangedNotificationHandlerTests
 
             StatusChangedNotifications.Add(notification);
             return Task.CompletedTask;
+        }
+    }
+
+    private sealed class InMemoryNotificationDeliveryStore : INotificationDeliveryStore
+    {
+        private readonly Dictionary<string, DeliveryState> _deliveries = [];
+
+        public Task<NotificationDeliveryLeaseAcquisition> TryStartAsync(
+            NotificationDelivery delivery,
+            CancellationToken cancellationToken = default)
+        {
+            var key = $"{delivery.EventId:D}:{delivery.Template}:{delivery.Channel}";
+            if (!_deliveries.TryGetValue(key, out var state))
+            {
+                state = new DeliveryState(Guid.NewGuid());
+                _deliveries[key] = state;
+            }
+
+            if (state.Sent)
+            {
+                return Task.FromResult(new NotificationDeliveryLeaseAcquisition(NotificationDeliveryStartResult.AlreadySent));
+            }
+
+            if (state.Processing)
+            {
+                return Task.FromResult(new NotificationDeliveryLeaseAcquisition(NotificationDeliveryStartResult.AlreadyProcessing));
+            }
+
+            state.Processing = true;
+            state.LeaseToken = Guid.NewGuid();
+            return Task.FromResult(new NotificationDeliveryLeaseAcquisition(
+                NotificationDeliveryStartResult.Started,
+                state.DeliveryId,
+                state.LeaseToken));
+        }
+
+        public Task<bool> MarkSentAsync(Guid deliveryId, Guid leaseToken, CancellationToken cancellationToken = default)
+        {
+            var state = _deliveries.Values.SingleOrDefault(candidate => candidate.DeliveryId == deliveryId);
+            if (state is null || !state.Processing || state.LeaseToken != leaseToken)
+            {
+                return Task.FromResult(false);
+            }
+
+            state.Processing = false;
+            state.Sent = true;
+            return Task.FromResult(true);
+        }
+
+        public Task<bool> MarkRetryableFailureAsync(
+            Guid deliveryId,
+            Guid leaseToken,
+            Exception exception,
+            CancellationToken cancellationToken = default)
+        {
+            var state = _deliveries.Values.SingleOrDefault(candidate => candidate.DeliveryId == deliveryId);
+            if (state is null || !state.Processing || state.LeaseToken != leaseToken)
+            {
+                return Task.FromResult(false);
+            }
+
+            state.Processing = false;
+            return Task.FromResult(true);
+        }
+
+        public Task<int> MarkExhaustedAsDeadLetterAsync(
+            int maxAttempts,
+            DateTime olderThanUtc,
+            CancellationToken cancellationToken = default) => Task.FromResult(0);
+
+        private sealed class DeliveryState(Guid deliveryId)
+        {
+            public Guid DeliveryId { get; } = deliveryId;
+            public Guid LeaseToken { get; set; }
+            public bool Processing { get; set; }
+            public bool Sent { get; set; }
         }
     }
 }

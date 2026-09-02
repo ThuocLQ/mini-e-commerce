@@ -17,7 +17,10 @@ await app.InitializeDatabaseAsync();
 
 app.UseCorrelationId();
 app.UseApiExceptionHandling();
-app.UseHttpsRedirection();
+if (!app.Environment.IsEnvironment("Docker") || app.Configuration.GetValue<bool>("ServiceDefaults:UseHttpsRedirection"))
+{
+    app.UseHttpsRedirection();
+}
 
 app.UseAuthentication();
 app.UseAuthorization();

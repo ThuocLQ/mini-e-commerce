@@ -4,20 +4,23 @@ using PaymentService.Domain.Payments;
 
 namespace PaymentService.Application.Payments.Webhooks;
 
-public sealed class PaymentWebhookHandler : IRequestHandler<PaymentWebhookCommand, PaymentDto?>
+public sealed class PaymentWebhookHandler : IRequestHandler<PaymentWebhookCommand, PaymentWebhookApplyResult>
 {
     private readonly IPaymentWebhookRepository _repository;
     private readonly IPaymentMetrics _metrics;
+    private readonly IPaymentOperationalActionRepository? _operationalActions;
 
     public PaymentWebhookHandler(
         IPaymentWebhookRepository repository,
-        IPaymentMetrics metrics)
+        IPaymentMetrics metrics,
+        IPaymentOperationalActionRepository? operationalActions = null)
     {
         _repository = repository;
         _metrics = metrics;
+        _operationalActions = operationalActions;
     }
 
-    public async Task<PaymentDto?> Handle(PaymentWebhookCommand request, CancellationToken cancellationToken)
+    public async Task<PaymentWebhookApplyResult> Handle(PaymentWebhookCommand request, CancellationToken cancellationToken)
     {
         var normalizedStatus = request.Status.Trim().ToUpperInvariant();
         var status = normalizedStatus switch
@@ -62,6 +65,17 @@ public sealed class PaymentWebhookHandler : IRequestHandler<PaymentWebhookComman
             DateTime.UtcNow,
             cancellationToken);
 
+        if (result.Payment is not null &&
+            _operationalActions is not null &&
+            TryGetCompletedActionType(status, out var actionType))
+        {
+            await _operationalActions.CompleteLatestPendingAsync(
+                result.Payment.Id,
+                actionType,
+                DateTime.UtcNow,
+                cancellationToken);
+        }
+
         _metrics.RecordWebhookRequest(
             result.IsDuplicate
                 ? "duplicate"
@@ -69,6 +83,19 @@ public sealed class PaymentWebhookHandler : IRequestHandler<PaymentWebhookComman
                     ? "not_found"
                     : "accepted");
 
-        return result.Payment is null ? null : PaymentMapper.ToDto(result.Payment);
+        return result;
+    }
+
+    private static bool TryGetCompletedActionType(PaymentStatus status, out string actionType)
+    {
+        actionType = status switch
+        {
+            PaymentStatus.Captured => "Capture",
+            PaymentStatus.Voided => "Void",
+            PaymentStatus.Refunded => "Refund",
+            _ => string.Empty
+        };
+
+        return actionType.Length > 0;
     }
 }

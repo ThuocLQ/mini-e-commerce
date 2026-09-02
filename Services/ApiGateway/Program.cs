@@ -1,14 +1,25 @@
+using System.Diagnostics;
 using System.Net;
 using System.Text;
 using System.Threading.RateLimiting;
 using ApiGateway;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using MicroShop.ServiceDefaults.Diagnostics;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
 builder.Services.AddControllers();
+builder.Services.AddProblemDetails(options =>
+{
+    options.CustomizeProblemDetails = context =>
+    {
+        context.ProblemDetails.Extensions["traceId"] = Activity.Current?.TraceId.ToString() ?? context.HttpContext.TraceIdentifier;
+        context.ProblemDetails.Extensions["correlationId"] = context.HttpContext.Request.Headers["X-Correlation-ID"].FirstOrDefault()
+            ?? context.HttpContext.TraceIdentifier;
+    };
+});
 
 var gatewayOptions = builder.Configuration
     .GetSection(GatewayOptions.SectionName)
@@ -43,6 +54,15 @@ builder.Services.AddCors(options =>
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.OnRejected = async (context, cancellationToken) =>
+    {
+        await Results.Problem(
+                statusCode: StatusCodes.Status429TooManyRequests,
+                title: "Too many requests",
+                type: "https://microshop.dev/problems/rate-limit-exceeded",
+                detail: "Retry after the current rate-limit window has elapsed.")
+            .ExecuteAsync(context.HttpContext);
+    };
     options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
     {
         var category = GetRateLimitCategory(context.Request.Path);
@@ -75,6 +95,15 @@ builder.Services
         var audience = builder.Configuration["Jwt:Audience"];
         var secretKey = jwtSecretKey;
 
+        options.Events = new JwtBearerEvents
+        {
+            OnChallenge = async context =>
+            {
+                context.HandleResponse();
+                await ApiProblemResults.Unauthorized().ExecuteAsync(context.HttpContext);
+            }
+        };
+
         if (!string.IsNullOrWhiteSpace(secretKey))
         {
             options.TokenValidationParameters = new TokenValidationParameters
@@ -103,6 +132,7 @@ builder.Services
 var app = builder.Build();
 
 app.UseCorrelationId();
+app.UseExceptionHandler();
 app.UseSecurityHeaders();
 app.UseDebugRouteGuard(gatewayOptions);
 app.UseCors("GatewayCors");

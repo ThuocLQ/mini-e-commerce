@@ -1,0 +1,61 @@
+groups:
+  - name: microshop-platform
+    rules:
+      - alert: MicroShopOtelCollectorDown
+        expr: up{job="otel-collector"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          owner: platform
+        annotations:
+          summary: OpenTelemetry Collector is unavailable
+          runbook: Check the otel-collector container and its health endpoint before restarting dependent services.
+
+      - alert: MicroShopSupplierServiceDown
+        expr: up{job="supplier-service"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          owner: procurement
+        annotations:
+          summary: SupplierService is unavailable to Operations
+          runbook: Check SupplierService health, PostgreSQL supplierdb connectivity, and InventoryService reachability.
+
+      - alert: MicroShopProjectionFailureRecorded
+        expr: increase(microshop_projection_failures_total[15m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          owner: platform
+        annotations:
+          summary: ProjectionWorker recorded a projection failure
+          runbook: Inspect projection_failures, the retry/DLT topics, and the event envelope compatibility before replaying.
+      - alert: MicroShopRabbitMqDown
+        expr: up{job="rabbitmq"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          owner: platform
+        annotations:
+          summary: RabbitMQ metrics endpoint is unavailable
+          runbook: Check the RabbitMQ container, rabbitmq_prometheus plugin, broker health, and client connection errors.
+
+      - alert: MicroShopRabbitMqErrorQueueHasMessages
+        expr: sum(rabbitmq_queue_messages_ready{queue=~".*_error$"}) > 0
+        for: 5m
+        labels:
+          severity: warning
+          owner: platform
+        annotations:
+          summary: RabbitMQ error queue contains messages
+          runbook: Inspect the error queue payload and delivery audit before retrying or replaying messages.
+
+      - alert: MicroShopRabbitMqQueueBacklog
+        expr: sum(rabbitmq_queue_messages_ready) > 100
+        for: 10m
+        labels:
+          severity: warning
+          owner: platform
+        annotations:
+          summary: RabbitMQ ready-message backlog is above the local-prod threshold
+          runbook: Inspect queue consumers, downstream dependency health, and retry/error queues before scaling or replaying.

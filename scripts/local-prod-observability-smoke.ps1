@@ -49,11 +49,8 @@ function Wait-HttpOk {
 Write-Host "Running MicroShop local-prod observability smoke..."
 
 if (-not $SkipGatewaySmoke) {
+    # PowerShell scripts propagate terminating errors directly; $LASTEXITCODE only applies to native commands.
     & (Join-Path $PSScriptRoot "local-prod-smoke.ps1") -GatewayBaseUrl $GatewayBaseUrl
-
-    if ($LASTEXITCODE -ne 0) {
-        throw "local-prod gateway smoke failed with exit code $LASTEXITCODE."
-    }
 }
 
 Wait-HttpOk "$OtelHealthUrl/"
@@ -79,11 +76,16 @@ if ($targets.status -ne "success") {
 }
 
 $activeJobs = @($targets.data.activeTargets | ForEach-Object { $_.labels.job } | Sort-Object -Unique)
-$requiredJobs = @("otel-collector", "otel-collector-internal", "kafka-exporter")
+$requiredJobs = @("otel-collector", "otel-collector-internal", "kafka-exporter", "rabbitmq")
 
 foreach ($job in $requiredJobs) {
     if ($activeJobs -notcontains $job) {
         throw "Prometheus target job '$job' was not found. Active jobs: $($activeJobs -join ', ')"
+    }
+
+    $healthyTarget = @($targets.data.activeTargets | Where-Object { $_.labels.job -eq $job -and $_.health -eq "up" })
+    if ($healthyTarget.Count -eq 0) {
+        throw "Prometheus target job '$job' is not healthy."
     }
 
     Write-Host "[ok] Prometheus target job $job"

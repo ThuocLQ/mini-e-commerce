@@ -134,18 +134,12 @@ Wait-HttpOk "$GatewayBaseUrl/health"
 $products = Invoke-JsonGet "/catalog/products"
 $coupon = Invoke-JsonGet "/discounts/SAVE10"
 
-if (-not $SkipReadModel) {
-    $orderSummaries = Invoke-JsonGet "/order-summaries"
-}
 
 if ($null -eq $products) {
     throw "Catalog products response was empty."
 }
 
 
-if (-not $SkipReadModel -and $null -eq $orderSummaries) {
-    throw "Order summaries response was empty."
-}
 
 if ($null -eq $coupon) {
     throw "Discount coupon response was empty."
@@ -192,8 +186,25 @@ if (-not $SkipAuth) {
     }
 
     Write-Host "[ok] GET /orders"
+
+    if (-not $SkipReadModel) {
+        $orderSummaries = Invoke-RestMethod `
+            -Uri "$GatewayBaseUrl/order-summaries" `
+            -Method Get `
+            -Headers @{ Authorization = "Bearer $($login.accessToken)" } `
+            -TimeoutSec 10
+
+        if ($null -eq $orderSummaries) {
+            throw "Order summaries response was empty."
+        }
+
+        Write-Host "[ok] GET /order-summaries"
+    }
 }
 
+elseif (-not $SkipReadModel) {
+    throw "Read-model smoke requires authentication. Do not combine -SkipAuth with the default read-model check."
+}
 if ($VerifyPortfolioFrontends) {
     Assert-PageContains -Url $StorefrontBaseUrl -ExpectedText "MicroShop"
     Assert-PageContains -Url $OperationsBaseUrl -ExpectedText "MicroShop Operations"

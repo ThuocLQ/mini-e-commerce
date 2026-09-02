@@ -8,6 +8,7 @@ public sealed record CreatePaymentResult(
 public sealed record PaymentActionDto(
     string Provider,
     string SessionId,
+    string? CheckoutUrl,
     string PaymentStatus,
     DateTime ExpiresAtUtc,
     bool SandboxCompletionAvailable);

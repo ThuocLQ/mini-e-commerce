@@ -1,13 +1,16 @@
 using MediatR;
 using PaymentService.API.Contracts;
+using PaymentService.Application.Payments;
 using PaymentService.Application.Payments.CreatePayment;
 using PaymentService.Application.Payments.GetPaymentById;
 using PaymentService.Application.Payments.GetPaymentByOrderId;
 using PaymentService.Application.Payments.GetPayments;
+using PaymentService.Application.Payments.GetPaymentOperationalActions;
 using PaymentService.Application.Payments.Providers;
 using PaymentService.Application.Payments.Webhooks;
 using PaymentService.Application.Abstractions;
 using System.Security.Claims;
+using MicroShop.ServiceDefaults.Diagnostics;
 
 namespace PaymentService.API.Endpoints;
 
@@ -23,12 +26,14 @@ public static class PaymentEndpoints
         {
             if (!TryGetCustomerId(user, out var customerId)) return Results.Unauthorized();
             var idempotencyKey = httpRequest.Headers["Idempotency-Key"].ToString();
-            var result = await sender.Send(new CreatePaymentCommand(request.OrderId, customerId, idempotencyKey), cancellationToken);
+            var result = await sender.Send(new CreatePaymentCommand(request.OrderId, customerId, idempotencyKey, request.Provider), cancellationToken);
             return result.IsReplay
                 ? Results.Ok(result)
                 : Results.Created($"/payments/{result.Payment.Id}", result);
         });
 
+        group.MapGet("/providers", (IPaymentProviderResolver providers) =>
+            Results.Ok(providers.GetAvailableProviders()));
         if (app.ServiceProvider.GetService<ISandboxPaymentProvider>() is not null)
         {
             group.MapPost("/{id:guid}/sandbox-completion", CompleteSandboxPaymentAsync)
@@ -41,6 +46,18 @@ public static class PaymentEndpoints
             return Results.Ok(result);
         }).RequireAuthorization("administrator");
 
+        group.MapGet("/admin/{id:guid}", async (Guid id, ISender sender, CancellationToken cancellationToken) =>
+        {
+            var payment = await sender.Send(new GetPaymentByIdQuery(id), cancellationToken);
+            return payment is null ? Results.NotFound() : Results.Ok(AdminPaymentDto.From(payment));
+        }).RequireAuthorization("administrator");
+
+        group.MapGet("/admin/{id:guid}/actions", async (Guid id, ISender sender, CancellationToken cancellationToken) =>
+        {
+            if (await sender.Send(new GetPaymentByIdQuery(id), cancellationToken) is null) return Results.NotFound();
+            var result = await sender.Send(new GetPaymentOperationalActionsQuery(id), cancellationToken);
+            return Results.Ok(result);
+        }).RequireAuthorization("administrator");
         group.MapGet("/orders/{orderId:guid}", async (Guid orderId, ClaimsPrincipal user, ISender sender, CancellationToken cancellationToken) =>
         {
             var result = await sender.Send(new GetPaymentByOrderIdQuery(orderId), cancellationToken);
@@ -75,7 +92,7 @@ public static class PaymentEndpoints
         if (!Enum.TryParse<SandboxPaymentOutcome>(request.Outcome, ignoreCase: true, out var outcome) ||
             !Enum.IsDefined(outcome))
         {
-            return Results.BadRequest(new { Error = "Outcome must be 'Approve' or 'Decline'." });
+            return ApiProblemResults.BadRequest("Outcome must be 'Approve' or 'Decline'.", "PAYMENT_OUTCOME_INVALID");
         }
 
         var logger = loggerFactory.CreateLogger("PaymentService.SandboxCompletion");
@@ -90,7 +107,7 @@ public static class PaymentEndpoints
         var result = await webhookProcessor.ProcessAsync(webhook.RawBody, webhook.Signature, cancellationToken);
         if (result.Payment is null)
         {
-            return Results.NotFound(new { Error = "Payment was not found." });
+            return ApiProblemResults.NotFound("Payment was not found.", "PAYMENT_NOT_FOUND");
         }
 
         return Results.Accepted($"/payments/{id}", new

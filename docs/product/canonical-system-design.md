@@ -1,5 +1,16 @@
 # Thiết kế hệ thống chuẩn MicroShop
 
+## Source Of Truth
+
+This document is the canonical product and system-design source for MicroShop. docs/governance/ defines the delivery process and quality gates; ADRs record binding architectural decisions. Historical roadmaps may provide context but cannot override this document or an accepted ADR.
+
+## Current Capability Boundary
+
+- The portfolio may demonstrate authenticated browsing, cart, address selection, idempotent order creation, Sandbox payment, and account order history.
+- Commercial payment is not release-ready until provider credentials, signed public callback verification, duplicate and late callback drills, reconciliation, audit-backed operations, and release evidence are complete.
+- Fulfillment is implemented for the portfolio path: paid-order queue, shipment lifecycle, tracking, audit history, customer tracking view, and Kafka projection are verified. Carrier API integration and warehouse execution remain outside the current boundary.
+- Customer addresses and persisted order-update notification preference remain owned by IdentityService for P0. A CustomerProfile service is deferred until it gains a genuinely independent lifecycle.
+
 > **Trạng thái:** nguồn sự thật triển khai từ 2026-08-27. Tài liệu này hợp nhất các quyết định sản phẩm/kiến trúc đang có; backlog và review cũ là bằng chứng lịch sử, không được dùng để suy diễn một capability đã hoàn thành.
 > **Nguyên tắc thực thi:** chỉ coi một capability là hoàn thành khi API/BFF, phân quyền, trạng thái lỗi, persistence, telemetry và kiểm thử chứng minh được cùng một hành vi. Không tạo UI “thành công” hay service rỗng để mô phỏng nghiệp vụ.
 
@@ -16,9 +27,9 @@ P0 là hành trình mua hàng của **khách đã đăng nhập**: khám phá �
 | Inventory | on-hand, reserved, committed, khả dụng | **Một phần** — lock/hold, reserve–commit/release, expiry worker, settlement/outbox; admin read API | terminal command phải idempotent, expiry phải làm đơn không còn payable; không giao stock cho Fulfillment |
 | Discount | coupon và promotion reservation | **Một phần** — lookup/apply và được Ordering gọi | coupon gắn quote/order, release/redeem theo saga; không sở hữu giá hay order |
 | Payment | payment và provider reference, webhook kết quả | **Một phần** — một payment/order, HMAC + dedup webhook, outbox và capture/void/refund command | provider adapter/session thật, reconciliation late/out-of-order, public contract không nói “đã trả tiền” trước callback |
-| Fulfillment | shipment, carrier, tracking và thao tác kho | **Kế hoạch** — enum đơn đã có nhưng chưa có aggregate/API/event/quyền | service/module chỉ được tạo khi slice paid-order queue được làm thật |
-| Notification | delivery attempt/audit, không ra quyết định đơn | **Một phần** — Worker tiêu thụ `OrderCreated` idempotent; sender hiện chỉ log | template/channel/preference, delivery/audit/retry/DLQ; không có public “send email” API |
-| Supplier & Procurement | supplier, PO và receipt | **Một phần / ngoài critical path customer** — Spring service, admin supplier/PO/submit/receive và receipt sang Inventory có mặt; Operations UI chưa là workflow tin cậy | chỉ tiếp tục sau khi receipt idempotency, audit, phân quyền và operations E2E được chứng minh |
+| Fulfillment | shipment, carrier, tracking và thao tác kho | **Một phần** — paid-order queue, shipment aggregate, tracking/status history, authorization, audit và event flow đã có cho portfolio | carrier API/warehouse execution, delivery exception/re-drive và SLA vận hành |
+| Notification | delivery attempt/audit, không ra quyết định đơn | **Một phần** — Worker gửi SMTP qua adapter, lưu Postgres delivery + attempt audit unique theo event/template/channel; persisted preference được Identity sở hữu và lifecycle mail tôn trọng opt-out; retry exhausted được reconcile thành `DeadLetter` | re-drive có payload/version, template/channel đa dạng, provider production và delivery operations; không có public “send email” API |
+| Supplier & Procurement | supplier, PO và receipt | **Một phần / ngoài critical path customer** — Spring service, admin supplier/PO/submit/receive, receipt idempotent sang Inventory, RBAC và audit đã có | recovery/reconciliation vận hành, supplier portal và mở rộng procurement policy |
 | Order Query | Mongo read model của đơn | **Một phần** — ProjectionWorker, retry/DLT/dedup và query API | Ordering Kafka outbox phải là nguồn production; read model eventual, có lag/rebuild/repair runbook |
 
 **Ranh giới dữ liệu:** mỗi service chỉ đọc/ghi database của mình. PostgreSQL là write model theo service; Redis chỉ là Basket; MongoDB chỉ là query projection/failure store; RabbitMQ là workflow/task; Kafka là event stream/projection. Không dùng gateway, Mongo hoặc broker như database chung.
@@ -94,7 +105,7 @@ flowchart LR
 | --- | --- |
 | Catalog & inventory | Operations BFF chỉ cho Admin, gọi Catalog và `/inventory/admin/items`. Product/stock mutation phải có validation, audit và refresh sau server-confirmed result; inventory reconciliation có thể read-only trước khi có adjustment policy.
 | Triage đơn & payment | Đọc `/orders/admin` và `/payments/admin`; hiển thị pending/failed, `updatedAt`, correlation/trace và link đối tượng. Không expose internal saga endpoint hay nút “mark paid”. Case thất bại đi theo reconciliation/runbook, không chỉnh database.
-| Fulfillment | **Kế hoạch:** paid-order queue, expected version, confirm → ship (carrier/tracking bắt buộc) → deliver; mỗi command audit actor/reason/idempotency key. Không xây dashboard trước API này.
+| Fulfillment | shipment, carrier, tracking và thao tác kho | **Một phần** — paid-order queue, shipment aggregate, tracking/status history, authorization, audit và event flow đã có cho portfolio | carrier API/warehouse execution, delivery exception/re-drive và SLA vận hành |
 | Supplier/procurement | Có supplier/PO/receipt admin, nhưng không nằm trên customer critical path. Chỉ promote sau khi kiểm thử role, duplicate receipt, inventory receipt, audit và operations BFF; không dùng PO như giả lập availability hay fulfillment.
 
 ## 4. State machine và bù trừ
@@ -105,8 +116,8 @@ flowchart LR
 | Order | as-is: `Pending → PendingPayment → Paid`; `Pending/PendingPayment → PaymentFailed|Cancelled`; `Paid → Refunded`; enum `Confirmed/Shipped/Delivered` chưa có workflow. Target: `CheckoutRequested → PendingPayment → Paid → FulfillmentRequested → Confirmed → Shipped → Delivered`; unpaid `→ Cancelled/Expired`; paid `→ RefundPending → Refunded`. | checkout key + canonical request hash có đúng một order. CAS từ predecessor, status history/outbox cùng transaction. Late payment sau cancel: void/refund + manual reconciliation nếu không thể tự bù.
 | Inventory reservation | `Reserved → Committed` hoặc `Reserved → Released/Expired`; committed không release. | `orderId + commandId` là dedup key. Repeating target state là no-op thành công, không ném lỗi. Expiry phát durable `InventoryReleased(Expired)` để Ordering đóng khả năng thanh toán.
 | Payment | `PendingAuthorization → Authorized → CapturePending → Captured`; `Authorized/CapturePending → VoidPending → Voided`; `Captured → RefundPending → Refunded`; `PendingAuthorization → Failed`. | provider event id + payload hash unique; webhook hợp lệ nhưng duplicate trả kết quả hiện có. Mọi transition sai thứ tự được ghi/audit và reconciliation, không retry mù.
-| Fulfillment (kế hoạch) | `Requested → Confirmed → Shipped → Delivered`; `Requested/Confirmed → Failed|Cancelled`. | unique order/fulfillment event; expected version + key trên thao tác nhân viên. Không giảm stock.
-| Notification (target) | `Queued → Sending → Sent | RetryableFailure | DeadLetter` | delivery unique theo event/template/channel; retry có backoff và DLQ, không đổi order state.
+| Fulfillment | `Requested → Confirmed → Shipped → Delivered`; `Requested/Confirmed → Failed|Cancelled`. | unique order/fulfillment event; expected version + key trên thao tác nhân viên; tracking bắt buộc trước ship; không giảm stock. |
+| Notification | `Queued → Sending → Sent | RetryableFailure | DeadLetter` | delivery unique theo event/template/channel; persisted preference được kiểm tra trước lifecycle mail; retry có backoff và DLQ, không đổi order state. |
 | Procurement (partial) | `Draft → Submitted → Received` | receipt ID unique xuyên Supplier–Inventory; duplicate receipt không tăng stock lần hai. Không allow receipt sau terminal state.
 
 ## 5. Hợp đồng, quyền và PII

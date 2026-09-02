@@ -15,19 +15,22 @@ public sealed class RequestPaymentCaptureHandler
     private readonly IPaymentInboxRepository _inboxRepository;
     private readonly IPaymentProvider? _paymentProvider;
     private readonly IPaymentWebhookProcessor? _webhookProcessor;
+    private readonly IPaymentOperationalActionRepository? _operationalActionRepository;
 
     public RequestPaymentCaptureHandler(
         IPaymentUnitOfWork unitOfWork,
         IPaymentRepository paymentRepository,
         IPaymentInboxRepository inboxRepository,
         IPaymentProvider? paymentProvider = null,
-        IPaymentWebhookProcessor? webhookProcessor = null)
+        IPaymentWebhookProcessor? webhookProcessor = null,
+        IPaymentOperationalActionRepository? operationalActionRepository = null)
     {
         _unitOfWork = unitOfWork;
         _paymentRepository = paymentRepository;
         _inboxRepository = inboxRepository;
         _paymentProvider = paymentProvider;
         _webhookProcessor = webhookProcessor;
+        _operationalActionRepository = operationalActionRepository;
     }
 
     public async Task<PaymentCaptureRequestApplyResult> Handle(
@@ -59,6 +62,18 @@ public sealed class RequestPaymentCaptureHandler
             payment.RequestCapture(request.RequestedAtUtc);
 
             var captureWasRequested = payment.Status != statusBeforeRequest;
+            if (captureWasRequested && _operationalActionRepository is not null)
+            {
+                await _operationalActionRepository.CreateAsync(
+                    Domain.Payments.PaymentOperationalAction.Create(
+                        payment.Id,
+                        "Capture",
+                        "OrderingSaga",
+                        "Capture requested by the order settlement saga.",
+                        request.RequestedAtUtc),
+                    transaction,
+                    cancellationToken);
+            }
             if (captureWasRequested && !await _paymentRepository.UpdateAsync(payment, transaction, cancellationToken))
             {
                 throw new InvalidOperationException($"Payment '{payment.Id}' disappeared while requesting capture.");

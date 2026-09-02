@@ -17,11 +17,11 @@ public static class InternalCustomerContactEndpoints
             var user = await userRepository.GetByIdAsync(customerId, cancellationToken);
             return user is null || !user.IsActive || string.IsNullOrWhiteSpace(user.Email)
                 ? Results.NotFound()
-                : Results.Ok(new CustomerContactResponse(user.Id, user.Email, user.IsEmailVerified));
+                : Results.Ok(new CustomerContactResponse(user.Id, user.Email, user.IsEmailVerified, user.ReceivesOrderUpdates));
         });
 
         return app;
     }
 
-    private sealed record CustomerContactResponse(Guid CustomerId, string Email, bool IsEmailVerified);
+    private sealed record CustomerContactResponse(Guid CustomerId, string Email, bool IsEmailVerified, bool ReceivesOrderUpdates);
 }
