@@ -32,6 +32,7 @@ Read these in order:
 | Goal | Read |
 | --- | --- |
 | Understand the whole system | [../README.md](../README.md), [architecture-diagram.md](architecture-diagram.md) |
+| Understand repository layout and ownership | [architecture/repository-layout.md](architecture/repository-layout.md) |
 | Write or review future lessons | [lesson-authoring-standard.md](lesson-authoring-standard.md) |
 | Understand service communication | [communication-decisions.md](communication-decisions.md), [adr/ADR-001-service-communication.md](adr/ADR-001-service-communication.md) |
 | Understand RabbitMQ vs Kafka | [communication-decisions.md](communication-decisions.md), [adr/ADR-002-rabbitmq-vs-kafka.md](adr/ADR-002-rabbitmq-vs-kafka.md) |

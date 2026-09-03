@@ -1,10 +1,10 @@
-﻿
+
 Microsoft Visual Studio Solution File, Format Version 12.00
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CatalogService", "Services\CatalogService\CatalogService.csproj", "{B79E4ECF-60AF-4296-B91D-CA055F4B0657}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BasketService", "Services\BasketService\BasketService.csproj", "{D9985B25-9BC0-4072-B85A-AA04D5F43873}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ApiGateway", "Services\ApiGateway\ApiGateway.csproj", "{58308C84-9F57-411E-9124-D1892753298F}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ApiGateway", "Gateways\ApiGateway\ApiGateway.csproj", "{58308C84-9F57-411E-9124-D1892753298F}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MicroShop.AppHost", "MicroShop.AppHost\MicroShop.AppHost.csproj", "{FDA63E82-3EBE-4F2C-8781-DFA032A82BDC}"
 EndProject
@@ -30,7 +30,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "BuildingBlocks", "BuildingB
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Aspire", "Aspire", "{38AD80B9-F63E-405A-B95D-9DE5684B387B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NotificationWorker", "Services\NotificationWorker\NotificationWorker.csproj", "{B0D15B4D-C9CA-4E38-8E51-2C4E1EA79A84}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NotificationWorker", "Workers\NotificationWorker\NotificationWorker.csproj", "{B0D15B4D-C9CA-4E38-8E51-2C4E1EA79A84}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OrderQueryService", "Services\OrderQueryService\OrderQueryService.csproj", "{3D522E92-C312-44B5-8369-E45C4025689A}"
 EndProject

@@ -65,7 +65,7 @@ Full solution: passed
 Commands:
 
 ```powershell
-dotnet build Services/ApiGateway/ApiGateway.csproj --no-restore --nologo -v minimal
+dotnet build Gateways/ApiGateway/ApiGateway.csproj --no-restore --nologo -v minimal
 dotnet build Services/OrderQueryService/OrderQueryService.csproj --no-restore --nologo -v minimal
 dotnet build Workers/ProjectionWorker/ProjectionWorker.csproj --no-restore --nologo -v minimal
 dotnet build MicroShop.sln --no-restore --nologo -v minimal

@@ -445,7 +445,7 @@ services:
       context: .
       dockerfile: Dockerfile.service
       args:
-        PROJECT_PATH: Services/NotificationWorker/NotificationWorker.csproj
+        PROJECT_PATH: Workers/NotificationWorker/NotificationWorker.csproj
         PROJECT_DLL: NotificationWorker.dll
     container_name: microshop-notificationworker
     environment:
@@ -468,7 +468,7 @@ services:
       context: .
       dockerfile: Dockerfile.service
       args:
-        PROJECT_PATH: Services/ApiGateway/ApiGateway.csproj
+        PROJECT_PATH: Gateways/ApiGateway/ApiGateway.csproj
         PROJECT_DLL: ApiGateway.dll
     container_name: microshop-api-gateway
     environment:

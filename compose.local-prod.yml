@@ -537,7 +537,7 @@ services:
       context: .
       dockerfile: Dockerfile.service
       args:
-        PROJECT_PATH: Services/NotificationWorker/NotificationWorker.csproj
+        PROJECT_PATH: Workers/NotificationWorker/NotificationWorker.csproj
         PROJECT_DLL: NotificationWorker.dll
     environment:
       DOTNET_ENVIRONMENT: Docker
@@ -600,7 +600,7 @@ services:
       context: .
       dockerfile: Dockerfile.service
       args:
-        PROJECT_PATH: Services/ApiGateway/ApiGateway.csproj
+        PROJECT_PATH: Gateways/ApiGateway/ApiGateway.csproj
         PROJECT_DLL: ApiGateway.dll
     environment:
       ASPNETCORE_ENVIRONMENT: Docker

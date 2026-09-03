@@ -58,7 +58,7 @@ operational visibility basics
 
 ## Gateway Routes
 
-Routes are configured in `Services/ApiGateway/appsettings.json` and Docker destinations are overridden by `Services/ApiGateway/appsettings.Docker.json`.
+Routes are configured in `Gateways/ApiGateway/appsettings.json` and Docker destinations are overridden by `Gateways/ApiGateway/appsettings.Docker.json`.
 
 | Public path | Target |
 | --- | --- |

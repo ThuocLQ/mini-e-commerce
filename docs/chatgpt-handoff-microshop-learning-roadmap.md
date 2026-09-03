@@ -35,7 +35,7 @@ Main principles:
 
 ### Workers
 
-- `Services/NotificationWorker`
+- `Workers/NotificationWorker`
   - Consumes RabbitMQ messages via MassTransit.
   - Handles `OrderCreatedIntegrationEvent`.
   - RabbitMQ remains its transport.

@@ -8,14 +8,14 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <PackageReference Include="Dapper" Version="2.1.72" />
-      <PackageReference Include="dbup-postgresql" Version="6.1.2" />
-      <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
-      <PackageReference Include="Grpc.AspNetCore" Version="2.76.0" />
-      <PackageReference Include="MediatR" Version="14.1.0" />
-      <PackageReference Include="MassTransit.RabbitMQ" Version="8.5.5" />
-      <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.8" />
-      <PackageReference Include="Npgsql" Version="10.0.0-rc.1" />
+      <PackageReference Include="Dapper" />
+      <PackageReference Include="dbup-postgresql" />
+      <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
+      <PackageReference Include="Grpc.AspNetCore" />
+      <PackageReference Include="MediatR" />
+      <PackageReference Include="MassTransit.RabbitMQ" />
+      <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
+      <PackageReference Include="Npgsql" />
     </ItemGroup>
     <ItemGroup>
       <EmbeddedResource Include="Infrastructure\Persistence\Migrations\*.sql" />

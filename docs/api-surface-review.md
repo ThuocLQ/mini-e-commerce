@@ -23,7 +23,7 @@ Enable OpenAPI/Swagger for selected services in Development.
 
 ## Gateway Routes
 
-The public gateway routes are defined in `Services/ApiGateway/appsettings.json`.
+The public gateway routes are defined in `Gateways/ApiGateway/appsettings.json`.
 
 | Gateway path | Target |
 | --- | --- |
@@ -39,7 +39,7 @@ The public gateway routes are defined in `Services/ApiGateway/appsettings.json`.
 | `/payments/{**catch-all}` | `PaymentService` |
 | `/webhooks/{**catch-all}` | `PaymentService` |
 
-Docker destinations are defined in `Services/ApiGateway/appsettings.Docker.json`.
+Docker destinations are defined in `Gateways/ApiGateway/appsettings.Docker.json`.
 
 ## Important Service Endpoints
 

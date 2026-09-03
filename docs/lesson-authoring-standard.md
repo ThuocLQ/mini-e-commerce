@@ -61,7 +61,7 @@ v2.0.0
 Current services:
 
 ```text
-Services/ApiGateway
+Gateways/ApiGateway
 Services/CatalogService
 Services/BasketService
 Services/OrderingService
@@ -74,7 +74,7 @@ Services/OrderQueryService
 Current workers:
 
 ```text
-Services/NotificationWorker
+Workers/NotificationWorker
 Workers/ProjectionWorker
 ```
 
@@ -235,8 +235,8 @@ Gateway public route rules:
 Before writing routes in a lesson, verify current code:
 
 ```powershell
-Get-Content Services/ApiGateway/appsettings.json
-Get-Content Services/ApiGateway/appsettings.Docker.json
+Get-Content Gateways/ApiGateway/appsettings.json
+Get-Content Gateways/ApiGateway/appsettings.Docker.json
 Get-ChildItem Services -Recurse -Filter *Endpoints.cs
 ```
 
@@ -450,7 +450,7 @@ git status --short
 docker compose config --services
 Get-Content README.md
 Get-Content docs/README.md
-Get-Content Services/ApiGateway/appsettings.json
+Get-Content Gateways/ApiGateway/appsettings.json
 Get-ChildItem Services -Recurse -Filter *Endpoints.cs
 Get-ChildItem Workers -Recurse -Filter *.cs
 ```
@@ -461,7 +461,7 @@ For event lessons, inspect:
 Get-ChildItem BuildingBlocks.Contracts -Recurse -Filter *.cs
 Get-ChildItem Services/OrderingService -Recurse -Filter *.cs
 Get-ChildItem Workers/ProjectionWorker -Recurse -Filter *.cs
-Get-ChildItem Services/NotificationWorker -Recurse -Filter *.cs
+Get-ChildItem Workers/NotificationWorker -Recurse -Filter *.cs
 ```
 
 For database lessons, inspect:
