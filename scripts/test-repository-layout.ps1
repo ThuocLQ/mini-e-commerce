@@ -33,6 +33,15 @@ if ($LASTEXITCODE -ne 1) {
     throw "Repository path scan failed with exit code $LASTEXITCODE."
 }
 
+$duplicatedProjectDefaults = rg -n '<Nullable>enable</Nullable>|<ImplicitUsings>enable</ImplicitUsings>' -g '*.csproj'
+if ($LASTEXITCODE -eq 0) {
+    throw "Compiler defaults belong in Directory.Build.props, not individual projects:`n$duplicatedProjectDefaults"
+}
+
+if ($LASTEXITCODE -ne 1) {
+    throw "Project-default scan failed with exit code $LASTEXITCODE."
+}
+
 $trackedDatabaseArtifacts = git ls-files -- 'Services/**/*.db' 'Services/**/*.sqlite' 'Workers/**/*.db' 'Workers/**/*.sqlite'
 if ($trackedDatabaseArtifacts) {
     throw "Local database artifacts must not be tracked:`n$trackedDatabaseArtifacts"

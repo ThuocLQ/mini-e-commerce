@@ -1,6 +1,6 @@
 # Storefront Browser QA Test Cases
 
-- Scope: customer catalog discovery and product-card interaction
+- Authoritative test matrix: [test-cases/storefront-browser-qa-test-cases.csv](test-cases/storefront-browser-qa-test-cases.csv)`r`n- Scope: customer catalog discovery and product-card interaction
 - Test environment: deterministic Storefront BFF fixture, Chromium, 2026-09-02
 - Data source: `Frontend/e2e/tests/mock-gateway.mjs`; production seed quality is checked separately from `data/portfolio/catalog-products.csv`.
 - Automation: `corepack pnpm --dir Frontend/e2e test`

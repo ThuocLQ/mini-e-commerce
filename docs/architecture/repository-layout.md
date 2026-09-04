@@ -44,7 +44,7 @@ Infrastructure/  Persistence, messaging and external adapters.
 
 Unit tests live beside the owning project only when a dedicated test project is introduced. Cross-service and Testcontainers tests belong in `Tests/MicroShop.IntegrationTests`; k6 checks belong in `Tests/k6`; browser E2E belongs in `Frontend/e2e`.
 
-Manual test cases are maintained as an Excel/test-management artifact under `docs/qa/test-cases`. Test plans and reports are Markdown or DOCX under `docs/qa`. Screenshots and runtime evidence belong in `docs/qa/evidence` and are linked by test-case ID; they are not duplicated across documents.
+Manual test cases use a versioned CSV import source under `docs/qa/test-cases`, then execute in Excel or a test-management system. Test plans and reports are Markdown or DOCX under `docs/qa`. Screenshots and runtime evidence belong in `docs/qa/evidence` and are linked by test-case ID; they are not duplicated across documents.
 
 ## Documentation Lifecycle
 
@@ -52,7 +52,13 @@ Keep maintained documents in these folders: `docs/product`, `docs/architecture`,
 
 Historical Day/Buoi material remains in `GiaoAn`. It is educational history, not the current source of truth. When it disagrees with `docs/product/canonical-system-design.md`, the canonical design wins. Do not mass-edit historical lessons merely because a runtime path moves; add a concise migration note instead.
 
-## Build Governance`r`n`r`n`Directory.Build.props` carries solution-wide compiler defaults and `Directory.Packages.props` owns NuGet package versions. A package version must not be declared inside an individual `.csproj`; upgrade versions centrally, then restore, build and test the full solution. `global.json` pins the supported .NET SDK line for local and CI reproducibility.`r`n`r`n`Run `powershell -ExecutionPolicy Bypass -File .\scripts\test-repository-layout.ps1` before a structural pull request.`r`n`r`n## Naming And Change Rules
+## Build Governance
+
+`Directory.Build.props` carries solution-wide compiler defaults and `Directory.Packages.props` owns NuGet package versions. A package version must not be declared inside an individual `.csproj`; upgrade versions centrally, then restore, build and test the full solution. `global.json` pins the supported .NET SDK line for local and CI reproducibility.
+
+Run `powershell -ExecutionPolicy Bypass -File .\scripts\test-repository-layout.ps1` before a structural pull request.
+
+## Naming And Change Rules
 
 - Use PascalCase for .NET project folders and kebab-case only where tooling expects it, such as Docker image names or Java/Maven artifacts.
 - Keep `Program.cs` and dependency-injection composition at the deployable unit root; do not put use-case logic there.

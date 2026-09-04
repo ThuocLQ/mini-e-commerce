@@ -2,10 +2,10 @@
 
 MicroShop is a learning microservices backend built with .NET 10. The project is used to practice production-minded backend architecture while keeping the local setup understandable.
 
-Current completed:
+Current baseline:
 
 ```text
-Day 72: Production deployment hardening baseline
+Production-like local commerce runtime with customer portfolio flows, asynchronous workers, observability and deployment hardening.
 ```
 
 ## Architecture Goals
@@ -29,12 +29,14 @@ operational visibility basics
 | Service | Responsibility |
 | --- | --- |
 | `ApiGateway` | YARP reverse proxy and public entrypoint |
-| `CatalogService` | Product catalog APIs and gRPC product lookup |
+| CatalogService | Product catalog APIs and gRPC product lookup |
+| `InventoryService` | Inventory reservations, stock settlement and availability snapshots |
 | `BasketService` | Basket state, Redis-backed |
 | `OrderingService` | Order write side, checkout, transactional outbox to RabbitMQ and Kafka |
 | `DiscountService` | Coupon lookup and discount calculation |
 | `IdentityService` | Authentication/JWT foundation |
-| `PaymentService` | Payment creation, webhook reliability, payment outbox, saga dispatch |
+| PaymentService | Payment creation, webhook reliability, payment outbox, saga dispatch |
+| `SupplierService` | Supplier, procurement and purchase-order receipt APIs (Java/Spring Boot) |
 | `OrderQueryService` | MongoDB order summary read model API |
 
 ## Workers
@@ -62,7 +64,8 @@ Routes are configured in `Gateways/ApiGateway/appsettings.json` and Docker desti
 
 | Public path | Target |
 | --- | --- |
-| `/catalog/{**catch-all}` | `CatalogService` |
+| /catalog/{**catch-all} | CatalogService |
+| `/inventory/{**catch-all}` | `InventoryService` |
 | `/cart/{**catch-all}` | `BasketService`, transformed to `/basket/{**catch-all}` |
 | `/orders/{**catch-all}` | `OrderingService` |
 | `/order-summaries` | `OrderQueryService` |
@@ -71,7 +74,8 @@ Routes are configured in `Gateways/ApiGateway/appsettings.json` and Docker desti
 | `/debug/order-summaries/{**catch-all}` | `OrderQueryService`, development/debug flow |
 | `/discounts/{**catch-all}` | `DiscountService` |
 | `/auth/{**catch-all}` | `IdentityService` |
-| `/payments/{**catch-all}` | `PaymentService` |
+| /payments/{**catch-all} | PaymentService |
+| `/suppliers/{**catch-all}` | `SupplierService` |
 | `/webhooks/{**catch-all}` | `PaymentService` |
 
 ## Important Service Endpoints
@@ -164,7 +168,8 @@ RabbitMQ is used for workflow/task messages.
 ### Kafka Projection
 
 ```text
-Kafka CLI demo producer
+OrderingService
+-> Transactional outbox publisher
 -> Kafka topic microshop.order-events
 -> ProjectionWorker
    -> transient failure: microshop.order-events.retry (bounded exponential backoff)
@@ -175,7 +180,7 @@ Kafka CLI demo producer
 -> ApiGateway
 ```
 
-Kafka is currently used for event stream/projection learning. `OrderingService` does not publish Kafka events yet.
+OrderingService publishes versioned order projection events through its transactional outbox. Kafka remains the read-model event stream; RabbitMQ remains the workflow and notification transport.
 
 ## Local Runtime
 
@@ -191,7 +196,7 @@ Projection retry/DLT and duplicate-event smoke test:
 .\scripts\test-projection-reliability.ps1
 ```
 
-Full local system:
+Backend/eventing local runtime (excludes portfolio-only SupplierService and Frontend applications):
 
 ```powershell
 docker compose up -d --build
